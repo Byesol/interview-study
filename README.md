@@ -1,6 +1,6 @@
 # Backend Interview Study
 
-백엔드 면접 준비를 위한 주제별 Q&A 모음 웹사이트
+순수하게 나를 위한 백엔드 면접 준비를 위한 주제별 Q&A 모음 웹사이트
 
 ## 🔗 Live
 
