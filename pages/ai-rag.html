@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG (Retrieval-Augmented Generation)</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<div class="page-header">
+  <a href="../index.html" class="back-link">← 목록으로</a>
+  <h1>RAG (Retrieval-Augmented Generation)</h1>
+  <p>RAG 파이프라인, 벡터 DB, 임베딩, Fine-Tuning과의 비교</p>
+</div>
+
+<div class="content">
+
+  <div class="qa-card">
+    <div class="qa-q">RAG란 무엇이고, 왜 등장했나요?</div>
+    <div class="qa-a">
+      <p>RAG는 <strong>검색(Retrieval) + 생성(Generation)을 결합한 AI 아키텍처</strong>입니다. LLM이 학습하지 못한 최신 정보나 도메인 특화 데이터를 기반으로 답변을 생성할 수 있게 해줍니다. 비유하자면, 시험에서 오픈북이 허용된 것과 같습니다. 학생(LLM)이 모든 걸 외울 필요 없이, 필요할 때 교재(외부 데이터)를 찾아보고 답을 작성하는 방식입니다.</p>
+      <p>RAG가 등장한 배경에는 LLM의 근본적 한계가 있습니다. 첫째, <strong>지식 단절(Knowledge Cutoff)</strong> — LLM은 학습 시점 이후의 정보를 모릅니다. 둘째, <strong>환각(Hallucination)</strong> — 모르는 걸 그럴듯하게 지어냅니다. 셋째, <strong>도메인 특화 지식 부족</strong> — 사내 문서, 특정 제품 매뉴얼 등은 학습 데이터에 없습니다. RAG는 이 세 가지 문제를 검색 단계에서 관련 문서를 찾아와 컨텍스트로 제공함으로써 크게 완화합니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">RAG의 전체 파이프라인을 설명해 주세요.</div>
+    <div class="qa-a">
+      <p>RAG 파이프라인은 크게 <strong>인덱싱 단계</strong>(오프라인)와 <strong>쿼리 단계</strong>(온라인)로 나뉩니다.</p>
+
+      <div class="diagram-box">
+        <svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+          <!-- Indexing -->
+          <text x="15" y="25" fill="#fbbf24" font-size="12" font-weight="700">① 인덱싱 (오프라인)</text>
+          <rect x="15" y="35" width="90" height="36" rx="6" fill="#232736" stroke="#fbbf24"/>
+          <text x="33" y="58" fill="#fbbf24" font-size="11">문서</text>
+          <text x="118" y="58" fill="#94a3b8" font-size="16">→</text>
+          <rect x="140" y="35" width="90" height="36" rx="6" fill="#232736" stroke="#fbbf24"/>
+          <text x="152" y="58" fill="#fbbf24" font-size="11">Chunking</text>
+          <text x="243" y="58" fill="#94a3b8" font-size="16">→</text>
+          <rect x="265" y="35" width="100" height="36" rx="6" fill="#232736" stroke="#fbbf24"/>
+          <text x="275" y="58" fill="#fbbf24" font-size="11">Embedding</text>
+          <text x="378" y="58" fill="#94a3b8" font-size="16">→</text>
+          <rect x="400" y="35" width="120" height="36" rx="6" fill="#232736" stroke="#34d399"/>
+          <text x="410" y="58" fill="#34d399" font-size="11">Vector DB 저장</text>
+          <!-- Query -->
+          <text x="15" y="110" fill="#6c8cff" font-size="12" font-weight="700">② 쿼리 (온라인)</text>
+          <rect x="15" y="120" width="90" height="36" rx="6" fill="#232736" stroke="#6c8cff"/>
+          <text x="25" y="143" fill="#6c8cff" font-size="11">사용자 질문</text>
+          <text x="118" y="143" fill="#94a3b8" font-size="16">→</text>
+          <rect x="140" y="120" width="100" height="36" rx="6" fill="#232736" stroke="#6c8cff"/>
+          <text x="150" y="143" fill="#6c8cff" font-size="11">Query 임베딩</text>
+          <text x="253" y="143" fill="#94a3b8" font-size="16">→</text>
+          <rect x="275" y="120" width="110" height="36" rx="6" fill="#232736" stroke="#34d399"/>
+          <text x="285" y="143" fill="#34d399" font-size="11">유사도 검색</text>
+          <text x="398" y="143" fill="#94a3b8" font-size="16">→</text>
+          <rect x="420" y="120" width="110" height="36" rx="6" fill="#232736" stroke="#a78bfa"/>
+          <text x="430" y="143" fill="#a78bfa" font-size="11">컨텍스트+질문</text>
+          <text x="543" y="143" fill="#94a3b8" font-size="16">→</text>
+          <rect x="565" y="120" width="80" height="36" rx="6" fill="#232736" stroke="#a78bfa"/>
+          <text x="580" y="143" fill="#a78bfa" font-size="11">LLM 응답</text>
+        </svg>
+      </div>
+
+      <p><strong>인덱싱 단계</strong>에서는 문서를 적절한 크기의 청크(Chunk)로 분할하고, 각 청크를 임베딩 모델(예: OpenAI text-embedding-3-small)로 벡터로 변환한 뒤, 벡터 DB(Pinecone, Chroma, pgvector 등)에 저장합니다.</p>
+      <p><strong>쿼리 단계</strong>에서는 사용자 질문을 같은 임베딩 모델로 벡터로 변환하고, 벡터 DB에서 코사인 유사도 등으로 가장 관련 높은 청크 Top-K를 검색합니다. 검색된 청크들을 프롬프트에 컨텍스트로 넣어 LLM에 전달하면, LLM이 이 컨텍스트를 기반으로 답변을 생성합니다.</p>
+      <div class="tail-q">
+        <strong>꼬리질문 대비:</strong> "Chunking 전략은 어떻게 정하나요?"가 자주 나옵니다. 고정 크기(예: 512 토큰)가 기본이지만, 문서 구조를 반영한 시맨틱 청킹, 문단 기반 청킹, 슬라이딩 윈도우(오버랩) 방식 등이 있습니다. 청크가 너무 작으면 맥락을 잃고, 너무 크면 노이즈가 섞여 검색 정확도가 떨어지는 trade-off가 있습니다.
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">RAG에서 검색 품질을 높이려면 어떻게 해야 하나요?</div>
+    <div class="qa-a">
+      <p>RAG의 성능은 <strong>"쓰레기가 들어가면 쓰레기가 나온다(GIGO)"</strong> 원칙이 그대로 적용됩니다. 검색 단계에서 관련 없는 문서가 들어가면 LLM도 부정확한 답변을 생성합니다. 검색 품질을 높이는 주요 전략은 다음과 같습니다.</p>
+      <p>첫째, <strong>하이브리드 검색(Hybrid Search)</strong>입니다. 벡터 유사도 검색(의미 기반)과 키워드 검색(BM25, TF-IDF)을 결합합니다. 벡터 검색은 의미적 유사성에 강하지만, 고유명사나 코드 같은 정확한 매칭에는 약합니다. 키워드 검색을 함께 쓰면 이를 보완할 수 있습니다.</p>
+      <p>둘째, <strong>Re-ranking</strong>입니다. 검색된 Top-K 결과를 Cross-Encoder(예: Cohere Rerank, bge-reranker)로 다시 정렬하여 가장 관련 높은 문서를 상위에 올립니다. Bi-Encoder(임베딩 검색)는 빠르지만 정밀도가 떨어지고, Cross-Encoder는 느리지만 정밀도가 높으므로, 두 단계를 조합하는 것입니다.</p>
+      <p>셋째, <strong>쿼리 변환(Query Transformation)</strong>입니다. 사용자 질문을 그대로 검색에 쓰지 않고, HyDE(가상 문서 생성), 쿼리 분해(Sub-query Decomposition), 쿼리 확장 등을 적용하여 검색 효율을 높입니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">RAG vs Fine-Tuning, 언제 무엇을 쓰나요?</div>
+    <div class="qa-a">
+      <p>이 질문은 면접에서 매우 자주 나오며, 핵심은 <strong>두 기술이 해결하는 문제가 다르다</strong>는 점입니다.</p>
+      <table>
+        <tr><th>구분</th><th>RAG</th><th>Fine-Tuning</th></tr>
+        <tr><td>해결하는 문제</td><td>지식 부족 (what to say)</td><td>행동/스타일 (how to say)</td></tr>
+        <tr><td>데이터 업데이트</td><td>실시간 가능 (DB 교체만)</td><td>재학습 필요 (비용↑, 시간↑)</td></tr>
+        <tr><td>환각 대응</td><td>출처 명시 가능 (검증 용이)</td><td>학습 데이터 품질에 의존</td></tr>
+        <tr><td>비용</td><td>검색 인프라 + 토큰 비용</td><td>학습 비용 (GPU)</td></tr>
+        <tr><td>적합한 경우</td><td>사내 문서 QA, 최신 정보</td><td>특정 도메인 어조, 포맷</td></tr>
+      </table>
+      <p>실무에서는 둘을 배타적으로 선택하는 것이 아니라 <strong>함께 사용</strong>하는 경우가 많습니다. Fine-Tuning으로 도메인 어조와 포맷을 학습시키고, RAG로 최신 지식을 주입하는 조합이 가장 강력합니다. 면접에서는 "상황에 따른 trade-off를 이해하고 적절히 조합한다"는 점을 보여주면 좋습니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">RAG에서 벡터 DB 선택 기준은 어떻게 되나요?</div>
+    <div class="qa-a">
+      <p>벡터 DB 선택은 <strong>규모, 운영 방식, 기존 인프라</strong>에 따라 달라집니다. 소규모(10만 건 미만)라면 <strong>Chroma</strong>나 <strong>FAISS</strong>처럼 인메모리/로컬 방식이 간편합니다. 프로덕션 규모라면 <strong>Pinecone</strong>(완전 관리형, 스케일링 용이)이나 <strong>Weaviate</strong>, <strong>Qdrant</strong>(오픈소스, 자체 호스팅) 등을 고려합니다.</p>
+      <p>이미 PostgreSQL을 쓰고 있다면 <strong>pgvector</strong> 확장으로 별도 DB 없이 벡터 검색을 추가할 수 있어 운영 복잡도를 줄일 수 있습니다. 다만 전용 벡터 DB에 비해 대규모 데이터셋에서의 검색 성능은 떨어질 수 있습니다. 면접에서는 "정답은 없고, 데이터 규모와 운영 역량, 비용을 고려한 trade-off"라는 관점으로 답하면 좋습니다.</p>
+    </div>
+  </div>
+
+</div>
+
+<script src="../js/main.js"></script>
+</body>
+</html>

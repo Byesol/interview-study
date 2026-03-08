@@ -630,53 +630,6 @@ Probe: for each row in large_table:
       </div>
     </div>
 
-    <div class="qa-card">
-      <div class="qa-q">N+1 쿼리 문제란 무엇이고, 어떻게 해결하나요?</div>
-      <div class="qa-a">
-        <p>N+1 쿼리는 <strong>1개의 쿼리로 N개의 레코드를 가져온 뒤, 각 레코드마다 추가 쿼리 N개를 실행하는 현상</strong>입니다. 총 N+1개의 쿼리가 발생합니다. JPA/Hibernate의 지연 로딩(Lazy Loading)과 함께 자주 발생합니다.</p>
-        <pre><span class="comment">// N+1 문제 예시 (JPA Lazy Loading)</span>
-List&lt;Order&gt; orders = orderRepository.findAll(); <span class="comment">// 쿼리 1번: N개 조회</span>
-<span class="keyword">for</span> (Order order : orders) {
-    order.getCustomer().getName();  <span class="comment">// 쿼리 N번: 각 주문마다 customer 조회</span>
-}</pre>
-
-        <p><strong>해결 방법 1: Fetch Join (JOIN FETCH)</strong></p>
-        <pre><span class="comment">// JPQL Fetch Join: 한 번의 쿼리로 연관 엔티티까지 조회</span>
-<span class="annotation">@Query</span>(<span class="string">"SELECT o FROM Order o JOIN FETCH o.customer"</span>)
-List&lt;Order&gt; findAllWithCustomer();</pre>
-
-        <p><strong>해결 방법 2: EntityGraph</strong></p>
-        <pre><span class="annotation">@EntityGraph</span>(attributePaths = {<span class="string">"customer"</span>})
-List&lt;Order&gt; findAll();</pre>
-
-        <p><strong>해결 방법 3: Batch Size (N+1 → 1+1)</strong></p>
-        <pre><span class="comment"># application.yml: Hibernate가 IN 절로 묶어서 조회</span>
-spring.jpa.properties.hibernate.default_batch_fetch_size: 100
-<span class="comment">// 또는 @BatchSize(size = 100) 엔티티 위에 선언</span>
-<span class="comment">// 결과: N개 개별 쿼리 → IN (id1, id2, ...) 배치 쿼리로 변환</span></pre>
-
-        <p><strong>해결 방법 4: 일반 JOIN + DTO 조회 (MyBatis, QueryDSL)</strong></p>
-        <pre><span class="comment">-- 처음부터 JOIN으로 필요한 컬럼만 가져오기</span>
-<span class="keyword">SELECT</span> o.id, o.amount, c.name
-<span class="keyword">FROM</span> orders o
-<span class="keyword">JOIN</span> customers c <span class="keyword">ON</span> o.customer_id = c.id;</pre>
-
-        <table>
-          <tr><th>방법</th><th>특징</th><th>컬렉션(OneToMany) 처리</th></tr>
-          <tr><td><strong>Fetch Join</strong></td><td>한 쿼리에 모두 처리</td><td>컬렉션은 중복 주의 (DISTINCT 필요). Pagination 불가</td></tr>
-          <tr><td><strong>Batch Size</strong></td><td>IN절로 배치 조회</td><td>컬렉션도 안전. Pagination 가능</td></tr>
-          <tr><td><strong>DTO 직접 조회</strong></td><td>가장 성능 좋음</td><td>직접 매핑. 코드 복잡</td></tr>
-        </table>
-        <div class="hl red">
-          <strong>컬렉션 Fetch Join + Pagination 금지:</strong> OneToMany Fetch Join과 LIMIT을 함께 쓰면 Hibernate가 메모리에 전체 데이터를 로드한 뒤 페이징합니다 (<code>HHH90003004</code> 경고). 컬렉션 페이징은 Batch Size를 사용하세요.
-        </div>
-        <div class="tail-q">
-          <strong>꼬리 질문:</strong> N+1 문제는 Eager Loading으로 해결되나요?<br>
-          → Eager Loading을 쓰면 항상 JOIN해서 가져오지만, 사용하지 않는 연관 데이터까지 매번 로딩해 오히려 성능이 나빠질 수 있습니다. 또한 예상치 못한 쿼리가 나가는 문제가 있어 JPA 표준은 기본을 Lazy로 권장합니다.
-        </div>
-      </div>
-    </div>
-
     <div class="category">✦ 면접 한 줄 정리</div>
 
     <div class="hl grn"><strong>INNER JOIN</strong> = 교집합. <strong>LEFT JOIN</strong> = 왼쪽 전체 + 오른쪽 NULL 가능. ON vs WHERE는 OUTER JOIN에서 결정적 차이.</div>

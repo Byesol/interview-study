@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JVM &amp; Garbage Collection</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<div class="page-header">
+  <a href="../index.html" class="back-link">← 목록으로</a>
+  <h1>JVM &amp; Garbage Collection</h1>
+  <p>JVM 구조, 메모리 영역, GC 알고리즘, G1/ZGC, 튜닝</p>
+</div>
+<div class="content">
+
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('p1',this)">Part 1 — JVM 구조</button>
+  <button class="tab-btn" onclick="switchTab('p2',this)">Part 2 — GC 기본</button>
+  <button class="tab-btn" onclick="switchTab('p3',this)">Part 3 — GC 심화</button>
+</div>
+
+<!-- ═══ TAB: JVM 구조 ═══ -->
+<div id="p1" class="tab-content active">
+
+  <div class="category">Part 1 — JVM 기본 구조 · JVM이 무엇이고, 어떤 구조로 동작하는지 면접관에게 설명할 수 있어야 합니다.</div>
+
+  <div class="qa-card">
+    <div class="qa-q">JVM이 무엇이고 왜 필요한가요?</div>
+    <div class="qa-a">
+      <p>JVM(Java Virtual Machine)은 <strong>자바 바이트코드를 실행하는 가상 머신</strong>입니다. 비유하자면, 자바 소스코드를 한국어로 쓴 책이라고 하면, 컴파일러가 이걸 '국제 공용 번역본(바이트코드)'으로 만들고, JVM은 각 나라(OS)에서 그 번역본을 현지 언어로 읽어주는 <strong>통역사</strong>입니다.</p>
+      <p>JVM이 필요한 핵심 이유는 <strong>"Write Once, Run Anywhere"</strong>입니다. 개발자가 Windows에서 작성한 코드가 Linux, Mac에서도 그대로 실행됩니다. JVM이 OS별 차이를 추상화해주기 때문입니다. 또한 JVM은 <strong>메모리 관리(GC)</strong>, <strong>보안(샌드박스)</strong>, <strong>최적화(JIT 컴파일)</strong>를 자동으로 처리해줍니다.</p>
+      <div class="tail-q">
+        <div class="tq-label">꼬리질문 대비</div>
+        <p>"자바가 인터프리터 언어인가요, 컴파일 언어인가요?" — 둘 다입니다. javac가 소스를 바이트코드로 <strong>컴파일</strong>하고, JVM이 바이트코드를 <strong>인터프리트</strong>하다가 핫스팟을 발견하면 <strong>JIT 컴파일</strong>로 네이티브 코드로 변환합니다.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">JVM의 메모리 구조를 설명해주세요.</div>
+    <div class="qa-a">
+      <p>JVM 메모리는 크게 <strong>5가지 영역</strong>으로 구분됩니다. 비유하자면 JVM은 하나의 사무실 건물이고, 각 영역은 용도가 다른 방입니다.</p>
+      <div class="diagram-box">
+        <div class="flow-wrap">
+          <div class="flow-box">Method Area<br><small>클래스 정보, static</small></div>
+          <div class="flow-box">Heap<br><small>객체 인스턴스</small></div>
+          <div class="flow-box">Stack<br><small>스레드별 지역변수</small></div>
+          <div class="flow-box">PC Register<br><small>현재 실행 주소</small></div>
+          <div class="flow-box">Native Stack<br><small>네이티브 메서드</small></div>
+        </div>
+        <div class="diagram-label">JVM Runtime Data Areas</div>
+      </div>
+      <p><strong>Method Area</strong>는 클래스 메타데이터, static 변수, 상수 풀이 저장되는 공용 창고입니다. <strong>Heap</strong>은 new 키워드로 생성된 모든 객체가 살아있는 곳이며, GC의 주요 대상입니다. 이 두 영역은 <strong>모든 스레드가 공유</strong>합니다.</p>
+      <p>반면 <strong>Stack</strong>, <strong>PC Register</strong>, <strong>Native Method Stack</strong>은 <strong>스레드마다 독립적</strong>으로 존재합니다. Stack에는 메서드 호출 시 프레임 단위로 지역변수와 연산 결과가 쌓이고, 메서드가 끝나면 프레임이 제거됩니다. 면접관이 "스택 오버플로우가 왜 발생하나요?"라고 물으면, 재귀 호출이 너무 깊어져 스레드의 Stack 크기를 초과할 때 발생한다고 답하면 됩니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">JIT 컴파일러란 무엇이고, 어떻게 최적화하나요?</div>
+    <div class="qa-a">
+      <p><strong>JIT(Just-In-Time) 컴파일러</strong>는 자주 실행되는 코드(핫스팟)를 런타임에 네이티브 머신 코드로 변환하는 최적화 엔진입니다. 식당에 비유하면, 처음 주문은 레시피를 보고 만들지만(인터프리팅), 같은 메뉴가 계속 나오면 아예 레시피를 외워서 빠르게 만드는 것(JIT 컴파일)과 같습니다.</p>
+      <p>HotSpot JVM에는 <strong>C1(Client) 컴파일러</strong>와 <strong>C2(Server) 컴파일러</strong>가 있습니다. C1은 빠른 컴파일에 초점을 맞추고, C2는 시간이 더 걸리지만 더 공격적인 최적화를 수행합니다. Java 9부터는 <strong>Tiered Compilation</strong>이 기본으로, C1으로 먼저 컴파일한 뒤 핫한 코드를 C2로 재컴파일하는 전략을 사용합니다.</p>
+      <p>대표적인 JIT 최적화로는 <strong>인라이닝</strong>(메서드 호출을 본문으로 대체), <strong>루프 언롤링</strong>, <strong>이스케이프 분석</strong>(객체가 메서드 밖으로 나가지 않으면 스택에 할당) 등이 있습니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">클래스 로딩 과정을 설명해주세요.</div>
+    <div class="qa-a">
+      <p>JVM의 <strong>클래스 로더</strong>는 .class 파일을 메모리에 올리는 역할을 합니다. 이 과정은 <strong>Loading → Linking → Initialization</strong> 세 단계로 진행됩니다.</p>
+      <div class="flow-wrap">
+        <div class="flow-box">Loading<br><small>바이트코드 읽기</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box">Linking<br><small>검증·준비·해석</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box">Initialization<br><small>static 초기화</small></div>
+      </div>
+      <p><strong>Loading</strong>에서는 Bootstrap → Extension → Application 순서의 <strong>부모 위임 모델(Parent Delegation Model)</strong>로 클래스를 찾습니다. 부모 클래스 로더가 찾지 못하면 자식이 찾는 구조입니다. 이렇게 하는 이유는 <strong>핵심 클래스(java.lang.Object 등)가 악의적으로 교체되는 것을 방지</strong>하기 위함입니다. <strong>Linking</strong>에서는 바이트코드 검증, static 변수 메모리 할당, 심볼릭 레퍼런스를 다이렉트 레퍼런스로 교체합니다. <strong>Initialization</strong>에서는 static 블록과 static 변수의 초기값이 실행됩니다.</p>
+    </div>
+  </div>
+
+  <div class="category">Part 2 — JVM 심화</div>
+
+  <div class="qa-card">
+    <div class="qa-q">Java 8의 Permanent Generation이 왜 Metaspace로 바뀌었나요?</div>
+    <div class="qa-a">
+      <p>Java 7까지는 클래스 메타데이터가 <strong>PermGen(Permanent Generation)</strong>이라는 Heap 내부의 고정 크기 영역에 저장되었습니다. 문제는 이 크기가 <strong>고정</strong>(-XX:MaxPermSize)이어서, 동적으로 클래스를 많이 생성하는 프레임워크(Spring, Hibernate 등)에서 <strong>java.lang.OutOfMemoryError: PermGen space</strong>가 빈번하게 발생했다는 것입니다.</p>
+      <p>Java 8부터는 PermGen을 없애고 <strong>Metaspace</strong>라는 <strong>네이티브 메모리 영역</strong>으로 대체했습니다. Metaspace는 OS의 네이티브 메모리를 사용하므로 기본적으로 <strong>크기 제한이 없고</strong>(물론 -XX:MaxMetaspaceSize로 제한 가능), 필요에 따라 자동으로 늘어납니다. 실무에서는 메모리 누수 방지를 위해 MaxMetaspaceSize를 적절히 설정하는 것이 좋습니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">스레드 덤프와 힙 덤프의 차이점과 활용법을 설명해주세요.</div>
+    <div class="qa-a">
+      <p><strong>스레드 덤프</strong>는 현재 JVM의 모든 스레드 상태를 스냅샷으로 찍은 것입니다. "지금 각 직원이 뭐 하고 있지?"를 확인하는 것과 같습니다. <strong>데드락</strong>, <strong>CPU 과점유 스레드</strong>, <strong>스레드 블로킹</strong> 문제를 진단할 때 사용합니다. <em>jstack</em> 명령어나 kill -3으로 생성할 수 있습니다.</p>
+      <p><strong>힙 덤프</strong>는 Heap 메모리에 존재하는 모든 객체의 스냅샷입니다. "사무실에 어떤 물건들이 얼마나 쌓여있지?"를 확인하는 것과 같습니다. <strong>메모리 누수(OOM)</strong>를 진단할 때 사용하며, <em>jmap</em>이나 -XX:+HeapDumpOnOutOfMemoryError 옵션으로 생성합니다. Eclipse MAT이나 VisualVM으로 분석합니다.</p>
+    </div>
+  </div>
+
+</div><!-- #p1 -->
+
+<!-- ═══ TAB: GC 기본 ═══ -->
+<div id="p2" class="tab-content">
+
+  <div class="category">Part 1 — GC 기본 개념 · Garbage Collection의 원리와 세대별 구조를 이해합니다.</div>
+
+  <div class="qa-card">
+    <div class="qa-q">Garbage Collection이란 무엇이고, 왜 필요한가요?</div>
+    <div class="qa-a">
+      <p><strong>Garbage Collection(GC)</strong>은 JVM이 더 이상 참조되지 않는 객체를 자동으로 찾아서 메모리를 회수하는 메커니즘입니다. C/C++에서는 개발자가 malloc/free를 직접 관리해야 하지만, 자바는 GC가 대신 해줍니다. 비유하면, 사무실에서 사용이 끝난 서류를 자동으로 파쇄해주는 <strong>청소 로봇</strong>과 같습니다.</p>
+      <p>GC가 필요한 이유는 <strong>메모리 누수 방지</strong>와 <strong>개발 생산성 향상</strong>입니다. 수동 메모리 관리에서 흔한 dangling pointer, double free 같은 버그를 원천 차단합니다. 다만 GC에도 비용이 있어서, GC가 동작할 때 애플리케이션이 잠시 멈추는 <strong>Stop-The-World(STW)</strong>가 발생합니다. 이 STW 시간을 줄이는 것이 GC 튜닝의 핵심입니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">GC의 세대별(Generational) 구조를 설명해주세요.</div>
+    <div class="qa-a">
+      <p>JVM Heap은 <strong>Young Generation</strong>과 <strong>Old Generation</strong>으로 나뉩니다. 이런 구조를 사용하는 이유는 <strong>"대부분의 객체는 금방 죽는다"</strong>는 경험적 관찰(Weak Generational Hypothesis) 때문입니다.</p>
+      <div class="diagram-box">
+        <div class="flow-wrap">
+          <div class="flow-box">
+            <strong>Young Generation</strong><br>
+            <small>Eden | S0 | S1</small>
+          </div>
+          <div class="flow-arrow">→ Promotion →</div>
+          <div class="flow-box">
+            <strong>Old Generation</strong><br>
+            <small>장기 생존 객체</small>
+          </div>
+        </div>
+        <div class="diagram-label">Generational Heap 구조</div>
+      </div>
+      <p><strong>Young Generation</strong>은 새로 생성된 객체가 들어가는 공간으로, <strong>Eden</strong>과 두 개의 <strong>Survivor(S0, S1)</strong> 영역으로 구성됩니다. Eden이 가득 차면 <strong>Minor GC</strong>가 발생하고, 살아남은 객체는 Survivor로 이동합니다. Survivor에서 일정 횟수(Age Threshold, 기본 15)를 버틴 객체가 <strong>Old Generation</strong>으로 승격(Promotion)됩니다. Old Generation이 가득 차면 <strong>Major GC(Full GC)</strong>가 발생하는데, 이것이 STW가 길어지는 주범입니다.</p>
+      <div class="tail-q">
+        <div class="tq-label">꼬리질문 대비</div>
+        <p>"Survivor 영역이 왜 두 개인가요?" — <strong>Minor GC 시 Eden + 활성 Survivor의 살아남은 객체를 빈 Survivor로 복사</strong>하는 방식을 씁니다. 이렇게 하면 메모리 단편화(fragmentation)가 발생하지 않고, 연속된 메모리 공간을 확보할 수 있습니다.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">GC가 "살아있는 객체"를 어떻게 판별하나요?</div>
+    <div class="qa-a">
+      <p>현대 JVM은 <strong>Reachability Analysis(도달성 분석)</strong>를 사용합니다. <strong>GC Root</strong>라고 불리는 시작점에서 참조 체인을 따라가며, 도달할 수 있는 객체는 살아있고, 도달할 수 없으면 GC 대상입니다.</p>
+      <p>GC Root가 될 수 있는 것들은 <strong>스레드 스택의 지역변수</strong>, <strong>static 변수</strong>, <strong>JNI 참조</strong>, <strong>활성 스레드</strong> 등입니다. 참조 카운팅(Reference Counting) 방식은 순환 참조 문제가 있어 자바에서는 사용하지 않습니다. 예를 들어 객체 A와 B가 서로만 참조하면 카운트가 0이 안 되지만, Reachability 방식에서는 GC Root에서 도달 불가하므로 정상적으로 수거됩니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">Minor GC와 Major GC(Full GC)의 차이를 설명해주세요.</div>
+    <div class="qa-a">
+      <p><strong>Minor GC</strong>는 Young Generation만 대상으로 하는 GC입니다. Eden이 가득 차면 트리거되며, 대부분의 객체가 이미 죽어있기 때문에 <strong>보통 수 ms 이내로 매우 빠릅니다</strong>. 살아남은 소수의 객체만 Survivor로 복사하면 되기 때문입니다.</p>
+      <p><strong>Major GC(Full GC)</strong>는 Old Generation을 대상으로 하며, 경우에 따라 전체 Heap을 스캔합니다. Old Generation에는 오래 살아남은 객체가 밀집해 있어 <strong>스캔 범위가 넓고 STW 시간이 길어집니다</strong>. 실무에서 GC 튜닝의 핵심은 바로 이 Full GC의 빈도와 시간을 줄이는 것입니다.</p>
+      <table>
+        <tr><th>구분</th><th>Minor GC</th><th>Major GC / Full GC</th></tr>
+        <tr><td>대상</td><td>Young Generation</td><td>Old Generation (+ Young)</td></tr>
+        <tr><td>트리거</td><td>Eden 가득 참</td><td>Old 가득 참</td></tr>
+        <tr><td>STW 시간</td><td>수 ms (짧음)</td><td>수십 ms ~ 수 초 (길음)</td></tr>
+        <tr><td>빈도</td><td>자주 발생</td><td>드물게 발생</td></tr>
+      </table>
+    </div>
+  </div>
+
+</div><!-- #p2 -->
+
+<!-- ═══ TAB: GC 심화 ═══ -->
+<div id="p3" class="tab-content">
+
+  <div class="category">Part 1 — GC 알고리즘 비교 · 각 GC 수집기의 동작 원리, 차이점, 적합한 상황을 설명합니다.</div>
+
+  <div class="qa-card">
+    <div class="qa-q">Serial, Parallel, CMS, G1, ZGC의 차이를 설명해주세요.</div>
+    <div class="qa-a">
+      <p>각 GC 수집기를 식당의 청소 방식에 비유하면 이해가 쉽습니다.</p>
+      <table>
+        <tr><th>GC</th><th>방식</th><th>STW</th><th>적합한 환경</th></tr>
+        <tr><td><strong>Serial</strong></td><td>싱글 스레드로 수집</td><td>길다</td><td>싱글 코어, 소규모 앱</td></tr>
+        <tr><td><strong>Parallel</strong></td><td>멀티 스레드로 수집 (처리량 최적)</td><td>중간</td><td>배치 처리, 처리량 우선</td></tr>
+        <tr><td><strong>CMS</strong></td><td>Old GC를 앱과 동시 수행</td><td>짧지만 단편화 문제</td><td>Java 8 이하 저지연 앱</td></tr>
+        <tr><td><strong>G1</strong></td><td>Heap을 Region으로 나눠 우선순위 수집</td><td>예측 가능 (목표 설정)</td><td>Java 9+ 기본, 범용</td></tr>
+        <tr><td><strong>ZGC</strong></td><td>컬러 포인터 + 동시 수집</td><td>1ms 이하</td><td>대용량 Heap, 초저지연</td></tr>
+      </table>
+      <p><strong>Serial</strong>은 혼자서 청소하는 것이고, <strong>Parallel</strong>은 여러 명이 한꺼번에 청소하되 가게 문을 닫습니다. <strong>CMS</strong>는 영업 중에 청소하지만 쓰레기가 구석구석 흩어져(단편화) 결국 한번은 문을 닫아야 합니다. <strong>G1</strong>은 구역별로 나눠서 쓰레기가 가장 많은 구역(Garbage-First)부터 청소하니 효율적입니다. <strong>ZGC</strong>는 아예 손님이 거의 느끼지 못하게 청소합니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">G1 GC의 동작 원리를 자세히 설명해주세요.</div>
+    <div class="qa-a">
+      <p>G1(Garbage-First) GC는 <strong>Heap을 동일 크기의 Region(기본 1~32MB)으로 나누고</strong>, 각 Region에 Eden, Survivor, Old, Humongous 역할을 동적으로 부여합니다. 기존의 물리적으로 고정된 세대 구분 대신, <strong>논리적 세대</strong>를 사용하는 것이 핵심 혁신입니다.</p>
+      <div class="diagram-box">
+        <svg viewBox="0 0 480 180" xmlns="http://www.w3.org/2000/svg">
+          <rect x="10" y="10" width="55" height="55" rx="4" fill="#55efc4" opacity="0.3" stroke="#55efc4"/>
+          <text x="37" y="42" font-size="10" fill="#55efc4" text-anchor="middle">Eden</text>
+          <rect x="70" y="10" width="55" height="55" rx="4" fill="#55efc4" opacity="0.3" stroke="#55efc4"/>
+          <text x="97" y="42" font-size="10" fill="#55efc4" text-anchor="middle">Eden</text>
+          <rect x="130" y="10" width="55" height="55" rx="4" fill="#74b9ff" opacity="0.3" stroke="#74b9ff"/>
+          <text x="157" y="42" font-size="10" fill="#74b9ff" text-anchor="middle">S</text>
+          <rect x="190" y="10" width="55" height="55" rx="4" fill="#fab1a0" opacity="0.3" stroke="#fab1a0"/>
+          <text x="217" y="42" font-size="10" fill="#fab1a0" text-anchor="middle">Old</text>
+          <rect x="250" y="10" width="55" height="55" rx="4" fill="#fab1a0" opacity="0.3" stroke="#fab1a0"/>
+          <text x="277" y="42" font-size="10" fill="#fab1a0" text-anchor="middle">Old</text>
+          <rect x="310" y="10" width="55" height="55" rx="4" fill="#fab1a0" opacity="0.3" stroke="#fab1a0"/>
+          <text x="337" y="42" font-size="10" fill="#fab1a0" text-anchor="middle">Old</text>
+          <rect x="370" y="10" width="55" height="55" rx="4" fill="#a29bfe" opacity="0.3" stroke="#a29bfe"/>
+          <text x="397" y="38" font-size="9" fill="#a29bfe" text-anchor="middle">Humon-</text>
+          <text x="397" y="50" font-size="9" fill="#a29bfe" text-anchor="middle">gous</text>
+          <rect x="10" y="70" width="55" height="55" rx="4" fill="#fab1a0" opacity="0.3" stroke="#fab1a0"/>
+          <text x="37" y="102" font-size="10" fill="#fab1a0" text-anchor="middle">Old</text>
+          <rect x="70" y="70" width="55" height="55" rx="4" fill="#55efc4" opacity="0.3" stroke="#55efc4"/>
+          <text x="97" y="102" font-size="10" fill="#55efc4" text-anchor="middle">Eden</text>
+          <rect x="130" y="70" width="55" height="55" rx="4" fill="transparent" stroke="#5c6370" stroke-dasharray="4"/>
+          <text x="157" y="102" font-size="10" fill="#5c6370" text-anchor="middle">Free</text>
+          <rect x="190" y="70" width="55" height="55" rx="4" fill="#fab1a0" opacity="0.3" stroke="#fab1a0"/>
+          <text x="217" y="102" font-size="10" fill="#fab1a0" text-anchor="middle">Old</text>
+          <rect x="250" y="70" width="55" height="55" rx="4" fill="transparent" stroke="#5c6370" stroke-dasharray="4"/>
+          <text x="277" y="102" font-size="10" fill="#5c6370" text-anchor="middle">Free</text>
+          <rect x="310" y="70" width="55" height="55" rx="4" fill="#74b9ff" opacity="0.3" stroke="#74b9ff"/>
+          <text x="337" y="102" font-size="10" fill="#74b9ff" text-anchor="middle">S</text>
+          <rect x="370" y="70" width="55" height="55" rx="4" fill="#55efc4" opacity="0.3" stroke="#55efc4"/>
+          <text x="397" y="102" font-size="10" fill="#55efc4" text-anchor="middle">Eden</text>
+          <rect x="10" y="145" width="12" height="12" rx="2" fill="#55efc4" opacity="0.5"/>
+          <text x="28" y="155" font-size="10" fill="#8892b0">Eden</text>
+          <rect x="80" y="145" width="12" height="12" rx="2" fill="#74b9ff" opacity="0.5"/>
+          <text x="98" y="155" font-size="10" fill="#8892b0">Survivor</text>
+          <rect x="170" y="145" width="12" height="12" rx="2" fill="#fab1a0" opacity="0.5"/>
+          <text x="188" y="155" font-size="10" fill="#8892b0">Old</text>
+          <rect x="230" y="145" width="12" height="12" rx="2" fill="#a29bfe" opacity="0.5"/>
+          <text x="248" y="155" font-size="10" fill="#8892b0">Humongous</text>
+          <rect x="340" y="145" width="12" height="12" rx="2" fill="transparent" stroke="#5c6370" stroke-dasharray="4"/>
+          <text x="358" y="155" font-size="10" fill="#8892b0">Free</text>
+        </svg>
+        <div class="diagram-label">G1 GC — Region 기반 Heap 레이아웃</div>
+      </div>
+      <p>G1의 수집 과정은 크게 <strong>Young GC</strong>와 <strong>Mixed GC</strong>로 나뉩니다. Young GC는 Eden Region만 수집하며, Mixed GC는 Young + 쓰레기가 많은 Old Region을 함께 수집합니다. <strong>-XX:MaxGCPauseMillis</strong>(기본 200ms)로 목표 STW 시간을 설정하면, G1이 수집할 Region 수를 자동으로 조절합니다. 또한 <strong>Remembered Set(RSet)</strong>으로 Region 간 참조를 추적하여, 전체 Heap을 스캔하지 않고도 특정 Region의 참조 관계를 파악합니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">ZGC는 어떻게 1ms 이하의 STW를 달성하나요?</div>
+    <div class="qa-a">
+      <p>ZGC의 핵심 기술은 <strong>Colored Pointer(컬러 포인터)</strong>와 <strong>Load Barrier(로드 배리어)</strong>입니다. 64비트 포인터의 상위 비트에 객체의 상태(Marked, Remapped, Finalizable 등)를 인코딩하여, 객체를 읽는 순간에 해당 객체의 GC 상태를 즉시 파악합니다.</p>
+      <p>ZGC는 객체를 이동시키면서도 애플리케이션을 멈추지 않습니다. 객체가 이동되면 이전 주소로 접근하는 스레드가 Load Barrier를 통해 <strong>자동으로 새 주소로 리다이렉트</strong>됩니다. 이것은 마치 택배 물류센터가 이사해도, 기존 주소로 보낸 택배가 자동 전달되는 것과 같습니다. STW는 <strong>GC Root 스캔</strong>에만 발생하며, 이는 매우 짧은 시간(보통 1ms 미만)에 완료됩니다. Java 21 LTS에서 Generational ZGC가 도입되어 Young/Old 세대 구분까지 추가되었습니다.</p>
+    </div>
+  </div>
+
+  <div class="category">Part 2 — GC 실무 튜닝</div>
+
+  <div class="qa-card">
+    <div class="qa-q">실무에서 GC 튜닝은 어떻게 접근하나요?</div>
+    <div class="qa-a">
+      <p>GC 튜닝의 첫 번째 원칙은 <strong>"측정 먼저, 튜닝은 나중에"</strong>입니다. -Xlog:gc* (Java 9+) 또는 -verbose:gc로 GC 로그를 활성화하고, <strong>GC Viewer</strong>나 <strong>GCEasy</strong> 같은 도구로 분석합니다.</p>
+      <p>확인해야 할 핵심 지표는 <strong>GC 빈도</strong>, <strong>STW 시간</strong>, <strong>Heap 사용률 추이</strong>입니다. Old Generation 사용량이 GC 후에도 계속 증가하면 <strong>메모리 누수</strong>를 의심해야 합니다. 보통은 <strong>Heap 크기(-Xms, -Xmx)</strong>를 적절히 설정하는 것만으로도 대부분의 문제가 해결됩니다. -Xms와 -Xmx를 동일하게 설정하면 Heap 리사이징에 의한 불필요한 GC를 방지할 수 있습니다.</p>
+      <p>실무 권장 사항으로는, Java 17+ 환경에서 특별한 이유가 없다면 <strong>G1 GC(기본값)를 그대로 사용</strong>하고, 초저지연이 필요하면 ZGC를 고려합니다. 무작정 옵션을 많이 건드리기보다, <strong>애플리케이션 특성</strong>(처리량 vs 지연시간)에 맞는 GC를 선택하고 최소한의 옵션만 조정하는 것이 좋습니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">GC가 애플리케이션 성능에 미치는 영향을 어떻게 모니터링하나요?</div>
+    <div class="qa-a">
+      <p>실무에서는 <strong>Prometheus + Grafana</strong> 조합으로 JVM 메트릭을 실시간 모니터링합니다. Spring Boot라면 <strong>Micrometer</strong>가 JVM 메트릭을 자동 수집하고, jvm_gc_pause_seconds, jvm_memory_used_bytes 같은 메트릭으로 GC 상태를 대시보드에서 확인합니다.</p>
+      <p>주의 깊게 볼 지표는 <strong>GC Pause 시간의 P99</strong>(99퍼센타일), <strong>GC 발생 빈도</strong>, <strong>Heap 점유율 추이</strong>입니다. Full GC가 잦아지거나 STW 시간이 급격히 늘어나면 알람을 설정해두는 것이 좋습니다. 또한 <strong>jstat -gcutil</strong> 명령어로 각 세대의 사용률을 실시간으로 확인할 수 있습니다.</p>
+    </div>
+  </div>
+
+</div><!-- #p3 -->
+
+<div class="hl grn" style="margin-top:2rem"><strong>JVM</strong> = 바이트코드 실행 가상 머신 (플랫폼 독립성)</div>
+<div class="hl org"><strong>GC</strong> = 자동 메모리 회수 (STW 최소화가 핵심)</div>
+<div class="hl blu"><strong>G1</strong> = Region 기반 + 예측 가능한 STW · <strong>ZGC</strong> = Colored Pointer로 1ms 이하 STW</div>
+
+</div><!-- .content -->
+<script src="../js/main.js"></script>
+</body>
+</html>

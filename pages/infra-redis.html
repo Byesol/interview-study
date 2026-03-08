@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Redis 클러스터</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<div class="page-header">
+  <a href="../index.html" class="back-link">← 목록으로</a>
+  <h1>Redis 클러스터</h1>
+  <p>Hash Slot, 장애 감지, Failover, Sentinel vs Cluster</p>
+</div>
+<div class="content">
+
+  <div class="category">Part 1 — Redis 클러스터 기본</div>
+
+  <div class="qa-card">
+    <div class="qa-q">Redis 클러스터란 무엇이고, 왜 필요한가요?</div>
+    <div class="qa-a">
+      <p><strong>Redis 클러스터</strong>는 데이터를 여러 Redis 노드에 <strong>자동으로 분산 저장</strong>하는 수평 확장(Scale-Out) 솔루션입니다. 단일 Redis 인스턴스는 하나의 서버 메모리에 제한되지만, 클러스터를 사용하면 <strong>여러 노드의 메모리를 합쳐</strong> 더 큰 데이터셋을 처리할 수 있습니다.</p>
+      <p>비유하면, 단일 Redis는 <strong>하나의 금고</strong>이고, Redis 클러스터는 <strong>여러 금고가 연결된 은행 볼트 시스템</strong>입니다. 각 금고(노드)에 특정 번호대의 자산(데이터)을 분산 보관하고, 어떤 금고에 있는지는 시스템이 자동으로 안내해줍니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">Redis 클러스터의 데이터 분산(Hash Slot) 방식을 설명해주세요.</div>
+    <div class="qa-a">
+      <p>Redis 클러스터는 <strong>16,384개의 해시 슬롯(Hash Slot)</strong>을 사용합니다. 키의 해시 슬롯은 <strong>CRC16(key) mod 16384</strong>로 계산됩니다. 각 마스터 노드가 해시 슬롯의 일부를 담당합니다.</p>
+      <div class="diagram-box">
+        <div class="flow-wrap">
+          <div class="flow-box">Node A<br><small>슬롯 0~5460</small></div>
+          <div class="flow-box">Node B<br><small>슬롯 5461~10922</small></div>
+          <div class="flow-box">Node C<br><small>슬롯 10923~16383</small></div>
+        </div>
+        <div class="diagram-label">3개 마스터 노드의 해시 슬롯 분배</div>
+      </div>
+      <p>클라이언트가 키에 접근하면, 해시 슬롯을 계산하여 해당 노드로 요청합니다. 만약 잘못된 노드에 요청하면 <strong>MOVED 리다이렉션</strong> 응답을 받고, 올바른 노드로 재요청합니다. 스마트 클라이언트(Jedis, Lettuce 등)는 슬롯-노드 매핑을 캐싱하여 대부분 한 번에 올바른 노드로 요청합니다.</p>
+      <div class="tail-q">
+        <div class="tq-label">꼬리질문 대비</div>
+        <p>"멀티 키 연산은 어떻게 하나요?" — 같은 슬롯에 있는 키만 멀티 키 연산이 가능합니다. 이를 위해 <strong>Hash Tag</strong>를 사용합니다. 예: {user:1000}.profile, {user:1000}.session처럼 중괄호 안의 부분만 해시 계산에 사용되어 같은 슬롯에 배치됩니다.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">Redis 클러스터에서 장애 감지와 페일오버는 어떻게 동작하나요?</div>
+    <div class="qa-a">
+      <p>Redis 클러스터는 <strong>Gossip 프로토콜</strong>을 사용하여 노드 간 상태를 주기적으로 교환합니다. 각 노드는 다른 노드에 PING을 보내고, 일정 시간(cluster-node-timeout) 내에 응답이 없으면 해당 노드를 <strong>PFAIL(Probable Fail)</strong>로 표시합니다.</p>
+      <p>과반수 이상의 마스터 노드가 특정 노드를 PFAIL로 보고하면, 그 노드는 <strong>FAIL 상태</strong>가 됩니다. FAIL 상태가 되면 해당 마스터의 <strong>레플리카(Slave) 중 하나가 자동으로 마스터로 승격</strong>됩니다. 이 과정에서 레플리카는 다른 마스터들에게 투표를 요청하고, 과반 이상의 동의를 받으면 새 마스터가 됩니다. 전체 과정은 보통 <strong>수 초 이내</strong>에 완료됩니다.</p>
+      <p>주의할 점은 Redis 클러스터는 <strong>비동기 복제</strong>를 사용하므로, 마스터가 쓰기를 받은 직후 장애가 나면 레플리카에 아직 복제되지 않은 데이터가 유실될 수 있습니다. 이것이 Redis 클러스터가 <strong>강한 일관성(Strong Consistency)을 보장하지 않는</strong> 이유입니다.</p>
+    </div>
+  </div>
+
+  <div class="category">Part 2 — Redis 클러스터 실무</div>
+
+  <div class="qa-card">
+    <div class="qa-q">Redis Sentinel과 Redis 클러스터의 차이는?</div>
+    <div class="qa-a">
+      <table>
+        <tr><th>구분</th><th>Redis Sentinel</th><th>Redis Cluster</th></tr>
+        <tr><td>목적</td><td>고가용성(HA) — 자동 페일오버</td><td>수평 확장 + 고가용성</td></tr>
+        <tr><td>데이터 분산</td><td>없음 (단일 마스터에 전체 데이터)</td><td>있음 (해시 슬롯으로 분산)</td></tr>
+        <tr><td>용량 확장</td><td>수직 확장(Scale-Up)만 가능</td><td>수평 확장(Scale-Out) 가능</td></tr>
+        <tr><td>구성</td><td>마스터-슬레이브 + Sentinel 프로세스</td><td>마스터-레플리카 노드 (최소 6개 권장)</td></tr>
+        <tr><td>적합 상황</td><td>데이터 작고 HA만 필요</td><td>데이터 크거나 높은 처리량 필요</td></tr>
+      </table>
+      <p>Sentinel은 "수문장"으로 마스터 장애를 감지하고 슬레이브를 승격시키는 역할에 집중합니다. 데이터는 여전히 단일 마스터에 있으므로 한 서버의 메모리 한계가 곧 데이터 한계입니다. 반면 클러스터는 데이터를 나누어 저장하므로 <strong>노드를 추가하면 용량과 처리량이 선형으로 증가</strong>합니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">Redis 클러스터 운영 시 주의사항은?</div>
+    <div class="qa-a">
+      <p>첫째, <strong>키 설계</strong>가 중요합니다. 특정 슬롯에 데이터가 집중되면(Hot Key) 부하가 편중됩니다. Hash Tag를 사용할 때도 지나치게 많은 키를 같은 슬롯에 몰지 않도록 주의해야 합니다.</p>
+      <p>둘째, <strong>네트워크 파티션</strong>에 대비해야 합니다. cluster-node-timeout을 너무 짧게 설정하면 네트워크 순간 지연에도 불필요한 페일오버가 발생합니다. 보통 5~15초가 적절합니다. 셋째, <strong>리샤딩(Resharding)</strong> 시 데이터 마이그레이션이 발생하므로 피크 시간을 피해야 합니다. 넷째, 클러스터 모드에서는 <strong>SELECT(DB 전환)</strong>가 불가하고 DB 0만 사용 가능하며, <strong>Lua 스크립트</strong>에서 접근하는 모든 키가 같은 슬롯에 있어야 합니다.</p>
+    </div>
+  </div>
+
+  <div class="hl pnk" style="margin-top:2rem"><strong>Redis Cluster</strong> = 16384 Hash Slot 분산 · Gossip 프로토콜로 장애 감지 · 비동기 복제로 Strong Consistency 미보장</div>
+
+</div><!-- .content -->
+<script src="../js/main.js"></script>
+</body>
+</html>

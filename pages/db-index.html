@@ -6,32 +6,25 @@
 <title>인덱스 완전 정복</title>
 <link rel="stylesheet" href="../css/style.css">
 <style>
-  /* SVG color variables used in diagrams */
+  /* SVG color variables — union of all 3 source files */
   .diagram-box {
-    --surface2: #1e2233;
-    --surface3: #282d42;
-    --border: #2a3050;
-    --text: #e2e5f0;
-    --dim: #7a80a0;
-    --accent: #7c6cf0;
-    --accent2: #b0a4ff;
-    --green: #2dd4bf;
-    --green-dim: rgba(45,212,191,0.12);
-    --orange: #fbbf24;
-    --orange-dim: rgba(251,191,36,0.1);
-    --red: #f87171;
-    --red-dim: rgba(248,113,113,0.1);
-    --blue: #60a5fa;
-    --blue-dim: rgba(96,165,250,0.1);
-    --pink: #f472b6;
-    --pink-dim: rgba(244,114,182,0.1);
-    --cyan: #22d3ee;
+    --s1:#151821;--s2:#1e2233;--s3:#282d42;--bd:#2a3050;
+    --tx:#e2e5f0;--dim:#7a80a0;--acc:#7c6cf0;--acc2:#b0a4ff;
+    --grn:#2dd4bf;--org:#fbbf24;--red:#f87171;--blu:#60a5fa;--pnk:#f472b6;--cyan:#22d3ee;
+    --green:#2dd4bf;--green-dim:rgba(45,212,191,0.12);
+    --orange:#fbbf24;--orange-dim:rgba(251,191,36,0.1);
+    --red-dim:rgba(248,113,113,0.1);
+    --blue:#60a5fa;--blue-dim:rgba(96,165,250,0.1);
+    --pink:#f472b6;--pink-dim:rgba(244,114,182,0.1);
+    --border:#2a3050;--text:#e2e5f0;--accent:#7c6cf0;--accent2:#b0a4ff;
+    /* btree-source variables (aliased so btree HTML components work) */
+    --surface:#1a1d27;--surface2:#1e2233;--text-dim:#7a80a0;
   }
 
   /* SQL code block */
   .sql-block {
-    background: var(--code-bg);
-    border: 1px solid var(--border);
+    background: var(--code-bg, #151821);
+    border: 1px solid var(--bd);
     border-radius: 10px;
     padding: 14px 18px;
     font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
@@ -39,15 +32,15 @@
     line-height: 1.9;
     overflow-x: auto;
     margin: 10px 0;
-    color: var(--text-dim);
+    color: var(--dim);
   }
 
-  /* Tag variants from source */
-  .tag.ok   { background: var(--green-dim); color: var(--green); border: 1px solid rgba(45,212,191,0.3); }
-  .tag.no   { background: var(--red-dim);   color: var(--red);   border: 1px solid rgba(248,113,113,0.3); }
-  .tag.part { background: var(--orange-dim);color: var(--orange);border: 1px solid rgba(251,191,36,0.3); }
+  /* Tag variants */
+  .tag.ok   { background: var(--green-dim); color: var(--grn); border: 1px solid rgba(45,212,191,0.3); }
+  .tag.no   { background: var(--red-dim);   color: var(--red); border: 1px solid rgba(248,113,113,0.3); }
+  .tag.part { background: var(--orange-dim);color: var(--org); border: 1px solid rgba(251,191,36,0.3); }
 
-  /* Inline flow diagram */
+  /* Inline flow diagram (from db-index source) */
   .flow-wrap {
     display: flex;
     align-items: center;
@@ -57,28 +50,171 @@
     margin: 14px 0;
   }
   .flow-item {
-    background: var(--surface2);
-    border: 1px solid var(--border);
+    background: var(--s2);
+    border: 1px solid var(--bd);
     border-radius: 10px;
     padding: 12px 16px;
     text-align: center;
     min-width: 100px;
   }
-  .flow-item .ft { font-size: 0.72rem; color: var(--text-dim); }
+  .flow-item .ft { font-size: 0.72rem; color: var(--dim); }
   .flow-item .fv { font-size: 0.85rem; font-weight: 700; }
-  .flow-arr { color: var(--text-dim); font-size: 1.2rem; padding: 0 6px; flex-shrink: 0; }
+  .flow-arr { color: var(--dim); font-size: 1.2rem; padding: 0 6px; flex-shrink: 0; }
 
-  /* Answer banner (Q/A box inside answer) */
+  /* Answer banner */
   .answer-box {
     background: linear-gradient(135deg, rgba(124,108,240,0.08), rgba(45,212,191,0.06));
-    border: 1px solid var(--border);
+    border: 1px solid var(--bd);
     border-radius: 12px;
     padding: 18px 20px;
     margin: 12px 0;
   }
-  .answer-box .q { font-weight: 800; font-size: 0.92rem; margin-bottom: 6px; color: var(--accent2); }
-  .answer-box .a { font-size: 0.85rem; color: var(--text-dim); }
-  .answer-box .a strong { color: var(--text); }
+  .answer-box .q { font-weight: 800; font-size: 0.92rem; margin-bottom: 6px; color: var(--acc2); }
+  .answer-box .a { font-size: 0.85rem; color: var(--dim); }
+  .answer-box .a strong { color: var(--tx); }
+
+  /* B+Tree page visual components (from db-btree source) */
+  .page-visual {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  .disk-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--dim);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .disk-bar {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .page-block {
+    width: 80px;
+    height: 56px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    border: 2px solid;
+    cursor: default;
+  }
+  .page-block .label { font-size: 0.6rem; opacity: 0.7; }
+  .page-block.root     { background: rgba(108,92,231,0.15); border-color: #6c5ce7; color: #a29bfe; }
+  .page-block.internal { background: rgba(116,185,255,0.10); border-color: #74b9ff; color: #74b9ff; }
+  .page-block.leaf     { background: rgba(0,206,201,0.10);  border-color: #00cec9; color: #00cec9; }
+  .page-block.data     { background: rgba(253,203,110,0.10); border-color: #fdcb6e; color: #fdcb6e; }
+  .page-size-note {
+    font-size: 0.78rem;
+    color: var(--dim);
+    text-align: center;
+    margin-top: 4px;
+  }
+  .page-internal { display: flex; justify-content: center; margin-top: 16px; }
+  .page-struct {
+    border: 2px solid var(--bd);
+    border-radius: 12px;
+    overflow: hidden;
+    min-width: 500px;
+  }
+  .page-struct-header {
+    background: var(--s2);
+    padding: 8px 16px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-align: center;
+    border-bottom: 1px solid var(--bd);
+    color: #a29bfe;
+  }
+  .page-struct-body { display: flex; align-items: stretch; }
+  .page-cell {
+    flex: 1;
+    padding: 12px 8px;
+    text-align: center;
+    font-size: 0.72rem;
+    font-family: 'JetBrains Mono', monospace;
+    border-right: 1px dashed var(--bd);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .page-cell:last-child { border-right: none; }
+  .page-cell .cell-label { font-size: 0.6rem; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; }
+  .page-cell .cell-val { font-weight: 600; }
+  .page-cell .cell-val.key  { color: #00cec9; }
+  .page-cell .cell-val.ptr  { color: #74b9ff; }
+  .page-cell .cell-val.data { color: #fdcb6e; }
+  .highlight-box {
+    background: rgba(108,92,231,0.08);
+    border-left: 3px solid #6c5ce7;
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin-top: 16px;
+    font-size: 0.85rem;
+    color: var(--dim);
+  }
+  .highlight-box strong { color: var(--tx); }
+  .relation-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 16px;
+    align-items: center;
+  }
+  .rel-card {
+    background: var(--s2);
+    border: 1px solid var(--bd);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .rel-card h4 { font-size: 0.9rem; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .rel-card ul { list-style: none; font-size: 0.82rem; color: var(--dim); }
+  .rel-card ul li { padding: 4px 0 4px 16px; position: relative; }
+  .rel-card ul li::before { content: '→'; position: absolute; left: 0; color: #a29bfe; }
+  .arrow-col { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--dim); font-size: 0.75rem; }
+  .arrow-col .arrow-icon { font-size: 1.6rem; color: #a29bfe; }
+  .legend {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+    justify-content: center;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--dim); }
+  .legend-dot { width: 12px; height: 12px; border-radius: 4px; }
+  .flow-steps {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .flow-step {
+    background: var(--s2);
+    border: 1px solid var(--bd);
+    border-radius: 12px;
+    padding: 16px 20px;
+    text-align: center;
+    min-width: 140px;
+  }
+  .flow-step .step-num { font-size: 0.65rem; color: #a29bfe; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+  .flow-step .step-title { font-size: 0.85rem; font-weight: 700; margin-bottom: 4px; }
+  .flow-step .step-desc { font-size: 0.72rem; color: var(--dim); }
+  .flow-arrow { font-size: 1.3rem; color: var(--dim); padding: 0 4px; flex-shrink: 0; }
+
+  @media (max-width: 700px) {
+    .relation-grid { grid-template-columns: 1fr; }
+    .page-struct { min-width: 100%; }
+    .flow-steps { flex-direction: column; align-items: stretch; }
+    .flow-wrap { flex-direction: column; align-items: stretch; }
+  }
 </style>
 </head>
 <body>
@@ -86,379 +222,815 @@
 <div class="page-header">
   <a href="../index.html" class="back-link">← 목록으로</a>
   <h1>인덱스 완전 정복</h1>
-  <p>PK·Key·클러스터드·논클러스터드·복합·커버링 인덱스와 쿼리 동작 원리</p>
+  <p>Key, B+Tree, 클러스터드/세컨더리, 복합 인덱스, 커버링 인덱스까지</p>
 </div>
 
 <div class="content">
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('p1',this)">Part 1 · Key &amp; 저장 구조</button>
+    <button class="tab-btn" onclick="switchTab('p2',this)">Part 2 · B+Tree 구조</button>
+    <button class="tab-btn" onclick="switchTab('p3',this)">Part 3 · 인덱스 종류 &amp; 활용</button>
+    <button class="tab-btn" onclick="switchTab('p4',this)">Part 4 · 면접 정리</button>
+  </div>
 
-  <div class="qa-card">
-    <div class="qa-q">인덱스의 "Key"란 무엇이며, PK만 Key인가요?</div>
-    <div class="qa-a">
-      <div class="answer-box">
-        <div class="q">Q. PK가 인덱스의 Key인가? 모든 인덱스는 Key인가?</div>
-        <div class="a">
-          <strong>네, 모든 인덱스는 "키(Key)"를 가집니다.</strong>
-          여기서 Key란 B+Tree에서 정렬·탐색 기준이 되는 컬럼 값입니다.<br>
-          PK는 클러스터드 인덱스의 Key이고, 우리가 만드는 일반 인덱스도 각자의 Key를 가집니다.<br>
-          복합 인덱스면 Key가 <strong>(컬럼A, 컬럼B, 컬럼C)</strong> 처럼 여러 컬럼의 조합이 됩니다.
+  <!-- ═══════════════════════════ PART 1 ═══════════════════════════ -->
+  <div class="tab-content active" id="p1">
+
+    <div class="category">🔑 Part 1. Key &amp; 저장 구조 — 인덱스란 무엇인가, 리프에 뭐가 들어있나</div>
+
+    <div class="qa-card">
+      <div class="qa-q">users 테이블에서 실제 데이터는 어떻게 저장되나요?</div>
+      <div class="qa-a">
+        <p>아래와 같이 id(PK), name, email, age 컬럼을 가진 테이블이 디스크에 저장되어 있다고 가정합니다. 이 전체 데이터가 클러스터드 인덱스(PK)의 리프 노드에 id 순서로 저장됩니다.</p>
+        <div class="diagram-box">
+          <svg viewBox="0 0 680 220" width="680" height="220">
+            <text x="340" y="22" text-anchor="middle" fill="var(--acc2)" font-size="14" font-weight="800">users 테이블 (원본 데이터)</text>
+            <rect x="40" y="36" width="600" height="30" rx="6" fill="var(--s3)"/>
+            <text x="100" y="56" text-anchor="middle" fill="var(--org)" font-size="12" font-weight="700">id (PK)</text>
+            <text x="240" y="56" text-anchor="middle" fill="var(--tx)" font-size="12" font-weight="700">name</text>
+            <text x="400" y="56" text-anchor="middle" fill="var(--tx)" font-size="12" font-weight="700">email</text>
+            <text x="560" y="56" text-anchor="middle" fill="var(--tx)" font-size="12" font-weight="700">age</text>
+            <rect x="40" y="68" width="600" height="26" rx="0" fill="none" stroke="var(--bd)" stroke-width="0.5"/>
+            <text x="100" y="86" text-anchor="middle" fill="var(--org)" font-size="11" font-weight="600">1</text>
+            <text x="240" y="86" text-anchor="middle" fill="var(--tx)" font-size="11">홍길동</text>
+            <text x="400" y="86" text-anchor="middle" fill="var(--tx)" font-size="11">hong@mail.com</text>
+            <text x="560" y="86" text-anchor="middle" fill="var(--tx)" font-size="11">28</text>
+            <rect x="40" y="94" width="600" height="26" rx="0" fill="none" stroke="var(--bd)" stroke-width="0.5"/>
+            <text x="100" y="112" text-anchor="middle" fill="var(--org)" font-size="11" font-weight="600">2</text>
+            <text x="240" y="112" text-anchor="middle" fill="var(--tx)" font-size="11">김영희</text>
+            <text x="400" y="112" text-anchor="middle" fill="var(--tx)" font-size="11">kim@mail.com</text>
+            <text x="560" y="112" text-anchor="middle" fill="var(--tx)" font-size="11">25</text>
+            <rect x="40" y="120" width="600" height="26" rx="0" fill="none" stroke="var(--bd)" stroke-width="0.5"/>
+            <text x="100" y="138" text-anchor="middle" fill="var(--org)" font-size="11" font-weight="600">3</text>
+            <text x="240" y="138" text-anchor="middle" fill="var(--tx)" font-size="11">박철수</text>
+            <text x="400" y="138" text-anchor="middle" fill="var(--tx)" font-size="11">park@mail.com</text>
+            <text x="560" y="138" text-anchor="middle" fill="var(--tx)" font-size="11">32</text>
+            <rect x="40" y="146" width="600" height="26" rx="0" fill="none" stroke="var(--bd)" stroke-width="0.5"/>
+            <text x="100" y="164" text-anchor="middle" fill="var(--org)" font-size="11" font-weight="600">4</text>
+            <text x="240" y="164" text-anchor="middle" fill="var(--tx)" font-size="11">이수진</text>
+            <text x="400" y="164" text-anchor="middle" fill="var(--tx)" font-size="11">lee@mail.com</text>
+            <text x="560" y="164" text-anchor="middle" fill="var(--tx)" font-size="11">29</text>
+            <rect x="40" y="172" width="600" height="26" rx="0" fill="none" stroke="var(--bd)" stroke-width="0.5"/>
+            <text x="100" y="190" text-anchor="middle" fill="var(--org)" font-size="11" font-weight="600">5</text>
+            <text x="240" y="190" text-anchor="middle" fill="var(--tx)" font-size="11">최민수</text>
+            <text x="400" y="190" text-anchor="middle" fill="var(--tx)" font-size="11">choi@mail.com</text>
+            <text x="560" y="190" text-anchor="middle" fill="var(--tx)" font-size="11">35</text>
+            <text x="340" y="214" text-anchor="middle" fill="var(--dim)" font-size="10">↑ 이 전체 데이터가 클러스터드 인덱스(PK)의 리프 노드에 id 순서로 저장됨</text>
+          </svg>
         </div>
       </div>
-      <div class="diagram-box">
-        <svg viewBox="0 0 760 200" width="760" height="200">
-          <rect x="20" y="20" width="220" height="160" rx="12" fill="var(--surface2)" stroke="var(--accent)" stroke-width="2"/>
-          <text x="130" y="48" text-anchor="middle" fill="var(--accent2)" font-size="12" font-weight="700">클러스터드 인덱스</text>
-          <text x="130" y="70" text-anchor="middle" fill="var(--dim)" font-size="10">CREATE TABLE users (</text>
-          <text x="130" y="86" text-anchor="middle" fill="var(--green)" font-size="11" font-weight="600">  id INT PRIMARY KEY, ← Key</text>
-          <text x="130" y="102" text-anchor="middle" fill="var(--dim)" font-size="10">  name VARCHAR,</text>
-          <text x="130" y="118" text-anchor="middle" fill="var(--dim)" font-size="10">  email VARCHAR,</text>
-          <text x="130" y="134" text-anchor="middle" fill="var(--dim)" font-size="10">  age INT</text>
-          <text x="130" y="150" text-anchor="middle" fill="var(--dim)" font-size="10">)</text>
-          <text x="130" y="170" text-anchor="middle" fill="var(--orange)" font-size="9">Key = id (PK)</text>
-          <rect x="270" y="20" width="220" height="160" rx="12" fill="var(--surface2)" stroke="var(--blue)" stroke-width="2"/>
-          <text x="380" y="48" text-anchor="middle" fill="var(--blue)" font-size="12" font-weight="700">세컨더리 인덱스</text>
-          <text x="380" y="74" text-anchor="middle" fill="var(--dim)" font-size="10">CREATE INDEX idx_email</text>
-          <text x="380" y="92" text-anchor="middle" fill="var(--green)" font-size="11" font-weight="600">ON users(email) ← Key</text>
-          <text x="380" y="120" text-anchor="middle" fill="var(--dim)" font-size="9">이 인덱스의 B+Tree는</text>
-          <text x="380" y="136" text-anchor="middle" fill="var(--dim)" font-size="9">email 값으로 정렬됨</text>
-          <text x="380" y="170" text-anchor="middle" fill="var(--orange)" font-size="9">Key = email</text>
-          <rect x="520" y="20" width="220" height="160" rx="12" fill="var(--surface2)" stroke="var(--green)" stroke-width="2"/>
-          <text x="630" y="48" text-anchor="middle" fill="var(--green)" font-size="12" font-weight="700">복합 인덱스</text>
-          <text x="630" y="74" text-anchor="middle" fill="var(--dim)" font-size="10">CREATE INDEX idx_comp</text>
-          <text x="630" y="92" text-anchor="middle" fill="var(--green)" font-size="11" font-weight="600">ON users(name, age) ← Key</text>
-          <text x="630" y="120" text-anchor="middle" fill="var(--dim)" font-size="9">name으로 먼저 정렬,</text>
-          <text x="630" y="136" text-anchor="middle" fill="var(--dim)" font-size="9">name 같으면 age로 정렬</text>
-          <text x="630" y="170" text-anchor="middle" fill="var(--orange)" font-size="9">Key = (name, age)</text>
-        </svg>
-      </div>
-      <div class="hl">
-        <strong>결론:</strong> 인덱스 = 별도의 B+Tree. 그 B+Tree의 정렬 기준이 되는 컬럼이 바로 "Key"입니다.
-        PK든, 일반 인덱스든, 복합 인덱스든 모두 각자의 Key를 가집니다.
-      </div>
     </div>
-  </div>
 
-  <div class="qa-card">
-    <div class="qa-q">클러스터드 인덱스와 세컨더리(논클러스터드) 인덱스의 차이는 무엇인가요?</div>
-    <div class="qa-a">
-      <p><strong>가장 중요한 차이: 리프 노드에 무엇이 저장되는가?</strong></p>
-      <div class="diagram-box">
-        <svg viewBox="0 0 820 440" width="820" height="440">
-          <text x="200" y="24" text-anchor="middle" fill="var(--accent2)" font-size="14" font-weight="800">클러스터드 인덱스 (PK)</text>
-          <text x="200" y="42" text-anchor="middle" fill="var(--dim)" font-size="10">테이블당 1개 · 리프 = 실제 행 데이터</text>
-          <rect x="150" y="58" width="100" height="32" rx="6" fill="rgba(124,108,240,0.15)" stroke="var(--accent)" stroke-width="1.5"/>
-          <text x="200" y="78" text-anchor="middle" fill="var(--accent2)" font-size="11" font-weight="600">20</text>
-          <line x1="175" y1="90" x2="120" y2="112" stroke="var(--border)" stroke-width="1"/>
-          <line x1="225" y1="90" x2="280" y2="112" stroke="var(--border)" stroke-width="1"/>
-          <rect x="70" y="112" width="100" height="28" rx="6" fill="rgba(96,165,250,0.1)" stroke="var(--blue)" stroke-width="1.5"/>
-          <text x="120" y="130" text-anchor="middle" fill="var(--blue)" font-size="10" font-weight="600">5 │ 10</text>
-          <rect x="230" y="112" width="100" height="28" rx="6" fill="rgba(96,165,250,0.1)" stroke="var(--blue)" stroke-width="1.5"/>
-          <text x="280" y="130" text-anchor="middle" fill="var(--blue)" font-size="10" font-weight="600">30 │ 40</text>
-          <line x1="95" y1="140" x2="65" y2="168" stroke="var(--border)" stroke-width="1"/>
-          <line x1="145" y1="140" x2="175" y2="168" stroke="var(--border)" stroke-width="1"/>
-          <line x1="255" y1="140" x2="225" y2="168" stroke="var(--border)" stroke-width="1"/>
-          <line x1="305" y1="140" x2="335" y2="168" stroke="var(--border)" stroke-width="1"/>
-          <rect x="10" y="168" width="110" height="70" rx="6" fill="rgba(45,212,191,0.06)" stroke="var(--green)" stroke-width="1.5"/>
-          <text x="65" y="186" text-anchor="middle" fill="var(--green)" font-size="9" font-weight="600">id: 1, 3, 5</text>
-          <line x1="10" y1="194" x2="120" y2="194" stroke="var(--border)" stroke-width="0.5"/>
-          <text x="65" y="210" text-anchor="middle" fill="var(--orange)" font-size="8">홍길동, 28, a@..</text>
-          <text x="65" y="224" text-anchor="middle" fill="var(--orange)" font-size="8">박철수, 32, b@..</text>
-          <rect x="130" y="168" width="110" height="70" rx="6" fill="rgba(45,212,191,0.06)" stroke="var(--green)" stroke-width="1.5"/>
-          <text x="185" y="186" text-anchor="middle" fill="var(--green)" font-size="9" font-weight="600">id: 10, 15, 18</text>
-          <line x1="130" y1="194" x2="240" y2="194" stroke="var(--border)" stroke-width="0.5"/>
-          <text x="185" y="210" text-anchor="middle" fill="var(--orange)" font-size="8">김영희, 25, c@..</text>
-          <text x="185" y="224" text-anchor="middle" fill="var(--orange)" font-size="8">이수진, 29, d@..</text>
-          <rect x="250" y="168" width="110" height="70" rx="6" fill="rgba(45,212,191,0.06)" stroke="var(--green)" stroke-width="1.5"/>
-          <text x="305" y="186" text-anchor="middle" fill="var(--green)" font-size="9" font-weight="600">id: 20, 25</text>
-          <line x1="250" y1="194" x2="360" y2="194" stroke="var(--border)" stroke-width="0.5"/>
-          <text x="305" y="210" text-anchor="middle" fill="var(--orange)" font-size="8">최민수, 35, e@..</text>
-          <path d="M120,200 L130,200" stroke="var(--green)" stroke-width="1.5" stroke-dasharray="3 2" marker-end="url(#ag2)"/>
-          <path d="M240,200 L250,200" stroke="var(--green)" stroke-width="1.5" stroke-dasharray="3 2" marker-end="url(#ag2)"/>
-          <text x="200" y="258" text-anchor="middle" fill="var(--green)" font-size="9">리프에 행 데이터 전체가 있다!</text>
-          <text x="610" y="24" text-anchor="middle" fill="var(--blue)" font-size="14" font-weight="800">세컨더리 인덱스 (email)</text>
-          <text x="610" y="42" text-anchor="middle" fill="var(--dim)" font-size="10">여러 개 가능 · 리프 = Key + PK 값</text>
-          <rect x="560" y="58" width="100" height="32" rx="6" fill="rgba(96,165,250,0.1)" stroke="var(--blue)" stroke-width="1.5"/>
-          <text x="610" y="78" text-anchor="middle" fill="var(--blue)" font-size="11" font-weight="600">d@</text>
-          <line x1="585" y1="90" x2="530" y2="112" stroke="var(--border)" stroke-width="1"/>
-          <line x1="635" y1="90" x2="690" y2="112" stroke="var(--border)" stroke-width="1"/>
-          <rect x="480" y="112" width="100" height="28" rx="6" fill="rgba(96,165,250,0.1)" stroke="var(--blue)" stroke-width="1.5"/>
-          <text x="530" y="130" text-anchor="middle" fill="var(--blue)" font-size="10" font-weight="600">b@ │ c@</text>
-          <rect x="640" y="112" width="100" height="28" rx="6" fill="rgba(96,165,250,0.1)" stroke="var(--blue)" stroke-width="1.5"/>
-          <text x="690" y="130" text-anchor="middle" fill="var(--blue)" font-size="10" font-weight="600">e@ │ f@</text>
-          <line x1="505" y1="140" x2="475" y2="168" stroke="var(--border)" stroke-width="1"/>
-          <line x1="555" y1="140" x2="585" y2="168" stroke="var(--border)" stroke-width="1"/>
-          <line x1="665" y1="140" x2="635" y2="168" stroke="var(--border)" stroke-width="1"/>
-          <line x1="715" y1="140" x2="745" y2="168" stroke="var(--border)" stroke-width="1"/>
-          <rect x="420" y="168" width="110" height="70" rx="6" fill="rgba(96,165,250,0.06)" stroke="var(--blue)" stroke-width="1.5"/>
-          <text x="475" y="186" text-anchor="middle" fill="var(--blue)" font-size="9" font-weight="600">a@.. , b@..</text>
-          <line x1="420" y1="194" x2="530" y2="194" stroke="var(--border)" stroke-width="0.5"/>
-          <text x="475" y="210" text-anchor="middle" fill="var(--pink)" font-size="9" font-weight="600">PK: 1, 3</text>
-          <text x="475" y="226" text-anchor="middle" fill="var(--dim)" font-size="7.5">← PK만 저장!</text>
-          <rect x="540" y="168" width="110" height="70" rx="6" fill="rgba(96,165,250,0.06)" stroke="var(--blue)" stroke-width="1.5"/>
-          <text x="595" y="186" text-anchor="middle" fill="var(--blue)" font-size="9" font-weight="600">c@.. , d@..</text>
-          <line x1="540" y1="194" x2="650" y2="194" stroke="var(--border)" stroke-width="0.5"/>
-          <text x="595" y="210" text-anchor="middle" fill="var(--pink)" font-size="9" font-weight="600">PK: 10, 15</text>
-          <rect x="660" y="168" width="110" height="70" rx="6" fill="rgba(96,165,250,0.06)" stroke="var(--blue)" stroke-width="1.5"/>
-          <text x="715" y="186" text-anchor="middle" fill="var(--blue)" font-size="9" font-weight="600">e@.. , f@..</text>
-          <line x1="660" y1="194" x2="770" y2="194" stroke="var(--border)" stroke-width="0.5"/>
-          <text x="715" y="210" text-anchor="middle" fill="var(--pink)" font-size="9" font-weight="600">PK: 20, 25</text>
-          <path d="M530,200 L540,200" stroke="var(--blue)" stroke-width="1.5" stroke-dasharray="3 2" marker-end="url(#ab2)"/>
-          <path d="M650,200 L660,200" stroke="var(--blue)" stroke-width="1.5" stroke-dasharray="3 2" marker-end="url(#ab2)"/>
-          <text x="610" y="262" text-anchor="middle" fill="var(--dim)" font-size="9">PK 값으로 클러스터드 인덱스를 다시 조회</text>
-          <path d="M595,270 C500,290 350,280 300,258" stroke="var(--pink)" stroke-width="2" stroke-dasharray="6 4" fill="none" marker-end="url(#ap2)"/>
-          <text x="440" y="294" text-anchor="middle" fill="var(--pink)" font-size="11" font-weight="700">이것이 "테이블 룩업"</text>
-          <rect x="100" y="330" width="620" height="100" rx="12" fill="var(--surface2)" stroke="var(--green)" stroke-width="2" stroke-dasharray="6 4"/>
-          <text x="410" y="356" text-anchor="middle" fill="var(--green)" font-size="14" font-weight="800">커버링 인덱스 — 테이블 룩업이 필요 없는 경우</text>
-          <text x="410" y="380" text-anchor="middle" fill="var(--dim)" font-size="11">SELECT email FROM users WHERE email = 'c@..'</text>
-          <text x="410" y="400" text-anchor="middle" fill="var(--dim)" font-size="10">→ 세컨더리 인덱스(email)의 리프에 이미 email이 있으므로</text>
-          <text x="410" y="418" text-anchor="middle" fill="var(--orange)" font-size="11" font-weight="700">클러스터드 인덱스를 찾아갈 필요 없이 바로 반환! (Using index)</text>
-          <defs>
-            <marker id="ag2" viewBox="0 0 6 6" refX="6" refY="3" markerWidth="6" markerHeight="6" orient="auto"><polygon points="0 0,6 3,0 6" fill="#2dd4bf"/></marker>
-            <marker id="ab2" viewBox="0 0 6 6" refX="6" refY="3" markerWidth="6" markerHeight="6" orient="auto"><polygon points="0 0,6 3,0 6" fill="#60a5fa"/></marker>
-            <marker id="ap2" viewBox="0 0 6 6" refX="6" refY="3" markerWidth="6" markerHeight="6" orient="auto"><polygon points="0 0,6 3,0 6" fill="#f472b6"/></marker>
-          </defs>
-        </svg>
-      </div>
-      <table>
-        <tr><th style="width:22%">구분</th><th style="width:39%">클러스터드 인덱스</th><th style="width:39%">세컨더리(논클러스터드) 인덱스</th></tr>
-        <tr><td><strong>개수</strong></td><td>테이블당 <strong>1개</strong></td><td>테이블당 <strong>여러 개</strong></td></tr>
-        <tr><td><strong>Key</strong></td><td>PK (없으면 UNIQUE NOT NULL, 그것도 없으면 InnoDB가 내부 RowID 생성)</td><td>CREATE INDEX로 지정한 컬럼</td></tr>
-        <tr><td><strong>리프 노드</strong></td><td><strong>행 데이터 전체</strong> (name, email, age...)</td><td><strong>인덱스 Key + PK 값</strong></td></tr>
-        <tr><td><strong>데이터 정렬</strong></td><td>테이블 물리적 정렬 = PK 순</td><td>별도 B+Tree (인덱스 Key 순)</td></tr>
-        <tr><td><strong>조회 과정</strong></td><td>리프에서 바로 데이터 반환</td><td>리프에서 PK 확인 → 클러스터드 인덱스에서 데이터 조회 <strong>(테이블 룩업)</strong></td></tr>
-      </table>
-    </div>
-  </div>
-
-  <div class="qa-card">
-    <div class="qa-q">복합 인덱스 (name, age)의 정렬 구조는 어떻게 되며 컬럼 순서가 왜 중요한가요?</div>
-    <div class="qa-a">
-      <p><strong>복합 인덱스 (name, age)가 어떻게 정렬되는지</strong> 직접 봐야 이해됩니다. 전화번호부가 <strong>성(姓) → 이름 순</strong>으로 정렬된 것과 같습니다.</p>
-      <div class="diagram-box">
-        <svg viewBox="0 0 700 300" width="700" height="300">
-          <text x="350" y="22" text-anchor="middle" fill="var(--accent2)" font-size="13" font-weight="800">INDEX idx_comp (name, age) — 리프 노드 내부</text>
-          <rect x="100" y="38" width="500" height="28" rx="6" fill="var(--surface3)"/>
-          <text x="200" y="56" text-anchor="middle" fill="var(--green)" font-size="11" font-weight="700">name (1차 정렬)</text>
-          <text x="370" y="56" text-anchor="middle" fill="var(--orange)" font-size="11" font-weight="700">age (2차 정렬)</text>
-          <text x="520" y="56" text-anchor="middle" fill="var(--pink)" font-size="11" font-weight="700">PK (id)</text>
-          <rect x="100" y="70" width="500" height="24" rx="0" fill="none" stroke="var(--border)" stroke-width="0.5"/>
-          <text x="200" y="86" text-anchor="middle" fill="var(--green)" font-size="11">김영희</text>
-          <text x="370" y="86" text-anchor="middle" fill="var(--orange)" font-size="11">22</text>
-          <text x="520" y="86" text-anchor="middle" fill="var(--pink)" font-size="10">→ id: 7</text>
-          <rect x="100" y="94" width="500" height="24" rx="0" fill="none" stroke="var(--border)" stroke-width="0.5"/>
-          <text x="200" y="110" text-anchor="middle" fill="var(--green)" font-size="11">김영희</text>
-          <text x="370" y="110" text-anchor="middle" fill="var(--orange)" font-size="11">28</text>
-          <text x="520" y="110" text-anchor="middle" fill="var(--pink)" font-size="10">→ id: 3</text>
-          <rect x="100" y="118" width="500" height="24" rx="0" fill="none" stroke="var(--border)" stroke-width="0.5"/>
-          <text x="200" y="134" text-anchor="middle" fill="var(--green)" font-size="11">박철수</text>
-          <text x="370" y="134" text-anchor="middle" fill="var(--orange)" font-size="11">25</text>
-          <text x="520" y="134" text-anchor="middle" fill="var(--pink)" font-size="10">→ id: 10</text>
-          <rect x="100" y="142" width="500" height="24" rx="0" fill="none" stroke="var(--border)" stroke-width="0.5"/>
-          <text x="200" y="158" text-anchor="middle" fill="var(--green)" font-size="11">박철수</text>
-          <text x="370" y="158" text-anchor="middle" fill="var(--orange)" font-size="11">30</text>
-          <text x="520" y="158" text-anchor="middle" fill="var(--pink)" font-size="10">→ id: 5</text>
-          <rect x="100" y="166" width="500" height="24" rx="0" fill="none" stroke="var(--border)" stroke-width="0.5"/>
-          <text x="200" y="182" text-anchor="middle" fill="var(--green)" font-size="11">홍길동</text>
-          <text x="370" y="182" text-anchor="middle" fill="var(--orange)" font-size="11">20</text>
-          <text x="520" y="182" text-anchor="middle" fill="var(--pink)" font-size="10">→ id: 1</text>
-          <rect x="100" y="190" width="500" height="24" rx="0" fill="none" stroke="var(--border)" stroke-width="0.5"/>
-          <text x="200" y="206" text-anchor="middle" fill="var(--green)" font-size="11">홍길동</text>
-          <text x="370" y="206" text-anchor="middle" fill="var(--orange)" font-size="11">35</text>
-          <text x="520" y="206" text-anchor="middle" fill="var(--pink)" font-size="10">→ id: 15</text>
-          <text x="68" y="100" text-anchor="end" fill="var(--green)" font-size="9">김영희</text>
-          <text x="68" y="112" text-anchor="end" fill="var(--dim)" font-size="8">그룹 내</text>
-          <text x="68" y="122" text-anchor="end" fill="var(--orange)" font-size="8">age 정렬 ↓</text>
-          <line x1="72" y1="78" x2="72" y2="130" stroke="var(--green)" stroke-width="1.5" stroke-dasharray="3 2"/>
-          <rect x="130" y="234" width="440" height="50" rx="8" fill="rgba(248,113,113,0.06)" stroke="var(--red)" stroke-width="1.5"/>
-          <text x="350" y="254" text-anchor="middle" fill="var(--red)" font-size="11" font-weight="700">⚠️ name이 같은 그룹 내에서만 age가 정렬되어 있다!</text>
-          <text x="350" y="274" text-anchor="middle" fill="var(--dim)" font-size="10">→ age만 단독으로 검색하면 정렬이 보장되지 않아 인덱스를 못 탐</text>
-        </svg>
-      </div>
-    </div>
-  </div>
-
-  <div class="qa-card">
-    <div class="qa-q">복합 인덱스 (A, B, C)에서 거꾸로 검색하면 왜 인덱스를 타지 못하나요? (Leftmost Prefix Rule)</div>
-    <div class="qa-a">
-      <p>복합 인덱스 <code>(A, B, C)</code>는 <strong>왼쪽부터 순서대로</strong> 사용됩니다. 전화번호부에서 <strong>"성"을 모르면 "이름"만으로는 찾을 수 없는 것</strong>과 같습니다.</p>
-      <div class="sql-block">
-        <span style="color:var(--text-dim)">-- 인덱스: INDEX idx_abc (A, B, C)</span>
-      </div>
-      <table>
-        <tr><th>쿼리 WHERE 조건</th><th>인덱스 사용</th><th>이유</th></tr>
-        <tr>
-          <td><code>WHERE A = 1</code></td>
-          <td><span class="tag ok">✅ 사용</span></td>
-          <td>첫 번째 컬럼 A 사용</td>
-        </tr>
-        <tr>
-          <td><code>WHERE A = 1 AND B = 2</code></td>
-          <td><span class="tag ok">✅ 사용</span></td>
-          <td>A → B 순서대로 사용</td>
-        </tr>
-        <tr>
-          <td><code>WHERE A = 1 AND B = 2 AND C = 3</code></td>
-          <td><span class="tag ok">✅ 완전 사용</span></td>
-          <td>A → B → C 전부 사용</td>
-        </tr>
-        <tr>
-          <td><code>WHERE A = 1 AND C = 3</code></td>
-          <td><span class="tag part">⚠️ A만 사용</span></td>
-          <td>B를 건너뛰었으므로 C는 인덱스 활용 불가</td>
-        </tr>
-        <tr>
-          <td><code>WHERE B = 2</code></td>
-          <td><span class="tag no">❌ 미사용</span></td>
-          <td><strong>첫 번째 컬럼 A가 없음</strong> → 인덱스 전혀 못 탐</td>
-        </tr>
-        <tr>
-          <td><code>WHERE B = 2 AND C = 3</code></td>
-          <td><span class="tag no">❌ 미사용</span></td>
-          <td>A가 없으면 B, C도 정렬이 보장되지 않음</td>
-        </tr>
-        <tr>
-          <td><code>WHERE C = 3</code></td>
-          <td><span class="tag no">❌ 미사용</span></td>
-          <td>마지막 컬럼만 단독 사용 불가</td>
-        </tr>
-        <tr>
-          <td><code>WHERE A = 1 ORDER BY B</code></td>
-          <td><span class="tag ok">✅ 사용</span></td>
-          <td>A로 필터 후 B는 이미 정렬되어 있어 filesort 불필요</td>
-        </tr>
-        <tr>
-          <td><code>ORDER BY B, C</code></td>
-          <td><span class="tag no">❌ 미사용</span></td>
-          <td>A 없이 B, C 정렬은 보장되지 않음</td>
-        </tr>
-      </table>
-      <div class="hl red">
-        <strong>핵심 원리 — 왜 거꾸로면 안 타는가?</strong><br>
-        복합 인덱스 (A, B, C)의 B+Tree는 <strong>A로 먼저 정렬 → 같은 A 그룹 내에서 B로 정렬 → 같은 A,B 그룹 내에서 C로 정렬</strong>합니다.
-        따라서 A를 모르면 B의 정렬 순서를 알 수 없고, A,B를 모르면 C의 정렬 순서를 알 수 없습니다.
-        이것이 <strong>Leftmost Prefix Rule</strong>입니다.
-      </div>
-    </div>
-  </div>
-
-  <div class="qa-card">
-    <div class="qa-q">실제 쿼리에서 세컨더리 인덱스가 타지는 전체 흐름을 단계별로 설명해주세요.</div>
-    <div class="qa-a">
-      <div class="sql-block">
-        <span style="color:var(--accent2)">SELECT</span> <span style="color:var(--green)">name, age</span><br>
-        <span style="color:var(--accent2)">FROM</span> users<br>
-        <span style="color:var(--accent2)">WHERE</span> <span style="color:var(--green)">email</span> = <span style="color:var(--orange)">'hello@test.com'</span>
-      </div>
-      <div class="flow-wrap" style="margin-top:20px">
-        <div class="flow-item">
-          <div class="ft">STEP 1</div>
-          <div class="fv" style="color:var(--accent2)">옵티마이저</div>
-          <div class="ft">어떤 인덱스 쓸지 결정</div>
+    <div class="qa-card">
+      <div class="qa-q">인덱스에서 "Key"란 무엇인가요?</div>
+      <div class="qa-a">
+        <p>Key는 B+Tree에서 데이터를 찾기 위한 <strong>정렬 기준 컬럼 값</strong>입니다. 사전에서 "가나다"가 정렬 기준이듯, 인덱스의 Key가 B+Tree의 정렬 기준입니다. PK든, 일반 인덱스든, 복합 인덱스든 모두 각자의 Key를 가집니다.</p>
+        <div class="answer-box">
+          <div class="q">PK만 Key인가요? 모든 인덱스는 Key를 가지나요?</div>
+          <div class="a">
+            <strong>네, 모든 인덱스는 "키(Key)"를 가집니다.</strong>
+            PK는 클러스터드 인덱스의 Key이고, 우리가 만드는 일반 인덱스도 각자의 Key를 가집니다.
+            복합 인덱스면 Key가 <strong>(컬럼A, 컬럼B, 컬럼C)</strong>처럼 여러 컬럼의 조합이 됩니다.
+          </div>
         </div>
-        <span class="flow-arr">→</span>
-        <div class="flow-item">
-          <div class="ft">STEP 2</div>
-          <div class="fv" style="color:var(--blue)">idx_email<br>B+Tree 탐색</div>
-          <div class="ft">루트→내부→리프</div>
+        <div class="diagram-box">
+          <svg viewBox="0 0 720 160" width="720" height="160">
+            <rect x="20" y="10" width="210" height="130" rx="10" fill="var(--s2)" stroke="var(--acc)" stroke-width="2"/>
+            <text x="125" y="35" text-anchor="middle" fill="var(--acc2)" font-size="12" font-weight="700">클러스터드 인덱스</text>
+            <text x="125" y="62" text-anchor="middle" fill="var(--dim)" font-size="10">Key =</text>
+            <text x="160" y="62" text-anchor="middle" fill="var(--org)" font-size="14" font-weight="700">id (PK)</text>
+            <text x="125" y="82" text-anchor="middle" fill="var(--dim)" font-size="9.5">이 B+Tree는</text>
+            <text x="125" y="97" text-anchor="middle" fill="var(--org)" font-size="10" font-weight="600">id 값 순서로 정렬</text>
+            <text x="125" y="128" text-anchor="middle" fill="var(--grn)" font-size="9" font-weight="600">"Key = 정렬 기준 컬럼"</text>
+            <rect x="255" y="10" width="210" height="130" rx="10" fill="var(--s2)" stroke="var(--blu)" stroke-width="2"/>
+            <text x="360" y="35" text-anchor="middle" fill="var(--blu)" font-size="12" font-weight="700">idx_email 인덱스</text>
+            <text x="360" y="62" text-anchor="middle" fill="var(--dim)" font-size="10">Key =</text>
+            <text x="390" y="62" text-anchor="middle" fill="var(--blu)" font-size="14" font-weight="700">email</text>
+            <text x="360" y="82" text-anchor="middle" fill="var(--dim)" font-size="9.5">이 B+Tree는</text>
+            <text x="360" y="97" text-anchor="middle" fill="var(--blu)" font-size="10" font-weight="600">email 값의 알파벳 순 정렬</text>
+            <text x="360" y="128" text-anchor="middle" fill="var(--grn)" font-size="9" font-weight="600">"Key = 정렬 기준 컬럼"</text>
+            <rect x="490" y="10" width="210" height="130" rx="10" fill="var(--s2)" stroke="var(--grn)" stroke-width="2"/>
+            <text x="595" y="35" text-anchor="middle" fill="var(--grn)" font-size="12" font-weight="700">idx_name_age 인덱스</text>
+            <text x="595" y="62" text-anchor="middle" fill="var(--dim)" font-size="10">Key =</text>
+            <text x="640" y="62" text-anchor="middle" fill="var(--grn)" font-size="14" font-weight="700">(name, age)</text>
+            <text x="595" y="82" text-anchor="middle" fill="var(--dim)" font-size="9.5">이 B+Tree는</text>
+            <text x="595" y="97" text-anchor="middle" fill="var(--grn)" font-size="10" font-weight="600">name 먼저 → 같으면 age 순</text>
+            <text x="595" y="128" text-anchor="middle" fill="var(--grn)" font-size="9" font-weight="600">"Key = 정렬 기준 컬럼"</text>
+          </svg>
         </div>
-        <span class="flow-arr">→</span>
-        <div class="flow-item">
-          <div class="ft">STEP 3</div>
-          <div class="fv" style="color:var(--pink)">리프에서<br>PK 획득</div>
-          <div class="ft">email 리프 → PK: 5</div>
-        </div>
-        <span class="flow-arr">→</span>
-        <div class="flow-item">
-          <div class="ft">STEP 4</div>
-          <div class="fv" style="color:var(--green)">클러스터드<br>인덱스 조회</div>
-          <div class="ft">PK=5로 행 데이터 획득</div>
-        </div>
-        <span class="flow-arr">→</span>
-        <div class="flow-item">
-          <div class="ft">STEP 5</div>
-          <div class="fv" style="color:var(--orange)">결과 반환</div>
-          <div class="ft">name, age 추출</div>
+        <div class="hl grn">
+          <strong>Key = 그 인덱스(B+Tree)에서 데이터를 찾기 위한 "정렬 기준 컬럼 값"</strong><br>
+          인덱스 = 별도의 B+Tree. 그 B+Tree의 정렬 기준이 되는 컬럼이 바로 "Key"입니다.
         </div>
       </div>
-      <div class="hl grn">
-        <strong>만약 커버링 인덱스라면?</strong> (예: <code>INDEX(email, name, age)</code>)<br>
-        → STEP 3에서 이미 name, age를 가지고 있으므로 <strong>STEP 4를 건너뛴다</strong> = 테이블 룩업 제거 = 성능 향상!
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">클러스터드 인덱스의 리프 노드에는 무엇이 저장되나요?</div>
+      <div class="qa-a">
+        <p>PK(id) 기준 B+Tree의 리프 노드에는 <strong>행 데이터 전체</strong>가 저장됩니다. 추가 조회 없이 바로 반환할 수 있습니다.</p>
+        <div class="diagram-box">
+          <svg viewBox="0 0 750 280" width="750" height="280">
+            <text x="375" y="20" text-anchor="middle" fill="var(--acc2)" font-size="14" font-weight="800">클러스터드 인덱스 B+Tree (Key = id)</text>
+            <rect x="310" y="36" width="130" height="34" rx="8" fill="rgba(124,108,240,0.15)" stroke="var(--acc)" stroke-width="2"/>
+            <text x="375" y="58" text-anchor="middle" fill="var(--acc2)" font-size="12" font-weight="700">3</text>
+            <text x="335" y="58" text-anchor="middle" fill="var(--dim)" font-size="9">◀ 작은쪽</text>
+            <text x="415" y="58" text-anchor="middle" fill="var(--dim)" font-size="9">큰쪽 ▶</text>
+            <line x1="340" y1="70" x2="190" y2="100" stroke="var(--bd)" stroke-width="1.5"/>
+            <line x1="410" y1="70" x2="560" y2="100" stroke="var(--bd)" stroke-width="1.5"/>
+            <rect x="50" y="100" width="280" height="130" rx="10" fill="rgba(45,212,191,0.05)" stroke="var(--grn)" stroke-width="2"/>
+            <text x="190" y="120" text-anchor="middle" fill="var(--grn)" font-size="11" font-weight="700">리프 페이지 A</text>
+            <rect x="62" y="128" width="256" height="22" rx="4" fill="var(--s3)"/>
+            <text x="88" y="143" text-anchor="middle" fill="var(--org)" font-size="10" font-weight="700">id:1</text>
+            <text x="152" y="143" text-anchor="middle" fill="var(--tx)" font-size="9.5">홍길동</text>
+            <text x="228" y="143" text-anchor="middle" fill="var(--tx)" font-size="9.5">hong@mail</text>
+            <text x="300" y="143" text-anchor="middle" fill="var(--tx)" font-size="9.5">28</text>
+            <rect x="62" y="154" width="256" height="22" rx="4" fill="var(--s2)"/>
+            <text x="88" y="169" text-anchor="middle" fill="var(--org)" font-size="10" font-weight="700">id:2</text>
+            <text x="152" y="169" text-anchor="middle" fill="var(--tx)" font-size="9.5">김영희</text>
+            <text x="228" y="169" text-anchor="middle" fill="var(--tx)" font-size="9.5">kim@mail</text>
+            <text x="300" y="169" text-anchor="middle" fill="var(--tx)" font-size="9.5">25</text>
+            <rect x="62" y="180" width="256" height="22" rx="4" fill="var(--s3)"/>
+            <text x="88" y="195" text-anchor="middle" fill="var(--org)" font-size="10" font-weight="700">id:3</text>
+            <text x="152" y="195" text-anchor="middle" fill="var(--tx)" font-size="9.5">박철수</text>
+            <text x="228" y="195" text-anchor="middle" fill="var(--tx)" font-size="9.5">park@mail</text>
+            <text x="300" y="195" text-anchor="middle" fill="var(--tx)" font-size="9.5">32</text>
+            <text x="190" y="222" text-anchor="middle" fill="var(--org)" font-size="10" font-weight="700">↑ 행 데이터 전체가 여기에!</text>
+            <rect x="420" y="100" width="280" height="130" rx="10" fill="rgba(45,212,191,0.05)" stroke="var(--grn)" stroke-width="2"/>
+            <text x="560" y="120" text-anchor="middle" fill="var(--grn)" font-size="11" font-weight="700">리프 페이지 B</text>
+            <rect x="432" y="128" width="256" height="22" rx="4" fill="var(--s3)"/>
+            <text x="458" y="143" text-anchor="middle" fill="var(--org)" font-size="10" font-weight="700">id:4</text>
+            <text x="522" y="143" text-anchor="middle" fill="var(--tx)" font-size="9.5">이수진</text>
+            <text x="598" y="143" text-anchor="middle" fill="var(--tx)" font-size="9.5">lee@mail</text>
+            <text x="670" y="143" text-anchor="middle" fill="var(--tx)" font-size="9.5">29</text>
+            <rect x="432" y="154" width="256" height="22" rx="4" fill="var(--s2)"/>
+            <text x="458" y="169" text-anchor="middle" fill="var(--org)" font-size="10" font-weight="700">id:5</text>
+            <text x="522" y="169" text-anchor="middle" fill="var(--tx)" font-size="9.5">최민수</text>
+            <text x="598" y="169" text-anchor="middle" fill="var(--tx)" font-size="9.5">choi@mail</text>
+            <text x="670" y="169" text-anchor="middle" fill="var(--tx)" font-size="9.5">35</text>
+            <text x="560" y="222" text-anchor="middle" fill="var(--org)" font-size="10" font-weight="700">↑ 행 데이터 전체가 여기에!</text>
+            <path d="M330,170 L420,170" stroke="var(--grn)" stroke-width="2" stroke-dasharray="5 3" fill="none" marker-end="url(#ag_p1)"/>
+            <text x="375" y="165" text-anchor="middle" fill="var(--grn)" font-size="8">연결 리스트</text>
+            <rect x="120" y="244" width="510" height="28" rx="6" fill="rgba(251,191,36,0.08)" stroke="var(--org)" stroke-width="1"/>
+            <text x="375" y="263" text-anchor="middle" fill="var(--org)" font-size="11" font-weight="700">클러스터드 인덱스 리프 = 테이블 그 자체! 추가 조회 필요 없음</text>
+            <defs>
+              <marker id="ag_p1" viewBox="0 0 6 6" refX="6" refY="3" markerWidth="6" markerHeight="6" orient="auto"><polygon points="0 0,6 3,0 6" fill="var(--grn)"/></marker>
+            </defs>
+          </svg>
+        </div>
       </div>
     </div>
-  </div>
 
-  <div class="qa-card">
-    <div class="qa-q">클러스터드, 세컨더리, 복합, 커버링, 유니크 인덱스의 종류와 특징을 정리해주세요.</div>
-    <div class="qa-a">
-      <table>
-        <tr>
-          <th>종류</th>
-          <th>Key</th>
-          <th>리프 노드 저장 내용</th>
-          <th>핵심 특징</th>
-        </tr>
-        <tr>
-          <td><strong style="color:var(--accent2)">클러스터드</strong></td>
-          <td>PK</td>
-          <td>행 데이터 전체</td>
-          <td>테이블당 1개, 물리적 정렬</td>
-        </tr>
-        <tr>
-          <td><strong style="color:var(--blue)">세컨더리</strong></td>
-          <td>지정 컬럼</td>
-          <td>인덱스 Key + PK</td>
-          <td>여러 개 가능, 테이블 룩업 필요</td>
-        </tr>
-        <tr>
-          <td><strong style="color:var(--green)">복합 인덱스</strong></td>
-          <td>(컬럼A, B, C..)</td>
-          <td>복합 Key + PK</td>
-          <td>Leftmost Prefix Rule 적용</td>
-        </tr>
-        <tr>
-          <td><strong style="color:var(--orange)">커버링 인덱스</strong></td>
-          <td>쿼리 필요 컬럼 전부 포함</td>
-          <td>Key에 모든 정보 있음</td>
-          <td>테이블 룩업 제거, Using index</td>
-        </tr>
-        <tr>
-          <td><strong style="color:var(--pink)">유니크 인덱스</strong></td>
-          <td>UNIQUE 컬럼</td>
-          <td>Key + PK</td>
-          <td>중복 불허, 동등 검색 최적화</td>
-        </tr>
-      </table>
-      <div class="hl org">
-        <strong>참고:</strong> "커버링 인덱스"는 별도의 인덱스 종류가 아니라, 쿼리에 필요한 모든 컬럼이 인덱스에 포함된 <strong>상황</strong>을 말합니다.
-        복합 인덱스가 커버링 인덱스가 될 수도, 단일 컬럼 인덱스가 커버링이 될 수도 있습니다.
+    <div class="qa-card">
+      <div class="qa-q">세컨더리 인덱스의 리프 노드에는 무엇이 저장되며, 왜 테이블 룩업이 필요한가요?</div>
+      <div class="qa-a">
+        <p><code>CREATE INDEX idx_email ON users(email)</code>을 만들면 email 순서로 정렬된 별도의 B+Tree가 생깁니다. 이 트리의 리프에는 <strong>email 값과 PK(id)만</strong> 들어있습니다. name, age 같은 다른 컬럼은 없습니다!</p>
+        <div class="diagram-box">
+          <svg viewBox="0 0 750 480" width="750" height="480">
+            <text x="375" y="20" text-anchor="middle" fill="var(--blu)" font-size="14" font-weight="800">세컨더리 인덱스 B+Tree (Key = email)</text>
+            <text x="375" y="38" text-anchor="middle" fill="var(--dim)" font-size="10">email의 알파벳 순으로 정렬됨!</text>
+            <rect x="290" y="50" width="170" height="34" rx="8" fill="rgba(96,165,250,0.12)" stroke="var(--blu)" stroke-width="2"/>
+            <text x="375" y="72" text-anchor="middle" fill="var(--blu)" font-size="11" font-weight="700">kim@mail</text>
+            <line x1="330" y1="84" x2="190" y2="110" stroke="var(--bd)" stroke-width="1.5"/>
+            <line x1="420" y1="84" x2="560" y2="110" stroke="var(--bd)" stroke-width="1.5"/>
+            <rect x="50" y="110" width="280" height="110" rx="10" fill="rgba(96,165,250,0.05)" stroke="var(--blu)" stroke-width="2"/>
+            <text x="190" y="130" text-anchor="middle" fill="var(--blu)" font-size="11" font-weight="700">리프 페이지 X (email 알파벳순)</text>
+            <rect x="62" y="138" width="256" height="24" rx="4" fill="var(--s3)"/>
+            <text x="150" y="155" text-anchor="middle" fill="var(--blu)" font-size="11" font-weight="600">choi@mail</text>
+            <text x="278" y="155" text-anchor="middle" fill="var(--pnk)" font-size="11" font-weight="700">→ PK: 5</text>
+            <rect x="62" y="166" width="256" height="24" rx="4" fill="var(--s2)"/>
+            <text x="150" y="183" text-anchor="middle" fill="var(--blu)" font-size="11" font-weight="600">hong@mail</text>
+            <text x="278" y="183" text-anchor="middle" fill="var(--pnk)" font-size="11" font-weight="700">→ PK: 1</text>
+            <rect x="420" y="110" width="280" height="110" rx="10" fill="rgba(96,165,250,0.05)" stroke="var(--blu)" stroke-width="2"/>
+            <text x="560" y="130" text-anchor="middle" fill="var(--blu)" font-size="11" font-weight="700">리프 페이지 Y</text>
+            <rect x="432" y="138" width="256" height="24" rx="4" fill="var(--s3)"/>
+            <text x="520" y="155" text-anchor="middle" fill="var(--blu)" font-size="11" font-weight="600">kim@mail</text>
+            <text x="648" y="155" text-anchor="middle" fill="var(--pnk)" font-size="11" font-weight="700">→ PK: 2</text>
+            <rect x="432" y="166" width="256" height="24" rx="4" fill="var(--s2)"/>
+            <text x="520" y="183" text-anchor="middle" fill="var(--blu)" font-size="11" font-weight="600">lee@mail</text>
+            <text x="648" y="183" text-anchor="middle" fill="var(--pnk)" font-size="11" font-weight="700">→ PK: 4</text>
+            <rect x="432" y="194" width="256" height="24" rx="4" fill="var(--s3)"/>
+            <text x="520" y="211" text-anchor="middle" fill="var(--blu)" font-size="11" font-weight="600">park@mail</text>
+            <text x="648" y="211" text-anchor="middle" fill="var(--pnk)" font-size="11" font-weight="700">→ PK: 3</text>
+            <path d="M330,175 L420,175" stroke="var(--blu)" stroke-width="2" stroke-dasharray="5 3" fill="none" marker-end="url(#ab_p1)"/>
+            <rect x="100" y="232" width="550" height="34" rx="6" fill="rgba(248,113,113,0.08)" stroke="var(--red)" stroke-width="1.5"/>
+            <text x="375" y="254" text-anchor="middle" fill="var(--red)" font-size="12" font-weight="700">name, age 같은 다른 컬럼은 여기 없다! email + PK만 있다!</text>
+            <text x="375" y="290" text-anchor="middle" fill="var(--pnk)" font-size="14" font-weight="900">그래서 "테이블 룩업"이 필요하다!</text>
+            <rect x="50" y="306" width="650" height="160" rx="12" fill="var(--s2)" stroke="var(--pnk)" stroke-width="1.5" stroke-dasharray="6 3"/>
+            <text x="375" y="330" text-anchor="middle" fill="var(--dim)" font-size="11" font-family="JetBrains Mono">
+              SELECT <tspan fill="var(--grn)">name, age</tspan> FROM users WHERE <tspan fill="var(--blu)">email</tspan> = <tspan fill="var(--org)">'kim@mail'</tspan>
+            </text>
+            <rect x="70" y="348" width="180" height="50" rx="8" fill="rgba(96,165,250,0.08)" stroke="var(--blu)" stroke-width="1.5"/>
+            <text x="160" y="366" text-anchor="middle" fill="var(--blu)" font-size="9" font-weight="700">STEP 1</text>
+            <text x="160" y="382" text-anchor="middle" fill="var(--dim)" font-size="9">idx_email에서</text>
+            <text x="160" y="394" text-anchor="middle" fill="var(--blu)" font-size="10" font-weight="600">kim@mail → PK: 2 찾음</text>
+            <text x="270" y="380" fill="var(--pnk)" font-size="18" font-weight="700">→</text>
+            <rect x="295" y="348" width="180" height="50" rx="8" fill="rgba(244,114,182,0.08)" stroke="var(--pnk)" stroke-width="1.5"/>
+            <text x="385" y="366" text-anchor="middle" fill="var(--pnk)" font-size="9" font-weight="700">STEP 2 (테이블 룩업)</text>
+            <text x="385" y="382" text-anchor="middle" fill="var(--dim)" font-size="9">클러스터드 인덱스에서</text>
+            <text x="385" y="394" text-anchor="middle" fill="var(--pnk)" font-size="10" font-weight="600">PK=2 로 행 전체 조회</text>
+            <text x="495" y="380" fill="var(--grn)" font-size="18" font-weight="700">→</text>
+            <rect x="520" y="348" width="165" height="50" rx="8" fill="rgba(45,212,191,0.08)" stroke="var(--grn)" stroke-width="1.5"/>
+            <text x="602" y="366" text-anchor="middle" fill="var(--grn)" font-size="9" font-weight="700">STEP 3 결과!</text>
+            <text x="602" y="382" text-anchor="middle" fill="var(--dim)" font-size="9">김영희, 25 반환</text>
+            <text x="602" y="394" text-anchor="middle" fill="var(--grn)" font-size="10" font-weight="600">name + age 획득</text>
+            <text x="375" y="452" text-anchor="middle" fill="var(--dim)" font-size="10">세컨더리 인덱스는 리프에 "전체 데이터"가 없으므로, PK를 가지고 클러스터드 인덱스를 한 번 더 조회해야 함</text>
+            <defs>
+              <marker id="ab_p1" viewBox="0 0 6 6" refX="6" refY="3" markerWidth="6" markerHeight="6" orient="auto"><polygon points="0 0,6 3,0 6" fill="var(--blu)"/></marker>
+            </defs>
+          </svg>
+        </div>
       </div>
     </div>
-  </div>
 
-  <div class="qa-card">
-    <div class="qa-q">인덱스 전체 개념을 면접 한 줄로 요약해주세요.</div>
-    <div class="qa-a">
-      <div class="hl">
-        <strong>① 인덱스 = B+Tree</strong> — 모든 인덱스는 각자의 Key를 기준으로 정렬된 별도의 B+Tree
-      </div>
-      <div class="hl grn">
-        <strong>② 클러스터드</strong> — 리프 = 행 데이터 전체 / <strong>세컨더리</strong> — 리프 = Key + PK (→ 테이블 룩업 필요)
-      </div>
-      <div class="hl org">
-        <strong>③ 복합 인덱스</strong> — (A, B, C)면 A→B→C 순서로 정렬. <strong>왼쪽부터만</strong> 인덱스를 탈 수 있음
-      </div>
-      <div class="hl blu">
-        <strong>④ 커버링 인덱스</strong> — 인덱스만으로 쿼리 결과를 반환 → 테이블 룩업 제거 → I/O 절약
-      </div>
-      <div class="hl red">
-        <strong>⑤ 거꾸로(B만, C만) 검색하면?</strong> — 첫 번째 컬럼 없이는 정렬 순서를 알 수 없어 인덱스를 못 탐
-      </div>
-      <div class="hl pnk">
-        <strong>⑥ 복합 인덱스 컬럼 순서 전략</strong> — 카디널리티 높은 컬럼 앞에 + WHERE 자주 쓰는 컬럼 앞에
+    <div class="qa-card">
+      <div class="qa-q">커버링 인덱스란 무엇이며, 테이블 룩업을 피하려면 어떻게 해야 하나요?</div>
+      <div class="qa-a">
+        <p>쿼리에서 필요한 컬럼이 <strong>인덱스 Key에 이미 다 포함</strong>되어 있으면, 클러스터드 인덱스까지 갈 필요 없이 세컨더리 인덱스 리프에서 바로 끝납니다.</p>
+        <div class="diagram-box">
+          <svg viewBox="0 0 700 200" width="700" height="200">
+            <text x="350" y="24" text-anchor="middle" fill="var(--dim)" font-size="12" font-family="JetBrains Mono">
+              SELECT <tspan fill="var(--blu)" font-weight="700">email</tspan> FROM users WHERE <tspan fill="var(--blu)">email</tspan> = <tspan fill="var(--org)">'kim@mail'</tspan>
+            </text>
+            <rect x="60" y="48" width="250" height="60" rx="10" fill="rgba(96,165,250,0.08)" stroke="var(--blu)" stroke-width="2"/>
+            <text x="185" y="70" text-anchor="middle" fill="var(--blu)" font-size="10" font-weight="700">idx_email 리프 도착</text>
+            <text x="185" y="90" text-anchor="middle" fill="var(--tx)" font-size="11">kim@mail | PK: 2</text>
+            <text x="185" y="100" text-anchor="middle" fill="var(--grn)" font-size="9">← email 이미 여기 있잖아?!</text>
+            <text x="340" y="82" fill="var(--grn)" font-size="20" font-weight="700">→</text>
+            <rect x="380" y="48" width="250" height="60" rx="10" fill="rgba(45,212,191,0.08)" stroke="var(--grn)" stroke-width="2"/>
+            <text x="505" y="70" text-anchor="middle" fill="var(--grn)" font-size="10" font-weight="700">바로 반환!</text>
+            <text x="505" y="90" text-anchor="middle" fill="var(--org)" font-size="11" font-weight="600">email = 'kim@mail'</text>
+            <text x="505" y="100" text-anchor="middle" fill="var(--dim)" font-size="9">클러스터드 인덱스 안 감!</text>
+            <rect x="60" y="128" width="570" height="55" rx="10" fill="rgba(248,113,113,0.05)" stroke="var(--red)" stroke-width="1"/>
+            <text x="345" y="150" text-anchor="middle" fill="var(--dim)" font-size="11">
+              반면 SELECT <tspan fill="var(--red)" font-weight="700">name</tspan> FROM users WHERE email = 'kim@mail'
+            </text>
+            <text x="345" y="170" text-anchor="middle" fill="var(--red)" font-size="10" font-weight="700">
+              → name은 idx_email 리프에 없음 → 클러스터드 인덱스까지 가야 함 (테이블 룩업!)
+            </text>
+          </svg>
+        </div>
+        <div class="hl grn">
+          <strong>커버링 인덱스 = "인덱스만으로 쿼리 완성"</strong><br>
+          SELECT하는 컬럼이 인덱스 Key에 전부 포함되면, 테이블 룩업이 불필요합니다.
+          EXPLAIN에서 <code>Extra: Using index</code>로 확인 가능합니다.
+        </div>
       </div>
     </div>
-  </div>
 
-</div>
+  </div><!-- /p1 -->
+
+  <!-- ═══════════════════════════ PART 2 ═══════════════════════════ -->
+  <div class="tab-content" id="p2">
+
+    <div class="category">🌳 Part 2. B+Tree 구조 — InnoDB 페이지, 노드-페이지 대응, 범위 스캔</div>
+
+    <div class="qa-card">
+      <div class="qa-q">InnoDB의 페이지(Page)란 무엇이며, 리프 페이지 내부는 어떻게 구성되나요?</div>
+      <div class="qa-a">
+        <p><strong>페이지는 InnoDB가 디스크에서 데이터를 읽고 쓰는 최소 단위</strong>입니다. 기본 크기는 <strong>16KB</strong>이며, B+Tree의 각 노드는 하나의 페이지에 대응됩니다. 디스크에서 데이터를 읽을 때 행 하나가 아니라 <strong>페이지 단위로 통째로</strong> 메모리(Buffer Pool)에 올립니다.</p>
+        <div class="diagram-box">
+          <div class="page-visual">
+            <span class="disk-label">📦 디스크 위의 페이지들 (각 16KB)</span>
+            <div class="disk-bar">
+              <div class="page-block root"><span class="label">루트</span>Page 3</div>
+              <div class="page-block internal"><span class="label">내부</span>Page 4</div>
+              <div class="page-block internal"><span class="label">내부</span>Page 5</div>
+              <div class="page-block leaf"><span class="label">리프</span>Page 6</div>
+              <div class="page-block leaf"><span class="label">리프</span>Page 7</div>
+              <div class="page-block leaf"><span class="label">리프</span>Page 8</div>
+              <div class="page-block leaf"><span class="label">리프</span>Page 9</div>
+              <div class="page-block data"><span class="label">데이터</span>Page 10</div>
+              <div class="page-block data"><span class="label">데이터</span>Page 11</div>
+            </div>
+            <p class="page-size-note">InnoDB 기본 페이지 크기: <code>innodb_page_size = 16384 (16KB)</code></p>
+          </div>
+          <div class="page-internal">
+            <div class="page-struct">
+              <div class="page-struct-header">📄 리프 페이지 내부 구조 (Page 7 예시)</div>
+              <div class="page-struct-body">
+                <div class="page-cell">
+                  <span class="cell-label">Page Header</span>
+                  <span class="cell-val ptr">prev: Page6</span>
+                  <span class="cell-val ptr">next: Page8</span>
+                </div>
+                <div class="page-cell">
+                  <span class="cell-label">Record 1</span>
+                  <span class="cell-val key">Key: 15</span>
+                  <span class="cell-val data">Data: 홍길동</span>
+                </div>
+                <div class="page-cell">
+                  <span class="cell-label">Record 2</span>
+                  <span class="cell-val key">Key: 18</span>
+                  <span class="cell-val data">Data: 김철수</span>
+                </div>
+                <div class="page-cell">
+                  <span class="cell-label">Record 3</span>
+                  <span class="cell-val key">Key: 20</span>
+                  <span class="cell-val data">Data: 이영희</span>
+                </div>
+                <div class="page-cell">
+                  <span class="cell-label">Page Trailer</span>
+                  <span class="cell-val ptr">Checksum</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="highlight-box">
+            <strong>핵심:</strong> 리프 페이지의 Header에 <strong>이전/다음 페이지 번호</strong>가 있어서 연결 리스트를 형성합니다.
+            이것이 바로 B+Tree 리프 노드의 Linked List입니다.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">B+Tree 인덱스 구조는 어떻게 생겼으며, 리프 노드는 어떻게 연결되어 있나요?</div>
+      <div class="qa-a">
+        <p>아래는 <strong>PK(id) 기준 클러스터드 인덱스</strong>의 B+Tree 구조입니다. 내부 노드는 키+포인터만, 리프 노드에 실제 데이터가 저장됩니다. 리프끼리는 양방향 연결 리스트로 연결됩니다.</p>
+        <div class="diagram-box">
+          <svg viewBox="0 0 800 380" width="800" height="380" style="font-family:'JetBrains Mono',monospace;">
+            <defs>
+              <marker id="arrowGreen_p2" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#00cec9"/>
+              </marker>
+            </defs>
+            <text x="16" y="48" fill="#8b8fa8" font-size="11" font-family="Noto Sans KR, sans-serif">루트 노드</text>
+            <text x="16" y="62" fill="#6c5ce7" font-size="9" font-family="Noto Sans KR, sans-serif">(Page 3)</text>
+            <text x="16" y="163" fill="#8b8fa8" font-size="11" font-family="Noto Sans KR, sans-serif">내부 노드</text>
+            <text x="16" y="175" fill="#74b9ff" font-size="9" font-family="Noto Sans KR, sans-serif">(Page 4,5)</text>
+            <text x="16" y="283" fill="#8b8fa8" font-size="11" font-family="Noto Sans KR, sans-serif">리프 노드</text>
+            <text x="16" y="295" fill="#00cec9" font-size="9" font-family="Noto Sans KR, sans-serif">(Page 6~9)</text>
+            <line x1="390" y1="65" x2="250" y2="140" stroke="#3d4260" stroke-width="1.5"/>
+            <line x1="410" y1="65" x2="550" y2="140" stroke="#3d4260" stroke-width="1.5"/>
+            <line x1="220" y1="185" x2="160" y2="258" stroke="#3d4260" stroke-width="1.5"/>
+            <line x1="270" y1="185" x2="310" y2="258" stroke="#3d4260" stroke-width="1.5"/>
+            <line x1="520" y1="185" x2="460" y2="258" stroke="#3d4260" stroke-width="1.5"/>
+            <line x1="570" y1="185" x2="610" y2="258" stroke="#3d4260" stroke-width="1.5"/>
+            <rect x="340" y="28" width="120" height="40" rx="8" fill="rgba(108,92,231,0.15)" stroke="#6c5ce7" stroke-width="2"/>
+            <text x="400" y="48" fill="#a29bfe" font-size="13" font-weight="600" text-anchor="middle" dominant-baseline="central">20</text>
+            <rect x="185" y="142" width="130" height="40" rx="8" fill="rgba(116,185,255,0.1)" stroke="#74b9ff" stroke-width="2"/>
+            <text x="250" y="162" fill="#74b9ff" font-size="13" font-weight="600" text-anchor="middle" dominant-baseline="central">5 │ 10</text>
+            <rect x="485" y="142" width="130" height="40" rx="8" fill="rgba(116,185,255,0.1)" stroke="#74b9ff" stroke-width="2"/>
+            <text x="550" y="162" fill="#74b9ff" font-size="13" font-weight="600" text-anchor="middle" dominant-baseline="central">30 │ 40</text>
+            <rect x="105" y="260" width="120" height="55" rx="8" fill="rgba(0,206,201,0.08)" stroke="#00cec9" stroke-width="2"/>
+            <text x="165" y="278" fill="#00cec9" font-size="11" font-weight="600" text-anchor="middle">1, 3, 5</text>
+            <text x="165" y="300" fill="#fdcb6e" font-size="9" text-anchor="middle">홍길동, 박씨, 김씨</text>
+            <rect x="250" y="260" width="120" height="55" rx="8" fill="rgba(0,206,201,0.08)" stroke="#00cec9" stroke-width="2"/>
+            <text x="310" y="278" fill="#00cec9" font-size="11" font-weight="600" text-anchor="middle">10, 15, 18</text>
+            <text x="310" y="300" fill="#fdcb6e" font-size="9" text-anchor="middle">이씨, 최씨, 정씨</text>
+            <rect x="400" y="260" width="120" height="55" rx="8" fill="rgba(0,206,201,0.08)" stroke="#00cec9" stroke-width="2"/>
+            <text x="460" y="278" fill="#00cec9" font-size="11" font-weight="600" text-anchor="middle">20, 25, 28</text>
+            <text x="460" y="300" fill="#fdcb6e" font-size="9" text-anchor="middle">한씨, 윤씨, 조씨</text>
+            <rect x="550" y="260" width="130" height="55" rx="8" fill="rgba(0,206,201,0.08)" stroke="#00cec9" stroke-width="2"/>
+            <text x="615" y="278" fill="#00cec9" font-size="11" font-weight="600" text-anchor="middle">30, 35, 40, 45</text>
+            <text x="615" y="300" fill="#fdcb6e" font-size="9" text-anchor="middle">강씨, 임씨, 오씨, 서씨</text>
+            <path d="M225,290 C238,290 238,290 250,290" stroke="#00cec9" stroke-width="2" stroke-dasharray="6 4" fill="none" marker-end="url(#arrowGreen_p2)"/>
+            <path d="M370,290 C383,290 383,290 400,290" stroke="#00cec9" stroke-width="2" stroke-dasharray="6 4" fill="none" marker-end="url(#arrowGreen_p2)"/>
+            <path d="M520,290 C533,290 533,290 550,290" stroke="#00cec9" stroke-width="2" stroke-dasharray="6 4" fill="none" marker-end="url(#arrowGreen_p2)"/>
+            <text x="400" y="345" text-anchor="middle" fill="#00cec9" font-size="11" font-family="Noto Sans KR, sans-serif">↔ 리프 노드 양방향 연결 리스트 (범위 탐색의 핵심!)</text>
+            <text x="690" y="40" fill="#fd79a8" font-size="10" font-family="Noto Sans KR, sans-serif" font-weight="600">WHERE id = 15</text>
+            <text x="690" y="55" fill="#8b8fa8" font-size="9" font-family="Noto Sans KR, sans-serif">탐색 경로 예시:</text>
+            <text x="690" y="70" fill="#8b8fa8" font-size="9">20보다 작다 → 왼쪽</text>
+            <text x="690" y="85" fill="#8b8fa8" font-size="9">10보다 크다 → 오른쪽</text>
+            <text x="690" y="100" fill="#8b8fa8" font-size="9">리프에서 15 발견!</text>
+          </svg>
+          <div class="legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#6c5ce7"></div>루트 노드 (키만)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#74b9ff"></div>내부 노드 (키+포인터)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#00cec9"></div>리프 노드 (키+데이터)</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#fdcb6e"></div>실제 행 데이터</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">B+Tree 노드와 InnoDB 페이지는 어떻게 대응되며, 트리 높이가 중요한 이유는 무엇인가요?</div>
+      <div class="qa-a">
+        <p>B+Tree의 각 노드는 InnoDB의 페이지 하나에 대응됩니다. 따라서 <strong>트리 높이 = 디스크 I/O 횟수</strong>가 됩니다.</p>
+        <div class="diagram-box">
+          <div class="relation-grid">
+            <div class="rel-card">
+              <h4 style="color:#a29bfe">🌳 B+Tree 노드</h4>
+              <ul>
+                <li>루트 노드 1개</li>
+                <li>내부 노드 N개</li>
+                <li>리프 노드 M개</li>
+              </ul>
+            </div>
+            <div class="arrow-col">
+              <span class="arrow-icon">⟷</span>
+              <span>1 : 1 대응</span>
+            </div>
+            <div class="rel-card">
+              <h4 style="color:#fdcb6e">📄 InnoDB 페이지</h4>
+              <ul>
+                <li>루트 페이지 1개</li>
+                <li>내부 페이지 N개</li>
+                <li>리프 페이지 M개</li>
+              </ul>
+            </div>
+          </div>
+          <div class="highlight-box" style="margin-top:20px">
+            <strong>왜 트리 높이가 중요한가?</strong><br>
+            높이 3인 B+Tree에서 특정 키를 찾으려면 루트 → 내부 → 리프, 총 <strong>3번의 페이지 읽기(디스크 I/O)</strong>가 필요합니다.
+            InnoDB는 내부 노드에 데이터를 저장하지 않으므로 한 페이지에 약 <strong>1,000개 이상의 키</strong>를 담을 수 있고,
+            높이 3이면 약 <strong>10억 건</strong>의 데이터를 커버할 수 있습니다.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">B+Tree에서 범위 탐색(WHERE id BETWEEN 10 AND 30)이 효율적인 이유는 무엇인가요?</div>
+      <div class="qa-a">
+        <p>B+Tree에서 범위 탐색이 효율적인 이유를 단계별로 볼 수 있습니다.</p>
+        <div class="diagram-box">
+          <div class="flow-steps">
+            <div class="flow-step">
+              <div class="step-num">Step 1</div>
+              <div class="step-title" style="color:#a29bfe">루트에서 시작</div>
+              <div class="step-desc">키 10은 20보다 작으므로<br>왼쪽 자식으로 이동</div>
+            </div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-step">
+              <div class="step-num">Step 2</div>
+              <div class="step-title" style="color:#74b9ff">내부 노드 탐색</div>
+              <div class="step-desc">[5│10] 에서<br>10 이상 → 오른쪽 자식</div>
+            </div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-step">
+              <div class="step-num">Step 3</div>
+              <div class="step-title" style="color:#00cec9">리프 도착!</div>
+              <div class="step-desc">키 10 발견<br>여기서부터 스캔 시작</div>
+            </div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-step">
+              <div class="step-num">Step 4</div>
+              <div class="step-title" style="color:#00cec9">→ 순차 스캔</div>
+              <div class="step-desc">Linked List를 따라<br>다음 리프로 이동</div>
+            </div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-step">
+              <div class="step-num">Step 5</div>
+              <div class="step-title" style="color:#fd7979">30에서 멈춤</div>
+              <div class="step-desc">30을 찾으면<br>스캔 종료</div>
+            </div>
+          </div>
+          <div class="highlight-box" style="margin-top:20px">
+            <strong>핵심 포인트:</strong> 시작 키를 찾기 위해 트리를 타고 내려가는 것은 딱 한 번이고,
+            이후에는 <strong>리프 노드의 연결 리스트를 따라 순차적으로</strong> 스캔합니다.
+            트리를 다시 올라갈 필요가 없으므로 디스크 I/O가 최소화됩니다.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /p2 -->
+
+  <!-- ═══════════════════════════ PART 3 ═══════════════════════════ -->
+  <div class="tab-content" id="p3">
+
+    <div class="category">📊 Part 3. 인덱스 종류 &amp; 활용 — 클러스터드/세컨더리 비교, 복합 인덱스, 커버링 인덱스, 쿼리 흐름</div>
+
+    <div class="qa-card">
+      <div class="qa-q">클러스터드 인덱스와 세컨더리(논클러스터드) 인덱스의 차이는 무엇인가요?</div>
+      <div class="qa-a">
+        <p><strong>가장 중요한 차이: 리프 노드에 무엇이 저장되는가?</strong></p>
+        <div class="diagram-box">
+          <svg viewBox="0 0 820 440" width="820" height="440">
+            <text x="200" y="24" text-anchor="middle" fill="var(--acc2)" font-size="14" font-weight="800">클러스터드 인덱스 (PK)</text>
+            <text x="200" y="42" text-anchor="middle" fill="var(--dim)" font-size="10">테이블당 1개 · 리프 = 실제 행 데이터</text>
+            <rect x="150" y="58" width="100" height="32" rx="6" fill="rgba(124,108,240,0.15)" stroke="var(--acc)" stroke-width="1.5"/>
+            <text x="200" y="78" text-anchor="middle" fill="var(--acc2)" font-size="11" font-weight="600">20</text>
+            <line x1="175" y1="90" x2="120" y2="112" stroke="var(--bd)" stroke-width="1"/>
+            <line x1="225" y1="90" x2="280" y2="112" stroke="var(--bd)" stroke-width="1"/>
+            <rect x="70" y="112" width="100" height="28" rx="6" fill="rgba(96,165,250,0.1)" stroke="var(--blu)" stroke-width="1.5"/>
+            <text x="120" y="130" text-anchor="middle" fill="var(--blu)" font-size="10" font-weight="600">5 │ 10</text>
+            <rect x="230" y="112" width="100" height="28" rx="6" fill="rgba(96,165,250,0.1)" stroke="var(--blu)" stroke-width="1.5"/>
+            <text x="280" y="130" text-anchor="middle" fill="var(--blu)" font-size="10" font-weight="600">30 │ 40</text>
+            <line x1="95" y1="140" x2="65" y2="168" stroke="var(--bd)" stroke-width="1"/>
+            <line x1="145" y1="140" x2="175" y2="168" stroke="var(--bd)" stroke-width="1"/>
+            <line x1="255" y1="140" x2="225" y2="168" stroke="var(--bd)" stroke-width="1"/>
+            <line x1="305" y1="140" x2="335" y2="168" stroke="var(--bd)" stroke-width="1"/>
+            <rect x="10" y="168" width="110" height="70" rx="6" fill="rgba(45,212,191,0.06)" stroke="var(--grn)" stroke-width="1.5"/>
+            <text x="65" y="186" text-anchor="middle" fill="var(--grn)" font-size="9" font-weight="600">id: 1, 3, 5</text>
+            <line x1="10" y1="194" x2="120" y2="194" stroke="var(--bd)" stroke-width="0.5"/>
+            <text x="65" y="210" text-anchor="middle" fill="var(--org)" font-size="8">홍길동, 28, a@..</text>
+            <text x="65" y="224" text-anchor="middle" fill="var(--org)" font-size="8">박철수, 32, b@..</text>
+            <rect x="130" y="168" width="110" height="70" rx="6" fill="rgba(45,212,191,0.06)" stroke="var(--grn)" stroke-width="1.5"/>
+            <text x="185" y="186" text-anchor="middle" fill="var(--grn)" font-size="9" font-weight="600">id: 10, 15, 18</text>
+            <line x1="130" y1="194" x2="240" y2="194" stroke="var(--bd)" stroke-width="0.5"/>
+            <text x="185" y="210" text-anchor="middle" fill="var(--org)" font-size="8">김영희, 25, c@..</text>
+            <text x="185" y="224" text-anchor="middle" fill="var(--org)" font-size="8">이수진, 29, d@..</text>
+            <rect x="250" y="168" width="110" height="70" rx="6" fill="rgba(45,212,191,0.06)" stroke="var(--grn)" stroke-width="1.5"/>
+            <text x="305" y="186" text-anchor="middle" fill="var(--grn)" font-size="9" font-weight="600">id: 20, 25</text>
+            <line x1="250" y1="194" x2="360" y2="194" stroke="var(--bd)" stroke-width="0.5"/>
+            <text x="305" y="210" text-anchor="middle" fill="var(--org)" font-size="8">최민수, 35, e@..</text>
+            <path d="M120,200 L130,200" stroke="var(--grn)" stroke-width="1.5" stroke-dasharray="3 2" marker-end="url(#ag2_p3)"/>
+            <path d="M240,200 L250,200" stroke="var(--grn)" stroke-width="1.5" stroke-dasharray="3 2" marker-end="url(#ag2_p3)"/>
+            <text x="200" y="258" text-anchor="middle" fill="var(--grn)" font-size="9">리프에 행 데이터 전체가 있다!</text>
+            <text x="610" y="24" text-anchor="middle" fill="var(--blu)" font-size="14" font-weight="800">세컨더리 인덱스 (email)</text>
+            <text x="610" y="42" text-anchor="middle" fill="var(--dim)" font-size="10">여러 개 가능 · 리프 = Key + PK 값</text>
+            <rect x="560" y="58" width="100" height="32" rx="6" fill="rgba(96,165,250,0.1)" stroke="var(--blu)" stroke-width="1.5"/>
+            <text x="610" y="78" text-anchor="middle" fill="var(--blu)" font-size="11" font-weight="600">d@</text>
+            <line x1="585" y1="90" x2="530" y2="112" stroke="var(--bd)" stroke-width="1"/>
+            <line x1="635" y1="90" x2="690" y2="112" stroke="var(--bd)" stroke-width="1"/>
+            <rect x="480" y="112" width="100" height="28" rx="6" fill="rgba(96,165,250,0.1)" stroke="var(--blu)" stroke-width="1.5"/>
+            <text x="530" y="130" text-anchor="middle" fill="var(--blu)" font-size="10" font-weight="600">b@ │ c@</text>
+            <rect x="640" y="112" width="100" height="28" rx="6" fill="rgba(96,165,250,0.1)" stroke="var(--blu)" stroke-width="1.5"/>
+            <text x="690" y="130" text-anchor="middle" fill="var(--blu)" font-size="10" font-weight="600">e@ │ f@</text>
+            <line x1="505" y1="140" x2="475" y2="168" stroke="var(--bd)" stroke-width="1"/>
+            <line x1="555" y1="140" x2="585" y2="168" stroke="var(--bd)" stroke-width="1"/>
+            <line x1="665" y1="140" x2="635" y2="168" stroke="var(--bd)" stroke-width="1"/>
+            <line x1="715" y1="140" x2="745" y2="168" stroke="var(--bd)" stroke-width="1"/>
+            <rect x="420" y="168" width="110" height="70" rx="6" fill="rgba(96,165,250,0.06)" stroke="var(--blu)" stroke-width="1.5"/>
+            <text x="475" y="186" text-anchor="middle" fill="var(--blu)" font-size="9" font-weight="600">a@.. , b@..</text>
+            <line x1="420" y1="194" x2="530" y2="194" stroke="var(--bd)" stroke-width="0.5"/>
+            <text x="475" y="210" text-anchor="middle" fill="var(--pnk)" font-size="9" font-weight="600">PK: 1, 3</text>
+            <text x="475" y="226" text-anchor="middle" fill="var(--dim)" font-size="7.5">← PK만 저장!</text>
+            <rect x="540" y="168" width="110" height="70" rx="6" fill="rgba(96,165,250,0.06)" stroke="var(--blu)" stroke-width="1.5"/>
+            <text x="595" y="186" text-anchor="middle" fill="var(--blu)" font-size="9" font-weight="600">c@.. , d@..</text>
+            <line x1="540" y1="194" x2="650" y2="194" stroke="var(--bd)" stroke-width="0.5"/>
+            <text x="595" y="210" text-anchor="middle" fill="var(--pnk)" font-size="9" font-weight="600">PK: 10, 15</text>
+            <rect x="660" y="168" width="110" height="70" rx="6" fill="rgba(96,165,250,0.06)" stroke="var(--blu)" stroke-width="1.5"/>
+            <text x="715" y="186" text-anchor="middle" fill="var(--blu)" font-size="9" font-weight="600">e@.. , f@..</text>
+            <line x1="660" y1="194" x2="770" y2="194" stroke="var(--bd)" stroke-width="0.5"/>
+            <text x="715" y="210" text-anchor="middle" fill="var(--pnk)" font-size="9" font-weight="600">PK: 20, 25</text>
+            <path d="M530,200 L540,200" stroke="var(--blu)" stroke-width="1.5" stroke-dasharray="3 2" marker-end="url(#ab2_p3)"/>
+            <path d="M650,200 L660,200" stroke="var(--blu)" stroke-width="1.5" stroke-dasharray="3 2" marker-end="url(#ab2_p3)"/>
+            <text x="610" y="262" text-anchor="middle" fill="var(--dim)" font-size="9">PK 값으로 클러스터드 인덱스를 다시 조회</text>
+            <path d="M595,270 C500,290 350,280 300,258" stroke="var(--pnk)" stroke-width="2" stroke-dasharray="6 4" fill="none" marker-end="url(#ap2_p3)"/>
+            <text x="440" y="294" text-anchor="middle" fill="var(--pnk)" font-size="11" font-weight="700">이것이 "테이블 룩업"</text>
+            <rect x="100" y="330" width="620" height="100" rx="12" fill="var(--s2)" stroke="var(--grn)" stroke-width="2" stroke-dasharray="6 4"/>
+            <text x="410" y="356" text-anchor="middle" fill="var(--grn)" font-size="14" font-weight="800">커버링 인덱스 — 테이블 룩업이 필요 없는 경우</text>
+            <text x="410" y="380" text-anchor="middle" fill="var(--dim)" font-size="11">SELECT email FROM users WHERE email = 'c@..'</text>
+            <text x="410" y="400" text-anchor="middle" fill="var(--dim)" font-size="10">→ 세컨더리 인덱스(email)의 리프에 이미 email이 있으므로</text>
+            <text x="410" y="418" text-anchor="middle" fill="var(--org)" font-size="11" font-weight="700">클러스터드 인덱스를 찾아갈 필요 없이 바로 반환! (Using index)</text>
+            <defs>
+              <marker id="ag2_p3" viewBox="0 0 6 6" refX="6" refY="3" markerWidth="6" markerHeight="6" orient="auto"><polygon points="0 0,6 3,0 6" fill="#2dd4bf"/></marker>
+              <marker id="ab2_p3" viewBox="0 0 6 6" refX="6" refY="3" markerWidth="6" markerHeight="6" orient="auto"><polygon points="0 0,6 3,0 6" fill="#60a5fa"/></marker>
+              <marker id="ap2_p3" viewBox="0 0 6 6" refX="6" refY="3" markerWidth="6" markerHeight="6" orient="auto"><polygon points="0 0,6 3,0 6" fill="#f472b6"/></marker>
+            </defs>
+          </svg>
+        </div>
+        <table>
+          <tr><th style="width:22%">구분</th><th style="width:39%">클러스터드 인덱스</th><th style="width:39%">세컨더리(논클러스터드) 인덱스</th></tr>
+          <tr><td><strong>개수</strong></td><td>테이블당 <strong>1개</strong></td><td>테이블당 <strong>여러 개</strong></td></tr>
+          <tr><td><strong>Key</strong></td><td>PK (없으면 UNIQUE NOT NULL, 그것도 없으면 InnoDB가 내부 RowID 생성)</td><td>CREATE INDEX로 지정한 컬럼</td></tr>
+          <tr><td><strong>리프 노드</strong></td><td><strong>행 데이터 전체</strong> (name, email, age...)</td><td><strong>인덱스 Key + PK 값</strong></td></tr>
+          <tr><td><strong>데이터 정렬</strong></td><td>테이블 물리적 정렬 = PK 순</td><td>별도 B+Tree (인덱스 Key 순)</td></tr>
+          <tr><td><strong>조회 과정</strong></td><td>리프에서 바로 데이터 반환</td><td>리프에서 PK 확인 → 클러스터드 인덱스에서 데이터 조회 <strong>(테이블 룩업)</strong></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">복합 인덱스 (name, age)의 정렬 구조는 어떻게 되며 컬럼 순서가 왜 중요한가요?</div>
+      <div class="qa-a">
+        <p><strong>복합 인덱스 (name, age)가 어떻게 정렬되는지</strong> 직접 봐야 이해됩니다. 전화번호부가 <strong>성(姓) → 이름 순</strong>으로 정렬된 것과 같습니다.</p>
+        <div class="diagram-box">
+          <svg viewBox="0 0 700 300" width="700" height="300">
+            <text x="350" y="22" text-anchor="middle" fill="var(--acc2)" font-size="13" font-weight="800">INDEX idx_comp (name, age) — 리프 노드 내부</text>
+            <rect x="100" y="38" width="500" height="28" rx="6" fill="var(--s3)"/>
+            <text x="200" y="56" text-anchor="middle" fill="var(--grn)" font-size="11" font-weight="700">name (1차 정렬)</text>
+            <text x="370" y="56" text-anchor="middle" fill="var(--org)" font-size="11" font-weight="700">age (2차 정렬)</text>
+            <text x="520" y="56" text-anchor="middle" fill="var(--pnk)" font-size="11" font-weight="700">PK (id)</text>
+            <rect x="100" y="70" width="500" height="24" rx="0" fill="none" stroke="var(--bd)" stroke-width="0.5"/>
+            <text x="200" y="86" text-anchor="middle" fill="var(--grn)" font-size="11">김영희</text>
+            <text x="370" y="86" text-anchor="middle" fill="var(--org)" font-size="11">22</text>
+            <text x="520" y="86" text-anchor="middle" fill="var(--pnk)" font-size="10">→ id: 7</text>
+            <rect x="100" y="94" width="500" height="24" rx="0" fill="none" stroke="var(--bd)" stroke-width="0.5"/>
+            <text x="200" y="110" text-anchor="middle" fill="var(--grn)" font-size="11">김영희</text>
+            <text x="370" y="110" text-anchor="middle" fill="var(--org)" font-size="11">28</text>
+            <text x="520" y="110" text-anchor="middle" fill="var(--pnk)" font-size="10">→ id: 3</text>
+            <rect x="100" y="118" width="500" height="24" rx="0" fill="none" stroke="var(--bd)" stroke-width="0.5"/>
+            <text x="200" y="134" text-anchor="middle" fill="var(--grn)" font-size="11">박철수</text>
+            <text x="370" y="134" text-anchor="middle" fill="var(--org)" font-size="11">25</text>
+            <text x="520" y="134" text-anchor="middle" fill="var(--pnk)" font-size="10">→ id: 10</text>
+            <rect x="100" y="142" width="500" height="24" rx="0" fill="none" stroke="var(--bd)" stroke-width="0.5"/>
+            <text x="200" y="158" text-anchor="middle" fill="var(--grn)" font-size="11">박철수</text>
+            <text x="370" y="158" text-anchor="middle" fill="var(--org)" font-size="11">30</text>
+            <text x="520" y="158" text-anchor="middle" fill="var(--pnk)" font-size="10">→ id: 5</text>
+            <rect x="100" y="166" width="500" height="24" rx="0" fill="none" stroke="var(--bd)" stroke-width="0.5"/>
+            <text x="200" y="182" text-anchor="middle" fill="var(--grn)" font-size="11">홍길동</text>
+            <text x="370" y="182" text-anchor="middle" fill="var(--org)" font-size="11">20</text>
+            <text x="520" y="182" text-anchor="middle" fill="var(--pnk)" font-size="10">→ id: 1</text>
+            <rect x="100" y="190" width="500" height="24" rx="0" fill="none" stroke="var(--bd)" stroke-width="0.5"/>
+            <text x="200" y="206" text-anchor="middle" fill="var(--grn)" font-size="11">홍길동</text>
+            <text x="370" y="206" text-anchor="middle" fill="var(--org)" font-size="11">35</text>
+            <text x="520" y="206" text-anchor="middle" fill="var(--pnk)" font-size="10">→ id: 15</text>
+            <text x="68" y="100" text-anchor="end" fill="var(--grn)" font-size="9">김영희</text>
+            <text x="68" y="112" text-anchor="end" fill="var(--dim)" font-size="8">그룹 내</text>
+            <text x="68" y="122" text-anchor="end" fill="var(--org)" font-size="8">age 정렬 ↓</text>
+            <line x1="72" y1="78" x2="72" y2="130" stroke="var(--grn)" stroke-width="1.5" stroke-dasharray="3 2"/>
+            <rect x="130" y="234" width="440" height="50" rx="8" fill="rgba(248,113,113,0.06)" stroke="var(--red)" stroke-width="1.5"/>
+            <text x="350" y="254" text-anchor="middle" fill="var(--red)" font-size="11" font-weight="700">⚠️ name이 같은 그룹 내에서만 age가 정렬되어 있다!</text>
+            <text x="350" y="274" text-anchor="middle" fill="var(--dim)" font-size="10">→ age만 단독으로 검색하면 정렬이 보장되지 않아 인덱스를 못 탐</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">복합 인덱스 (A, B, C)에서 거꾸로 검색하면 왜 인덱스를 타지 못하나요? (Leftmost Prefix Rule)</div>
+      <div class="qa-a">
+        <p>복합 인덱스 <code>(A, B, C)</code>는 <strong>왼쪽부터 순서대로</strong> 사용됩니다. 전화번호부에서 <strong>"성"을 모르면 "이름"만으로는 찾을 수 없는 것</strong>과 같습니다.</p>
+        <div class="sql-block">
+          <span style="color:var(--dim)">-- 인덱스: INDEX idx_abc (A, B, C)</span>
+        </div>
+        <table>
+          <tr><th>쿼리 WHERE 조건</th><th>인덱스 사용</th><th>이유</th></tr>
+          <tr><td><code>WHERE A = 1</code></td><td><span class="tag ok">사용</span></td><td>첫 번째 컬럼 A 사용</td></tr>
+          <tr><td><code>WHERE A = 1 AND B = 2</code></td><td><span class="tag ok">사용</span></td><td>A → B 순서대로 사용</td></tr>
+          <tr><td><code>WHERE A = 1 AND B = 2 AND C = 3</code></td><td><span class="tag ok">완전 사용</span></td><td>A → B → C 전부 사용</td></tr>
+          <tr><td><code>WHERE A = 1 AND C = 3</code></td><td><span class="tag part">A만 사용</span></td><td>B를 건너뛰었으므로 C는 인덱스 활용 불가</td></tr>
+          <tr><td><code>WHERE B = 2</code></td><td><span class="tag no">미사용</span></td><td><strong>첫 번째 컬럼 A가 없음</strong> → 인덱스 전혀 못 탐</td></tr>
+          <tr><td><code>WHERE B = 2 AND C = 3</code></td><td><span class="tag no">미사용</span></td><td>A가 없으면 B, C도 정렬이 보장되지 않음</td></tr>
+          <tr><td><code>WHERE C = 3</code></td><td><span class="tag no">미사용</span></td><td>마지막 컬럼만 단독 사용 불가</td></tr>
+          <tr><td><code>WHERE A = 1 ORDER BY B</code></td><td><span class="tag ok">사용</span></td><td>A로 필터 후 B는 이미 정렬되어 있어 filesort 불필요</td></tr>
+          <tr><td><code>ORDER BY B, C</code></td><td><span class="tag no">미사용</span></td><td>A 없이 B, C 정렬은 보장되지 않음</td></tr>
+        </table>
+        <div class="hl red">
+          <strong>핵심 원리 — 왜 거꾸로면 안 타는가?</strong><br>
+          복합 인덱스 (A, B, C)의 B+Tree는 <strong>A로 먼저 정렬 → 같은 A 그룹 내에서 B로 정렬 → 같은 A,B 그룹 내에서 C로 정렬</strong>합니다.
+          따라서 A를 모르면 B의 정렬 순서를 알 수 없고, A,B를 모르면 C의 정렬 순서를 알 수 없습니다.
+          이것이 <strong>Leftmost Prefix Rule</strong>입니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">실제 쿼리에서 세컨더리 인덱스가 타지는 전체 흐름을 단계별로 설명해주세요.</div>
+      <div class="qa-a">
+        <div class="sql-block">
+          <span style="color:var(--acc2)">SELECT</span> <span style="color:var(--grn)">name, age</span><br>
+          <span style="color:var(--acc2)">FROM</span> users<br>
+          <span style="color:var(--acc2)">WHERE</span> <span style="color:var(--grn)">email</span> = <span style="color:var(--org)">'hello@test.com'</span>
+        </div>
+        <div class="flow-wrap" style="margin-top:20px">
+          <div class="flow-item">
+            <div class="ft">STEP 1</div>
+            <div class="fv" style="color:var(--acc2)">옵티마이저</div>
+            <div class="ft">어떤 인덱스 쓸지 결정</div>
+          </div>
+          <span class="flow-arr">→</span>
+          <div class="flow-item">
+            <div class="ft">STEP 2</div>
+            <div class="fv" style="color:var(--blu)">idx_email<br>B+Tree 탐색</div>
+            <div class="ft">루트→내부→리프</div>
+          </div>
+          <span class="flow-arr">→</span>
+          <div class="flow-item">
+            <div class="ft">STEP 3</div>
+            <div class="fv" style="color:var(--pnk)">리프에서<br>PK 획득</div>
+            <div class="ft">email 리프 → PK: 5</div>
+          </div>
+          <span class="flow-arr">→</span>
+          <div class="flow-item">
+            <div class="ft">STEP 4</div>
+            <div class="fv" style="color:var(--grn)">클러스터드<br>인덱스 조회</div>
+            <div class="ft">PK=5로 행 데이터 획득</div>
+          </div>
+          <span class="flow-arr">→</span>
+          <div class="flow-item">
+            <div class="ft">STEP 5</div>
+            <div class="fv" style="color:var(--org)">결과 반환</div>
+            <div class="ft">name, age 추출</div>
+          </div>
+        </div>
+        <div class="hl grn">
+          <strong>만약 커버링 인덱스라면?</strong> (예: <code>INDEX(email, name, age)</code>)<br>
+          → STEP 3에서 이미 name, age를 가지고 있으므로 <strong>STEP 4를 건너뛴다</strong> = 테이블 룩업 제거 = 성능 향상!
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">클러스터드, 세컨더리, 복합, 커버링, 유니크 인덱스의 종류와 특징을 정리해주세요.</div>
+      <div class="qa-a">
+        <table>
+          <tr>
+            <th>종류</th>
+            <th>Key</th>
+            <th>리프 노드 저장 내용</th>
+            <th>핵심 특징</th>
+          </tr>
+          <tr>
+            <td><strong style="color:var(--acc2)">클러스터드</strong></td>
+            <td>PK</td>
+            <td>행 데이터 전체</td>
+            <td>테이블당 1개, 물리적 정렬</td>
+          </tr>
+          <tr>
+            <td><strong style="color:var(--blu)">세컨더리</strong></td>
+            <td>지정 컬럼</td>
+            <td>인덱스 Key + PK</td>
+            <td>여러 개 가능, 테이블 룩업 필요</td>
+          </tr>
+          <tr>
+            <td><strong style="color:var(--grn)">복합 인덱스</strong></td>
+            <td>(컬럼A, B, C..)</td>
+            <td>복합 Key + PK</td>
+            <td>Leftmost Prefix Rule 적용</td>
+          </tr>
+          <tr>
+            <td><strong style="color:var(--org)">커버링 인덱스</strong></td>
+            <td>쿼리 필요 컬럼 전부 포함</td>
+            <td>Key에 모든 정보 있음</td>
+            <td>테이블 룩업 제거, Using index</td>
+          </tr>
+          <tr>
+            <td><strong style="color:var(--pnk)">유니크 인덱스</strong></td>
+            <td>UNIQUE 컬럼</td>
+            <td>Key + PK</td>
+            <td>중복 불허, 동등 검색 최적화</td>
+          </tr>
+        </table>
+        <div class="hl org">
+          <strong>참고:</strong> "커버링 인덱스"는 별도의 인덱스 종류가 아니라, 쿼리에 필요한 모든 컬럼이 인덱스에 포함된 <strong>상황</strong>을 말합니다.
+          복합 인덱스가 커버링 인덱스가 될 수도, 단일 컬럼 인덱스가 커버링이 될 수도 있습니다.
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /p3 -->
+
+  <!-- ═══════════════════════════ PART 4 ═══════════════════════════ -->
+  <div class="tab-content" id="p4">
+
+    <div class="category">✦ Part 4. 면접 정리 — Key·B+Tree·클러스터드·세컨더리·커버링 한 줄 요약</div>
+
+    <div class="qa-card">
+      <div class="qa-q">Key, 클러스터드 인덱스, 세컨더리 인덱스, 커버링 인덱스를 한 줄씩 정리해주세요.</div>
+      <div class="qa-a">
+        <div class="hl org">
+          <strong>Key = B+Tree의 정렬 기준 컬럼 값.</strong> PK면 id, 이메일 인덱스면 email, 복합이면 (A, B)가 Key.
+        </div>
+        <div class="hl grn">
+          <strong>클러스터드 인덱스의 리프 = 행 데이터 전체.</strong> 테이블 자체가 PK 순서로 정렬된 B+Tree. 추가 조회 없이 바로 반환.
+        </div>
+        <div class="hl blu">
+          <strong>세컨더리 인덱스의 리프 = Key값 + PK값만.</strong> 다른 컬럼 데이터는 없음. PK를 들고 클러스터드 인덱스를 한 번 더 조회해야 함 = 테이블 룩업.
+        </div>
+        <div class="hl pnk">
+          <strong>테이블 룩업이 발생하는 이유?</strong> 세컨더리 인덱스 리프에 "필요한 컬럼이 없으니까". 거기엔 Key + PK밖에 없으니까.
+        </div>
+        <div class="hl cyan">
+          <strong>커버링 인덱스 = 테이블 룩업 스킵.</strong> SELECT하는 컬럼이 전부 인덱스 안에 있으면 클러스터드 인덱스까지 안 가도 됨. EXPLAIN Extra: Using index.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">B+Tree 인덱스 구조를 면접에서 한 줄로 요약한다면?</div>
+      <div class="qa-a">
+        <div class="hl">
+          <strong>페이지</strong> = InnoDB의 디스크 I/O 최소 단위 (기본 16KB). B+Tree 노드 = 페이지 하나에 1:1 대응.
+        </div>
+        <div class="hl blu">
+          <strong>트리 높이 = 디스크 I/O 횟수.</strong> 내부 노드는 키+포인터만 → 한 페이지에 ~1,000개 키 → 높이 3으로 10억 건 커버.
+        </div>
+        <div class="hl grn">
+          <strong>리프 노드</strong>는 키+데이터 저장 + 양방향 연결 리스트 → 범위 탐색이 순차 스캔으로 해결 (트리를 다시 올라갈 필요 없음).
+        </div>
+        <div class="hl org">
+          <strong>범위 탐색:</strong> 시작 키를 찾기 위해 트리를 한 번 내려간 뒤, Linked List를 따라 순차 스캔 → 디스크 I/O 최소화.
+        </div>
+        <div class="hl pnk">
+          <strong>클러스터드 인덱스</strong>의 리프 = 실제 행 데이터 / <strong>세컨더리 인덱스</strong>의 리프 = PK 값만.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">인덱스 전체 개념을 면접 포인트로 정리해주세요.</div>
+      <div class="qa-a">
+        <div class="hl">
+          <strong>① 인덱스 = B+Tree</strong> — 모든 인덱스는 각자의 Key를 기준으로 정렬된 별도의 B+Tree
+        </div>
+        <div class="hl grn">
+          <strong>② 클러스터드</strong> — 리프 = 행 데이터 전체 / <strong>세컨더리</strong> — 리프 = Key + PK (→ 테이블 룩업 필요)
+        </div>
+        <div class="hl org">
+          <strong>③ 복합 인덱스</strong> — (A, B, C)면 A→B→C 순서로 정렬. <strong>왼쪽부터만</strong> 인덱스를 탈 수 있음 (Leftmost Prefix Rule)
+        </div>
+        <div class="hl blu">
+          <strong>④ 커버링 인덱스</strong> — 인덱스만으로 쿼리 결과를 반환 → 테이블 룩업 제거 → I/O 절약
+        </div>
+        <div class="hl red">
+          <strong>⑤ 거꾸로(B만, C만) 검색하면?</strong> — 첫 번째 컬럼 없이는 정렬 순서를 알 수 없어 인덱스를 못 탐
+        </div>
+        <div class="hl pnk">
+          <strong>⑥ 복합 인덱스 컬럼 순서 전략</strong> — 카디널리티 높은 컬럼 앞에 + WHERE 자주 쓰는 컬럼 앞에
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /p4 -->
+
+</div><!-- .content -->
 
 <script src="../js/main.js"></script>
 </body>

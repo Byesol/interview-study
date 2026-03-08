@@ -139,8 +139,8 @@
   <h1>Backend Interview Study</h1>
   <p>백엔드 면접 준비를 위한 주제별 Q&A 모음</p>
   <div class="stats">
-    <div class="stat"><strong>19</strong>Topics</div>
-    <div class="stat"><strong>5</strong>Categories</div>
+    <div class="stat"><strong>21</strong>Topics</div>
+    <div class="stat"><strong>7</strong>Categories</div>
   </div>
 </div>
 
@@ -154,18 +154,8 @@
   <div class="cards">
     <a class="card" href="pages/db-index.html">
       <h3>인덱스 완전 정복</h3>
-      <div class="desc">인덱스 원리, 종류, B+Tree 구조, 클러스터드/넌클러스터드, 커버링 인덱스</div>
-      <div class="tags"><span class="tag">Index</span><span class="tag">B+Tree</span><span class="tag">Clustered</span></div>
-    </a>
-    <a class="card" href="pages/db-btree.html">
-      <h3>B+Tree & 인덱스 구조</h3>
-      <div class="desc">B+Tree 내부 동작, 리프 노드 연결, 범위 검색, 페이지 분할</div>
-      <div class="tags"><span class="tag">B+Tree</span><span class="tag">Page Split</span></div>
-    </a>
-    <a class="card" href="pages/db-key.html">
-      <h3>Key란 무엇인가?</h3>
-      <div class="desc">PK, FK, Unique Key, 인덱스 키의 의미와 리프 노드 저장 방식</div>
-      <div class="tags"><span class="tag">PK</span><span class="tag">FK</span><span class="tag">Key</span></div>
+      <div class="desc">Key, B+Tree, 클러스터드/세컨더리, 복합 인덱스, 커버링 인덱스, 쿼리 흐름</div>
+      <div class="tags"><span class="tag">Index</span><span class="tag">B+Tree</span><span class="tag">Key</span><span class="tag">Covering</span></div>
     </a>
     <a class="card" href="pages/db-fulltext-ngram.html">
       <h3>Full-Text Index & ngram</h3>
@@ -212,10 +202,10 @@
     </a>
   </div>
 
-  <!-- Backend / Spring -->
+  <!-- Java -->
   <div class="section-label">
-    <span class="icon" style="background:rgba(52,211,153,0.15);color:var(--green);">BE</span>
-    Backend & Spring
+    <span class="icon" style="background:rgba(248,113,113,0.15);color:var(--red);">JV</span>
+    Java
   </div>
   <div class="cards">
     <a class="card" href="pages/java-core.html">
@@ -223,17 +213,35 @@
       <div class="desc">equals/hashCode, String Pool, Generic·타입 소거, 불변 객체, Checked/Unchecked 예외</div>
       <div class="tags"><span class="tag">equals</span><span class="tag">Generic</span><span class="tag">Immutable</span><span class="tag">Exception</span></div>
     </a>
-    <a class="card" href="pages/backend-jvm-gc.html">
-      <h3>JVM, GC, HTTPS, Redis, Docker, TCP/UDP</h3>
-      <div class="desc">JVM 구조, GC 알고리즘, HTTPS 동작, Redis 활용, Docker, TCP vs UDP</div>
-      <div class="tags"><span class="tag">JVM</span><span class="tag">GC</span><span class="tag">Redis</span><span class="tag">Docker</span></div>
+    <a class="card" href="pages/java-jvm-gc.html">
+      <h3>JVM & Garbage Collection</h3>
+      <div class="desc">JVM 구조, 메모리 영역, GC 알고리즘, G1/ZGC, 튜닝</div>
+      <div class="tags"><span class="tag">JVM</span><span class="tag">GC</span><span class="tag">G1</span><span class="tag">ZGC</span></div>
     </a>
-    <a class="card" href="pages/backend-spring-mvc.html">
+    <a class="card" href="pages/java-concurrency.html">
+      <h3>Java 동시성 & 멀티스레드</h3>
+      <div class="desc">synchronized, volatile, ThreadPool, ConcurrentHashMap, Atomic, Lock</div>
+      <div class="tags"><span class="tag">synchronized</span><span class="tag">ThreadPool</span><span class="tag">CAS</span></div>
+    </a>
+  </div>
+
+  <!-- Spring -->
+  <div class="section-label">
+    <span class="icon" style="background:rgba(52,211,153,0.15);color:var(--green);">SP</span>
+    Spring & JPA
+  </div>
+  <div class="cards">
+    <a class="card" href="pages/spring-core.html">
+      <h3>Spring 핵심 원리</h3>
+      <div class="desc">IoC/DI, AOP, Bean 생명주기, 스코프, 순환 참조, 자동 설정</div>
+      <div class="tags"><span class="tag">IoC/DI</span><span class="tag">AOP</span><span class="tag">Bean</span></div>
+    </a>
+    <a class="card" href="pages/spring-mvc.html">
       <h3>Spring MVC 면접 가이드</h3>
       <div class="desc">DispatcherServlet, HandlerMapping, ViewResolver, 인터셉터, 필터</div>
       <div class="tags"><span class="tag">Spring MVC</span><span class="tag">DispatcherServlet</span></div>
     </a>
-    <a class="card" href="pages/backend-n1-lazy.html">
+    <a class="card" href="pages/jpa-n1-lazy.html">
       <h3>N+1 & Lazy Loading</h3>
       <div class="desc">N+1 문제 원인, Fetch Join, @EntityGraph, Batch Size, OSIV</div>
       <div class="tags"><span class="tag">N+1</span><span class="tag">JPA</span><span class="tag">Lazy Loading</span></div>
@@ -243,28 +251,41 @@
       <div class="desc">세션 vs 토큰, JWT 구조, Access/Refresh Token, OAuth2, 보안</div>
       <div class="tags"><span class="tag">JWT</span><span class="tag">OAuth2</span><span class="tag">Session</span></div>
     </a>
-    <a class="card" href="pages/java-concurrency.html">
-      <h3>Java 동시성 & 멀티스레드</h3>
-      <div class="desc">synchronized, volatile, ThreadPool, ConcurrentHashMap, Atomic, Lock</div>
-      <div class="tags"><span class="tag">synchronized</span><span class="tag">ThreadPool</span><span class="tag">CAS</span></div>
-    </a>
-    <a class="card" href="pages/spring-core.html">
-      <h3>Spring 핵심 원리</h3>
-      <div class="desc">IoC/DI, AOP, Bean 생명주기, 스코프, 순환 참조, 자동 설정</div>
-      <div class="tags"><span class="tag">IoC/DI</span><span class="tag">AOP</span><span class="tag">Bean</span></div>
+  </div>
+
+  <!-- Network -->
+  <div class="section-label">
+    <span class="icon" style="background:rgba(34,211,238,0.15);color:var(--cyan);">NW</span>
+    Network
+  </div>
+  <div class="cards">
+    <a class="card" href="pages/network-https-tcp.html">
+      <h3>HTTPS & TCP/UDP & Keep-Alive</h3>
+      <div class="desc">TLS Handshake, 인증서, TCP 3-Way/4-Way, 흐름제어, HTTP/TCP Keep-Alive</div>
+      <div class="tags"><span class="tag">HTTPS</span><span class="tag">TCP</span><span class="tag">UDP</span><span class="tag">Keep-Alive</span></div>
     </a>
   </div>
 
-  <!-- Infra / Network -->
+  <!-- Infra -->
   <div class="section-label">
     <span class="icon" style="background:rgba(167,139,250,0.15);color:var(--accent2);">IF</span>
-    Infra & Network
+    Infra
   </div>
   <div class="cards">
     <a class="card" href="pages/infra-vpc-nat-nginx.html">
-      <h3>VPC, NAT, Nginx, RAG, Keep-Alive</h3>
-      <div class="desc">VPC 구조, Private Subnet, NAT Gateway, Nginx, RAG 아키텍처</div>
-      <div class="tags"><span class="tag">VPC</span><span class="tag">NAT</span><span class="tag">Nginx</span><span class="tag">RAG</span></div>
+      <h3>VPC, NAT, Nginx</h3>
+      <div class="desc">VPC 구조, Public/Private Subnet, NAT Gateway, Nginx 리버스 프록시</div>
+      <div class="tags"><span class="tag">VPC</span><span class="tag">NAT</span><span class="tag">Nginx</span></div>
+    </a>
+    <a class="card" href="pages/infra-redis.html">
+      <h3>Redis 클러스터</h3>
+      <div class="desc">Hash Slot, 장애 감지, Failover, Sentinel vs Cluster</div>
+      <div class="tags"><span class="tag">Redis</span><span class="tag">Cluster</span><span class="tag">Failover</span></div>
+    </a>
+    <a class="card" href="pages/infra-docker.html">
+      <h3>Docker 이미지 & 컨테이너</h3>
+      <div class="desc">레이어 구조, 멀티스테이지 빌드, 이미지 최적화, 보안</div>
+      <div class="tags"><span class="tag">Docker</span><span class="tag">Image</span><span class="tag">Layer</span></div>
     </a>
   </div>
 
@@ -278,6 +299,11 @@
       <h3>좌석 예약 시스템 설계</h3>
       <div class="desc">동시성 제어, 비관적/낙관적 락, Redis 분산 락, 대기열</div>
       <div class="tags"><span class="tag">Concurrency</span><span class="tag">Lock</span><span class="tag">Queue</span></div>
+    </a>
+    <a class="card" href="pages/ai-rag.html">
+      <h3>RAG (Retrieval-Augmented Generation)</h3>
+      <div class="desc">RAG 파이프라인, 벡터 DB, 임베딩, Fine-Tuning과의 비교</div>
+      <div class="tags"><span class="tag">RAG</span><span class="tag">Vector DB</span><span class="tag">LLM</span></div>
     </a>
   </div>
 </div>
