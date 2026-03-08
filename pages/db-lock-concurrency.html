@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>동시성 &amp; 락(Lock) 면접 가이드</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<div class="page-header">
+  <a href="../index.html" class="back-link">← 목록으로</a>
+  <h1>동시성 &amp; 락(Lock) 면접 가이드</h1>
+  <p>비관/낙관 락, Record/Gap/Next-Key Lock, 분산 락, Spring 구현</p>
+</div>
+<div class="content">
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('p1',this)">Part 1 · 동시성 문제 기초</button>
+    <button class="tab-btn" onclick="switchTab('p2',this)">Part 2 · 비관 락 vs 낙관 락</button>
+    <button class="tab-btn" onclick="switchTab('p3',this)">Part 3 · DB 내부 락 종류</button>
+    <button class="tab-btn" onclick="switchTab('p4',this)">Part 4 · 분산 락 &amp; 앱 레벨 락</button>
+    <button class="tab-btn" onclick="switchTab('p5',this)">Part 5 · Spring 구현 &amp; 트랜잭션</button>
+    <button class="tab-btn" onclick="switchTab('p6',this)">Part 6 · 멀티 서버 / 멀티 DB</button>
+    <button class="tab-btn" onclick="switchTab('p7',this)">Part 7 · 꼬리질문 + 설계</button>
+  </div>
+
+  <!-- ===== PART 1 ===== -->
+  <div class="tab-content active" id="p1">
+    <div class="qa-card">
+      <div class="qa-q">동시성 문제란 무엇인가요? 어떤 상황에서 발생하나요?</div>
+      <div class="qa-a">
+        <p>동시성 문제란 <strong>여러 스레드 혹은 프로세스가 같은 자원에 동시에 접근할 때 발생하는 데이터 불일치나 예측 불가능한 동작</strong>을 말합니다. 예를 들어 재고가 1개 남은 상품에 두 사용자가 동시에 주문을 넣으면, 각자 재고를 조회해 1개 있음을 확인하고 둘 다 주문에 성공해 재고가 -1이 되는 상황이 대표적입니다.</p>
+        <p>발생 원인은 크게 세 가지입니다. 첫째, <strong>Race Condition</strong>—여러 스레드가 공유 자원을 순서 보장 없이 읽고 쓰는 상황입니다. 둘째, <strong>Lost Update</strong>—한 트랜잭션의 변경이 다른 트랜잭션에 의해 덮어쓰여 사라지는 문제입니다. 셋째, 트랜잭션 격리 수준에 따른 <strong>Dirty Read, Non-Repeatable Read, Phantom Read</strong> 같은 이상 현상이 있습니다.</p>
+        <div class="tail-q"><strong>꼬리질문:</strong> "Lost Update와 Dirty Read는 어떻게 다른가요?" — Lost Update는 커밋된 데이터가 덮어써지는 것이고, Dirty Read는 커밋되지 않은 데이터를 읽는 것입니다.</div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">트랜잭션 격리 수준(Isolation Level)과 동시성 문제의 관계를 설명해주세요.</div>
+      <div class="qa-a">
+        <p>격리 수준은 <strong>"동시성을 얼마나 허용하고, 그 대가로 어떤 이상 현상을 감수할 것인가"</strong>를 결정하는 설정입니다. 격리 수준이 높을수록 이상 현상은 줄어들지만 동시성(처리량)도 함께 낮아지는 trade-off가 있습니다.</p>
+        <table>
+          <tr><th>격리 수준</th><th>Dirty Read</th><th>Non-Repeatable Read</th><th>Phantom Read</th><th>비고</th></tr>
+          <tr><td>READ UNCOMMITTED</td><td>발생</td><td>발생</td><td>발생</td><td>거의 사용 안 함</td></tr>
+          <tr><td>READ COMMITTED</td><td>방지</td><td>발생</td><td>발생</td><td>Oracle 기본값</td></tr>
+          <tr><td>REPEATABLE READ</td><td>방지</td><td>방지</td><td>발생(InnoDB는 방지)</td><td>MySQL InnoDB 기본값</td></tr>
+          <tr><td>SERIALIZABLE</td><td>방지</td><td>방지</td><td>방지</td><td>성능 저하 심함</td></tr>
+        </table>
+        <p>실무에서는 대부분 <strong>READ COMMITTED</strong>나 <strong>REPEATABLE READ</strong>를 쓰고, 이상 현상이 치명적인 경우에만 비관 락이나 낙관 락으로 보완합니다. MySQL InnoDB는 MVCC 덕분에 REPEATABLE READ에서도 Phantom Read를 대부분 방지합니다.</p>
+        <div class="tail-q"><strong>꼬리질문:</strong> "MVCC가 뭔가요?" — Multi-Version Concurrency Control. 데이터 변경 시 기존 버전을 Undo Log에 보관해, 읽기 트랜잭션이 락 없이 일관된 스냅샷을 읽을 수 있게 합니다. 읽기와 쓰기가 서로 블록하지 않아 동시성이 올라갑니다.</div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">데드락(Deadlock)이란 무엇이며 어떻게 해결하나요?</div>
+      <div class="qa-a">
+        <p>데드락은 <strong>두 개 이상의 트랜잭션이 서로가 보유한 락을 기다리면서 영원히 진행하지 못하는 상태</strong>입니다. 예를 들어 트랜잭션 A가 Row1을 잠그고 Row2를 기다리고, 트랜잭션 B가 Row2를 잠그고 Row1을 기다리면 둘 다 멈춥니다.</p>
+        <p>해결 전략은 예방과 감지로 나뉩니다. <strong>예방</strong>은 항상 동일한 순서로 락을 획득하거나, 한 번에 모든 락을 획득하는 방식입니다. <strong>감지</strong>는 DBMS가 Wait-for Graph를 분석해 사이클을 발견하면 한 트랜잭션을 강제 롤백(victim 선택)하는 방식인데, MySQL InnoDB가 이를 자동으로 수행합니다. 애플리케이션에서는 데드락 발생 시 재시도 로직을 두는 것이 실무적인 접근입니다.</p>
+        <div class="tail-q"><strong>꼬리질문:</strong> "락 순서를 통일하면 데드락을 항상 막을 수 있나요?" — 단일 DB 내에서는 효과적이지만, 여러 서비스나 여러 테이블이 얽히면 순서 통일이 어렵습니다. 이 경우 분산 락이나 타임아웃 + 재시도 전략을 씁니다.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PART 2 ===== -->
+  <div class="tab-content" id="p2">
+    <div class="qa-card">
+      <div class="qa-q">비관 락(Pessimistic Lock)이란 무엇인가요?</div>
+      <div class="qa-a">
+        <p>비관 락은 <strong>"충돌이 자주 발생할 것이라고 비관적으로 가정"</strong>하고, 데이터를 읽는 시점에 DB 레벨의 락을 미리 걸어두는 방식입니다. 은행 금고를 열 때 작업하는 동안 다른 사람이 못 들어오게 문을 잠가두는 것과 같습니다.</p>
+        <p>SQL 레벨에서 <strong>SELECT ... FOR UPDATE</strong> 구문으로 구현하며, 해당 Row에 Exclusive Lock(배타 락)이 걸려 다른 트랜잭션은 그 행을 수정하거나 같은 락으로 읽을 수 없습니다. <em>충돌이 잦은 환경에서 데이터 정합성을 강하게 보장</em>할 수 있지만, 락을 보유하는 시간만큼 다른 트랜잭션이 대기하므로 처리량이 떨어지고 데드락 위험이 있습니다.</p>
+        <div class="tail-q"><strong>꼬리질문:</strong> "FOR UPDATE와 FOR SHARE(LOCK IN SHARE MODE)의 차이는?" — FOR UPDATE는 Exclusive Lock으로 다른 쓰기·읽기 락 모두 차단합니다. FOR SHARE는 Shared Lock으로 다른 읽기 락은 허용하지만 쓰기 락은 차단합니다.</div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">낙관 락(Optimistic Lock)이란 무엇인가요? 어떻게 구현하나요?</div>
+      <div class="qa-a">
+        <p>낙관 락은 <strong>"충돌이 거의 없을 것이라고 낙관적으로 가정"</strong>하고, 실제 락을 걸지 않은 채 작업하다가 업데이트 시점에 충돌 여부를 확인하는 방식입니다. 도서관 책 대출처럼 책을 빌릴 때 잠그는 게 아니라, 반납할 때 변경이 없었는지 확인하는 느낌입니다.</p>
+        <p>구현은 테이블에 <strong>version 컬럼</strong>을 추가하는 방식이 일반적입니다. 읽을 때 version 값을 함께 읽어두고, UPDATE 시 WHERE version = 읽어둔값 조건을 붙입니다. 업데이트 결과 affected rows가 0이면 충돌이 발생한 것이므로 <strong>OptimisticLockException</strong>을 던지고 재시도 또는 사용자에게 안내합니다. <em>DB 락을 점유하지 않아 처리량이 높고</em>, 충돌이 잦은 환경에서는 재시도가 반복되어 오히려 성능이 나빠질 수 있습니다.</p>
+        <pre><span class="comment">-- 낙관 락 UPDATE 예시</span>
+UPDATE product
+SET stock = stock - 1, version = version + 1
+WHERE id = 1 AND version = 3;
+<span class="comment">-- affected rows = 0 → 충돌 발생, 재시도 필요</span></pre>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">비관 락과 낙관 락을 언제 각각 사용해야 하나요?</div>
+      <div class="qa-a">
+        <p>선택 기준은 <strong>"충돌 빈도"와 "충돌 시 비용"</strong>입니다. 충돌이 잦고 충돌 시 재시도 비용이 크다면 비관 락, 충돌이 드물고 재시도가 가볍다면 낙관 락이 적합합니다.</p>
+        <table>
+          <tr><th>구분</th><th>비관 락</th><th>낙관 락</th></tr>
+          <tr><td>충돌 빈도 가정</td><td>높다</td><td>낮다</td></tr>
+          <tr><td>락 비용</td><td>높음 (DB 락 점유)</td><td>낮음 (버전 비교만)</td></tr>
+          <tr><td>처리량</td><td>낮음</td><td>높음</td></tr>
+          <tr><td>실패 처리</td><td>대기(블로킹)</td><td>예외 → 재시도/안내</td></tr>
+          <tr><td>데드락 위험</td><td>있음</td><td>없음</td></tr>
+          <tr><td>적합한 상황</td><td>재고 차감, 좌석 예매, 금융 이체</td><td>게시글 수정, 프로필 업데이트</td></tr>
+        </table>
+        <p>실무에서는 혼합 전략도 씁니다. 예를 들어 먼저 낙관 락으로 시도하고, 충돌이 일정 횟수 이상 발생하면 비관 락으로 전환하는 방식입니다. 면접관이 "어떤 걸 더 선호하냐"고 물으면 상황에 따라 다르다고 trade-off를 근거로 답하는 게 좋습니다.</p>
+        <div class="tail-q"><strong>꼬리질문:</strong> "낙관 락에서 충돌이 매우 잦으면 어떻게 되나요?" — 재시도 루프가 반복되어 응답 시간이 길어지고 CPU 사용률이 올라갑니다. 이 경우 비관 락으로 전환하거나 메시지 큐(순차 처리) 방식을 고려합니다.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PART 3 ===== -->
+  <div class="tab-content" id="p3">
+    <div class="qa-card">
+      <div class="qa-q">DB 락의 종류를 설명해주세요. (Shared Lock, Exclusive Lock, Row Lock, Table Lock...)</div>
+      <div class="qa-a">
+        <p>DB 락은 크게 <strong>락의 모드(Mode)</strong>와 <strong>락의 범위(Granularity)</strong>로 나눌 수 있습니다.</p>
+        <p>모드 기준으로는 <strong>Shared Lock(공유 락, S-Lock)</strong>과 <strong>Exclusive Lock(배타 락, X-Lock)</strong>이 있습니다. S-Lock은 읽기용 락으로 여러 트랜잭션이 동시에 획득할 수 있지만, X-Lock은 쓰기용 락으로 다른 어떤 락과도 공존할 수 없습니다. SELECT ... FOR SHARE가 S-Lock, SELECT ... FOR UPDATE나 UPDATE/DELETE가 X-Lock을 겁니다.</p>
+        <p>범위 기준으로는 <strong>Table Lock</strong>과 <strong>Row Lock</strong>이 있습니다. Table Lock은 테이블 전체를 잠가 동시성이 낮지만 구현이 단순합니다. Row Lock은 특정 행만 잠가 동시성이 높으나 오버헤드가 있습니다. InnoDB는 기본적으로 Row Lock을 사용하며, <strong>인덱스가 없는 컬럼으로 WHERE 조건을 걸면 Full Table Scan이 발생해 Table Lock처럼 동작</strong>하는 함정이 있습니다.</p>
+        <div class="tail-q"><strong>꼬리질문:</strong> "Intention Lock(의도 락)은 뭔가요?" — 테이블 락과 로우 락을 함께 쓸 때 계층 간 충돌을 효율적으로 감지하기 위한 테이블 레벨의 메타 락입니다. IS(Intention Shared), IX(Intention Exclusive)가 있으며 실제 데이터를 잠그진 않습니다.</div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">InnoDB의 Record Lock, Gap Lock, Next-Key Lock을 설명해주세요.</div>
+      <div class="qa-a">
+        <p>이 세 가지는 <strong>Phantom Read 방지</strong>를 위해 InnoDB가 사용하는 Row Lock의 세분화된 형태입니다.</p>
+        <p><strong>Record Lock</strong>은 인덱스 레코드 자체에 거는 락입니다. <strong>Gap Lock</strong>은 레코드 사이의 "빈 공간(갭)"에 거는 락으로, 그 구간에 새 레코드가 INSERT되는 것을 막습니다. 예를 들어 id 10~20 사이에 갭 락이 걸리면 id=15 INSERT가 차단됩니다. <strong>Next-Key Lock</strong>은 Record Lock + Gap Lock을 합친 것으로, InnoDB의 기본 락 방식입니다. (레코드 자체 + 그 앞의 갭을 함께 잠금)</p>
+        <div class="diagram-box">
+          <svg width="600" height="100" viewBox="0 0 600 100">
+            <rect x="20" y="30" width="560" height="40" rx="6" fill="#0f172a" stroke="#334155"/>
+            <rect x="60" y="30" width="2" height="40" fill="#475569"/>
+            <rect x="180" y="30" width="2" height="40" fill="#475569"/>
+            <rect x="300" y="30" width="2" height="40" fill="#475569"/>
+            <rect x="420" y="30" width="2" height="40" fill="#475569"/>
+            <rect x="540" y="30" width="2" height="40" fill="#475569"/>
+            <text x="60" y="25" text-anchor="middle" fill="#94a3b8" font-size="11">10</text>
+            <text x="180" y="25" text-anchor="middle" fill="#94a3b8" font-size="11">20</text>
+            <text x="300" y="25" text-anchor="middle" fill="#94a3b8" font-size="11">30</text>
+            <rect x="182" y="32" width="116" height="36" rx="3" fill="#1e40af" opacity="0.5"/>
+            <text x="240" y="54" text-anchor="middle" fill="#93c5fd" font-size="11" font-weight="bold">Gap Lock</text>
+            <rect x="296" y="32" width="8" height="36" rx="2" fill="#ef4444" opacity="0.8"/>
+            <text x="300" y="85" text-anchor="middle" fill="#fca5a5" font-size="11">Record Lock</text>
+            <rect x="418" y="32" width="124" height="36" rx="3" fill="#7c3aed" opacity="0.4"/>
+            <rect x="418" y="32" width="4" height="36" fill="#7c3aed" opacity="0.8"/>
+            <text x="480" y="54" text-anchor="middle" fill="#c4b5fd" font-size="11" font-weight="bold">Next-Key Lock</text>
+          </svg>
+        </div>
+        <p>Gap Lock의 핵심은 <strong>범위 조회(BETWEEN, >, &lt; 등)에서 REPEATABLE READ 격리 수준일 때 자동으로 걸린다</strong>는 점입니다. 이로 인해 의도치 않은 INSERT 블로킹이 발생할 수 있어 Gap Lock을 비활성화(innodb_locks_unsafe_for_binlog)하는 경우도 있습니다.</p>
+        <div class="tail-q"><strong>꼬리질문:</strong> "Gap Lock이 데드락을 유발할 수 있나요?" — 네. 두 트랜잭션이 서로 겹치는 갭에 각각 Gap Lock을 걸고, 같은 위치에 INSERT를 시도하면 데드락이 발생합니다.</div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">인덱스가 없을 때 락 동작이 어떻게 달라지나요?</div>
+      <div class="qa-a">
+        <p>InnoDB의 Row Lock은 <strong>실제로 인덱스 레코드에 걸립니다.</strong> 따라서 WHERE 조건 컬럼에 인덱스가 없으면 InnoDB는 Full Table Scan을 하며 모든 레코드에 Next-Key Lock을 걸게 됩니다. 결과적으로 <strong>의도치 않게 테이블 전체가 잠기는 현상</strong>이 발생합니다.</p>
+        <p>예를 들어 name 컬럼에 인덱스가 없는 상태에서 <code>SELECT * FROM users WHERE name='Alice' FOR UPDATE</code>를 실행하면, Alice 행만 잠기는 게 아니라 <strong>테이블 전체 행이 락</strong>됩니다. 이는 성능 문제와 데드락 위험을 크게 높이므로, 비관 락을 쓸 컬럼에는 반드시 인덱스를 생성해야 합니다.</p>
+        <div class="tail-q"><strong>꼬리질문:</strong> "비관 락을 쓸 때 꼭 체크해야 할 게 있다면?" — 인덱스 존재 여부, 트랜잭션 범위 최소화(락 점유 시간 단축), 락 획득 순서 일관성(데드락 방지), 타임아웃 설정 이 네 가지입니다.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PART 4 ===== -->
+  <div class="tab-content" id="p4">
+    <div class="qa-card">
+      <div class="qa-q">분산 락이 필요한 이유는 무엇인가요?</div>
+      <div class="qa-a">
+        <p>서버가 한 대일 때는 JVM 레벨의 synchronized나 ReentrantLock으로 동시성을 제어할 수 있습니다. 하지만 <strong>서버가 여러 대로 수평 확장(Scale-out)되면 각 JVM이 독립적인 메모리 공간을 가지므로, JVM 락으로는 다른 서버 프로세스를 제어할 수 없습니다.</strong> 은행 창구가 10개로 늘었는데 각 창구가 별도의 장부를 쓰는 상황과 같습니다.</p>
+        <p>이 문제를 해결하려면 <strong>모든 서버가 공통으로 접근할 수 있는 외부 저장소에 락을 관리</strong>해야 합니다. 이것이 분산 락(Distributed Lock)이며, Redis, ZooKeeper, DB Advisory Lock 등이 구현 수단으로 쓰입니다.</p>
+        <div class="tail-q"><strong>꼬리질문:</strong> "DB 비관 락으로 분산 환경을 제어할 수는 없나요?" — 모든 서버가 같은 DB를 공유한다면 DB 락이 분산 환경에서도 동작합니다. 하지만 DB에 락 부하가 집중되고, DB가 SPOF가 되며, 커넥션 풀이 고갈될 수 있어 분산 락 전용 스토어(Redis)를 선호합니다.</div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Redis로 분산 락을 구현하는 방법을 설명해주세요. SETNX와 Redisson의 차이는?</div>
+      <div class="qa-a">
+        <p>가장 단순한 방법은 Redis의 <strong>SET key value NX PX timeout</strong> 명령입니다. NX는 "키가 없을 때만 SET(Not eXists)", PX는 만료 시간을 밀리초로 지정하는 옵션입니다. 이 명령은 원자적으로 실행되어, 락 획득과 만료 시간 설정이 한 번에 이루어집니다.</p>
+        <p>하지만 직접 구현하면 <strong>락 해제 시 자신이 건 락인지 확인하는 Lua 스크립트 처리, 락 연장(Watchdog), 재시도 로직, 재진입 락(Reentrant)</strong> 등을 모두 직접 만들어야 합니다. <strong>Redisson</strong>은 이 모든 기능을 제공하는 Java 라이브러리로, RLock 인터페이스를 통해 tryLock/lock/unlock을 제공하고 Watchdog이 락을 자동으로 연장해줍니다.</p>
+        <pre><span class="comment">// Redisson 분산 락 예시</span>
+RLock lock = redissonClient.getLock(<span class="string">"product:stock:1"</span>);
+<span class="keyword">boolean</span> acquired = lock.tryLock(3, 5, TimeUnit.SECONDS); <span class="comment">// 최대 3초 대기, 5초 후 자동 해제</span>
+<span class="keyword">if</span> (acquired) {
+    <span class="keyword">try</span> {
+        <span class="comment">// 임계 구역 (Critical Section)</span>
+        decreaseStock(productId);
+    } <span class="keyword">finally</span> {
+        lock.unlock(); <span class="comment">// 반드시 finally에서 해제</span>
+    }
+}</pre>
+        <div class="tail-q"><strong>꼬리질문:</strong> "Redlock 알고리즘이 뭔가요?" — Redis 단일 인스턴스가 죽으면 락이 유실될 수 있어, Martin Kleppmann이 제안한 N개(보통 5개) Redis 노드 중 과반수에서 락을 획득해야 유효로 보는 알고리즘입니다. 단, 구현이 복잡하고 논쟁이 있어 실무에서는 Redis Sentinel이나 Cluster + Redisson으로 대체하는 경우가 많습니다.</div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Java의 synchronized vs ReentrantLock 차이를 설명해주세요.</div>
+      <div class="qa-a">
+        <p>두 가지 모두 <strong>단일 JVM 내 스레드 간 동시성 제어</strong>를 위한 메커니즘입니다. synchronized는 자바 키워드로 간편하지만 기능이 제한적이고, ReentrantLock은 java.util.concurrent 패키지의 클래스로 더 세밀한 제어가 가능합니다.</p>
+        <table>
+          <tr><th>구분</th><th>synchronized</th><th>ReentrantLock</th></tr>
+          <tr><td>락 획득 시도</td><td>무한 대기 (블로킹)</td><td>tryLock()으로 타임아웃 가능</td></tr>
+          <tr><td>인터럽트 처리</td><td>불가</td><td>lockInterruptibly()로 가능</td></tr>
+          <tr><td>공정성</td><td>보장 안 됨</td><td>fair 옵션으로 순서 보장</td></tr>
+          <tr><td>조건 변수</td><td>wait/notify (하나)</td><td>Condition 여러 개 가능</td></tr>
+          <tr><td>코드 가독성</td><td>높음 (키워드)</td><td>try-finally 패턴 필요</td></tr>
+        </table>
+        <p>실무에서는 단순 동기화면 synchronized, 타임아웃/공정성/인터럽트 제어가 필요하면 ReentrantLock을 씁니다. 단, <strong>분산 환경(서버 여러 대)에서는 둘 다 의미 없고 분산 락이 필요</strong>합니다.</p>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">ZooKeeper로 분산 락을 구현하는 원리는? Redis와 비교하면?</div>
+      <div class="qa-a">
+        <p>ZooKeeper는 <strong>Ephemeral Sequential 노드</strong>를 활용해 분산 락을 구현합니다. 클라이언트가 /locks/lock- 경로로 임시 순서 노드를 생성하고, 자신의 노드 번호가 가장 작으면 락을 획득합니다. 락을 기다리는 클라이언트는 자신 바로 앞 번호 노드에 Watcher를 걸어 삭제 이벤트를 기다립니다. Ephemeral 노드라서 클라이언트 연결이 끊기면 자동으로 노드가 삭제되어 <em>락이 자동 해제되는 안전성</em>이 있습니다.</p>
+        <table>
+          <tr><th>구분</th><th>Redis (Redisson)</th><th>ZooKeeper (Curator)</th></tr>
+          <tr><td>성능</td><td>높음 (인메모리)</td><td>낮음 (디스크 플러시)</td></tr>
+          <tr><td>강한 일관성</td><td>상대적으로 약함</td><td>강함 (ZAB 프로토콜)</td></tr>
+          <tr><td>자동 해제</td><td>TTL 설정 필요</td><td>세션 만료 시 자동</td></tr>
+          <tr><td>사용 난이도</td><td>낮음</td><td>높음</td></tr>
+          <tr><td>선택 기준</td><td>성능 중시, 빠른 구현</td><td>강한 일관성, 복잡한 분산 조율</td></tr>
+        </table>
+        <p>스타트업이나 일반 서비스는 Redis + Redisson이 표준이고, 금융이나 강한 일관성이 필요한 경우 ZooKeeper를 고려합니다.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PART 5 ===== -->
+  <div class="tab-content" id="p5">
+    <div class="qa-card">
+      <div class="qa-q">Spring Data JPA에서 비관 락과 낙관 락을 어떻게 구현하나요?</div>
+      <div class="qa-a">
+        <p>JPA에서 <strong>비관 락</strong>은 Repository 메서드에 <strong>@Lock(LockModeType.PESSIMISTIC_WRITE)</strong> 어노테이션을 붙여 구현합니다. 이는 SELECT ... FOR UPDATE 쿼리를 발행합니다. PESSIMISTIC_READ를 쓰면 FOR SHARE가 됩니다.</p>
+        <pre><span class="annotation">@Lock</span>(LockModeType.PESSIMISTIC_WRITE)
+<span class="annotation">@Query</span>(<span class="string">"SELECT p FROM Product p WHERE p.id = :id"</span>)
+Optional&lt;Product&gt; findByIdForUpdate(<span class="annotation">@Param</span>(<span class="string">"id"</span>) Long id);</pre>
+        <p><strong>낙관 락</strong>은 엔티티에 <strong>@Version</strong> 어노테이션을 붙이는 것으로 설정이 끝납니다. JPA가 UPDATE 시 자동으로 version 조건을 WHERE 절에 추가하고, 버전 불일치 시 <strong>OptimisticLockException</strong>을 던집니다.</p>
+        <pre><span class="annotation">@Entity</span>
+<span class="keyword">public class</span> Product {
+    <span class="annotation">@Version</span>
+    <span class="keyword">private</span> Long version; <span class="comment">// JPA가 자동 관리</span>
+    <span class="keyword">private</span> <span class="keyword">int</span> stock;
+}</pre>
+        <div class="tail-q"><strong>꼬리질문:</strong> "OptimisticLockException 발생 시 어떻게 처리하나요?" — @Retryable(OptimisticLockException.class)로 재시도하거나, 사용자에게 "동시 수정이 감지됐습니다. 다시 시도해주세요" 메시지를 반환합니다.</div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">@Transactional과 락의 관계를 설명해주세요. 트랜잭션이 끝나야 락이 해제되나요?</div>
+      <div class="qa-a">
+        <p>비관 락에서 <strong>DB 락(Row Lock)은 트랜잭션이 커밋 또는 롤백될 때까지 유지됩니다.</strong> 이는 DB의 기본 동작입니다. 따라서 @Transactional 메서드 안에서 FOR UPDATE로 락을 잡으면, 그 메서드가 완전히 종료되어 트랜잭션이 커밋될 때 락이 해제됩니다.</p>
+        <p>여기서 중요한 함정이 있습니다. <strong>@Transactional 메서드 내에서 오래 걸리는 로직(외부 API 호출, 대용량 처리 등)이 있으면, 그동안 락이 계속 유지되어 다른 트랜잭션이 블로킹</strong>됩니다. 그래서 락 점유 시간을 최소화하는 것이 중요합니다. 반면 <strong>Redis 분산 락</strong>은 트랜잭션과 별개로 동작하므로, 락 해제 후 트랜잭션이 커밋되기 전에 다른 서버가 락을 잡을 수 있는 window가 생깁니다. 이 경우 트랜잭션 커밋을 먼저 하고 락을 해제하는 순서 설계가 필요합니다.</p>
+        <div class="tail-q"><strong>꼬리질문:</strong> "@Transactional과 분산 락을 함께 쓸 때 주의할 점이 있나요?" — 네. 분산 락을 @Transactional 메서드 밖에서 잡고 안에서 DB 작업을 완료한 뒤, 트랜잭션 커밋 후 락을 해제하는 순서가 안전합니다. AOP 적용 순서(@Order)를 통해 락 AOP가 트랜잭션 AOP보다 먼저 실행되게 해야 합니다.</div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">@Transactional의 전파 속성(Propagation)이 락에 영향을 주는 경우가 있나요?</div>
+      <div class="qa-a">
+        <p>있습니다. 대표적인 함정은 <strong>REQUIRES_NEW + 비관 락 조합</strong>입니다. 외부 트랜잭션이 Row A에 락을 보유한 채 내부 메서드를 REQUIRES_NEW로 호출하면, 내부 트랜잭션이 새 커넥션으로 같은 Row A에 락을 시도합니다. 외부 트랜잭션이 커밋되기 전까지 내부가 대기하고, 외부는 내부가 끝나야 진행할 수 있어 <strong>데드락이 발생</strong>합니다.</p>
+        <p>또한 <strong>낙관 락과 REQUIRES_NEW 조합</strong>에서도 문제가 있습니다. 내부 트랜잭션이 커밋하면 version이 올라가는데, 외부 트랜잭션이 처음에 읽은 version이 이미 구식이 되어 외부 트랜잭션 커밋 시 OptimisticLockException이 발생합니다. 전파 속성은 락과 함께 설계할 때 항상 꼼꼼히 따져야 합니다.</p>
+        <div class="tail-q"><strong>꼬리질문:</strong> "이 문제를 어떻게 해결하나요?" — REQUIRES_NEW 대신 이벤트 기반 비동기 처리로 분리하거나, 락 범위 재설계를 통해 두 트랜잭션이 같은 Row를 동시에 접근하지 않도록 구조를 바꿉니다.</div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">@TransactionalEventListener와 락의 관계는?</div>
+      <div class="qa-a">
+        <p><strong>@TransactionalEventListener(phase = AFTER_COMMIT)</strong>는 트랜잭션이 커밋된 이후에 이벤트 핸들러가 실행됩니다. 이 시점에 DB 락은 이미 해제된 상태입니다. 따라서 이벤트 핸들러 내에서 락을 다시 획득하려면 새로운 트랜잭션을 시작해야 합니다.</p>
+        <p>실무에서는 <strong>도메인 이벤트를 통해 락 점유 시간을 최소화</strong>하는 패턴을 씁니다. 핵심 처리만 락을 잡은 트랜잭션에서 하고, 후속 처리(알림, 통계 등)는 AFTER_COMMIT 이벤트로 분리합니다. <strong>주의할 점은 AFTER_COMMIT 핸들러에서 예외가 발생해도 원래 트랜잭션이 이미 커밋되었으므로 롤백이 안 된다</strong>는 것입니다. 이 경우 보상 트랜잭션(Compensating Transaction) 패턴을 고려합니다.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PART 6 ===== -->
+  <div class="tab-content" id="p6">
+    <div class="qa-card">
+      <div class="qa-q">서버가 여러 개일 때 비관 락은 효과가 있나요?</div>
+      <div class="qa-a">
+        <p><strong>DB가 하나라면, 서버가 여러 대여도 비관 락은 작동합니다.</strong> 여러 서버에서 동시에 같은 Row에 SELECT FOR UPDATE를 날려도, DB 레벨에서 하나씩만 처리됩니다. DB가 락의 중재자가 되기 때문입니다.</p>
+        <p>다만 이 구조에서는 <strong>모든 락 요청이 DB 하나로 집중</strong>되므로 DB가 병목이자 SPOF(단일 장애점)가 됩니다. DB 커넥션이 락 대기로 고갈될 수 있고, 락 점유 시간이 길면 다른 요청까지 연쇄적으로 블로킹됩니다. 서버를 10대로 늘려도 DB 처리량이 늘지 않으면 전체 처리량이 DB에 수렴합니다. 이 때문에 고트래픽 환경에서는 Redis 분산 락으로 락 부하를 분리하는 것을 선호합니다.</p>
+        <div class="tail-q"><strong>꼬리질문:</strong> "그럼 DB 비관 락과 Redis 분산 락 중 어떤 걸 써야 하나요?" — 트래픽이 낮거나 DB 트랜잭션과 강하게 결합된 경우엔 DB 비관 락이 단순합니다. 트래픽이 높거나 락 범위가 DB 단위를 벗어나면 Redis 분산 락을 씁니다.</div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">DB가 여러 개일 때(샤딩/MSA) 비관 락은 어떻게 되나요?</div>
+      <div class="qa-a">
+        <p>DB가 여러 개로 샤딩되거나 MSA 구조에서 각 서비스가 독립된 DB를 갖게 되면, <strong>단일 DB의 트랜잭션 락으로는 여러 DB에 걸친 동시성을 제어할 수 없습니다.</strong> 락이 각 DB 안에서만 유효하기 때문입니다.</p>
+        <p>이 문제를 해결하는 방법은 여러 가지입니다. 첫째, <strong>Redis 분산 락</strong>으로 DB와 독립적인 전역 락을 구현합니다. 둘째, <strong>메시지 큐(Kafka, SQS) 기반 직렬화</strong>—하나의 큐에 이벤트를 쌓고 단일 컨슈머가 순서대로 처리해 동시성 자체를 없앱니다. 셋째, <strong>Saga 패턴</strong>으로 각 서비스의 트랜잭션을 순차 실행하고 실패 시 보상 트랜잭션으로 롤백합니다. 넷째, <strong>2PC(Two-Phase Commit)</strong>로 분산 트랜잭션을 구현할 수 있지만, 코디네이터가 SPOF가 되고 성능 저하가 심해 MSA에서는 잘 쓰지 않습니다.</p>
+        <div class="diagram-box">
+          <svg width="620" height="160" viewBox="0 0 620 160">
+            <rect x="240" y="10" width="140" height="40" rx="8" fill="#991b1b" stroke="#ef4444"/>
+            <text x="310" y="35" text-anchor="middle" fill="#fca5a5" font-size="13" font-weight="bold">Redis 분산 락</text>
+            <line x1="310" y1="50" x2="150" y2="95" stroke="#ef4444" stroke-width="2" marker-end="url(#arr)"/>
+            <line x1="310" y1="50" x2="310" y2="95" stroke="#ef4444" stroke-width="2" marker-end="url(#arr)"/>
+            <line x1="310" y1="50" x2="470" y2="95" stroke="#ef4444" stroke-width="2" marker-end="url(#arr)"/>
+            <rect x="70" y="95" width="160" height="40" rx="8" fill="#1e3a5f" stroke="#3b82f6"/>
+            <text x="150" y="120" text-anchor="middle" fill="#93c5fd" font-size="12">Server A + DB A</text>
+            <rect x="230" y="95" width="160" height="40" rx="8" fill="#1e3a5f" stroke="#3b82f6"/>
+            <text x="310" y="120" text-anchor="middle" fill="#93c5fd" font-size="12">Server B + DB B</text>
+            <rect x="390" y="95" width="160" height="40" rx="8" fill="#1e3a5f" stroke="#3b82f6"/>
+            <text x="470" y="120" text-anchor="middle" fill="#93c5fd" font-size="12">Server C + DB C</text>
+            <text x="310" y="155" text-anchor="middle" fill="#64748b" font-size="11">각 DB는 독립 → Redis가 전역 락 중재자 역할</text>
+            <defs><marker id="arr" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#ef4444"/></marker></defs>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">MSA 환경에서 분산 트랜잭션을 어떻게 처리하나요? Saga 패턴이란?</div>
+      <div class="qa-a">
+        <p>MSA에서는 각 서비스가 독립된 DB를 소유하므로, <strong>전통적인 ACID 트랜잭션으로 여러 서비스에 걸친 데이터 일관성을 보장할 수 없습니다.</strong> Saga 패턴은 이 문제를 "일련의 로컬 트랜잭션"으로 분해해 해결합니다.</p>
+        <p>구현 방식은 두 가지입니다. <strong>Choreography Saga</strong>는 각 서비스가 이벤트를 발행하고, 다음 서비스가 이벤트를 구독해 순서대로 처리합니다. 결합도가 낮지만 흐름 파악이 어렵습니다. <strong>Orchestration Saga</strong>는 중앙 Orchestrator가 각 서비스에 명령을 내리고 결과를 수집합니다. 흐름이 명확하지만 Orchestrator가 SPOF가 될 수 있습니다. 어느 단계에서 실패하면 <strong>보상 트랜잭션(Compensating Transaction)</strong>을 역순으로 실행해 롤백합니다. 예를 들어 주문 생성 → 결제 → 재고 차감 순서에서 재고 차감 실패 시, 결제 취소 → 주문 취소를 역순으로 실행합니다.</p>
+        <div class="tail-q"><strong>꼬리질문:</strong> "보상 트랜잭션이 실패하면 어떻게 되나요?" — 이를 대비해 각 단계를 멱등성(idempotent)있게 설계하고, 실패한 보상 트랜잭션은 메시지 큐에 저장해 재시도합니다. 최종적으로 해결 안 되면 수동 처리(dead letter queue + 알림)로 fallback합니다.</div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">DB 복제(Replication) 환경에서 비관 락을 쓸 때 주의점은?</div>
+      <div class="qa-a">
+        <p>MySQL Replication은 Master에서 쓰기, Replica에서 읽기를 분리하는 구조입니다. 비관 락(FOR UPDATE)은 <strong>반드시 Master에서 실행해야 합니다.</strong> Replica는 읽기 전용이라 락을 걸 수 없고, 설령 쿼리가 실행되더라도 락이 Master에 반영되지 않습니다.</p>
+        <p>Spring에서 Master/Replica를 라우팅할 때 @Transactional(readOnly = false)는 Master, readOnly = true는 Replica로 보내는 패턴을 씁니다. FOR UPDATE를 쓰는 메서드에 readOnly=true가 잘못 붙어있으면 Replica로 가서 <strong>락이 무력화되는 버그</strong>가 생깁니다. 또한 복제 지연(Replication Lag)이 있으면 Replica의 데이터가 Master보다 뒤쳐져 있어, 낙관 락의 version 기반 비교가 잘못될 수 있습니다. 이 경우 읽기도 Master에서 해야 합니다.</p>
+        <div class="tail-q"><strong>꼬리질문:</strong> "Replication Lag를 어떻게 감지하고 대응하나요?" — show slave status로 Seconds_Behind_Master를 모니터링하거나, Heartbeat 기반으로 측정합니다. Lag가 허용치 초과 시 읽기를 Master로 failover하는 라우팅 로직을 씁니다.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PART 7 ===== -->
+  <div class="tab-content" id="p7">
+    <div class="qa-card">
+      <div class="qa-q">쿠폰 선착순 발급(100명 한정) 시스템을 어떻게 설계하나요?</div>
+      <div class="qa-a">
+        <p>이 문제는 <strong>"고트래픽 + 수량 제한 + 정합성 보장"</strong>의 전형적인 동시성 문제입니다. 단계별로 접근합니다.</p>
+        <p><strong>1단계 — DB 비관 락</strong>: 가장 단순합니다. coupon_count 테이블을 FOR UPDATE로 읽고 100 미만이면 차감합니다. 트래픽이 낮으면 OK지만, 수만 명이 동시에 요청하면 DB 커넥션 고갈로 장애가 납니다.</p>
+        <p><strong>2단계 — Redis 원자 연산</strong>: Redis의 INCR/DECR는 싱글 스레드라 원자적입니다. <code>INCR coupon:count</code> 결과가 100 이하면 발급, 초과면 거절합니다. DB 부하가 없고 빠릅니다. Redis 장애 시 대비책(fallback)이 필요합니다.</p>
+        <p><strong>3단계 — 메시지 큐 직렬화</strong>: 모든 요청을 Kafka 큐에 넣고 단일 컨슈머가 순서대로 처리합니다. 동시성 자체를 없애는 방식으로 가장 안전하지만 지연이 생깁니다. 수십만 명 규모에서 선호하는 방식입니다.</p>
+        <p>실무에서는 Redis로 빠르게 선착순 100명을 필터링(1차 관문)하고, 통과된 요청만 DB에 비관 락으로 최종 처리하는 <strong>2단계 방어 전략</strong>을 씁니다.</p>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">분산 락에서 락을 잡은 서버가 죽으면 어떻게 되나요?</div>
+      <div class="qa-a">
+        <p>DB 비관 락의 경우, DB 커넥션이 끊기면 <strong>DB가 자동으로 해당 커넥션의 트랜잭션을 롤백하고 락을 해제</strong>합니다. 안전합니다.</p>
+        <p>Redis 분산 락의 경우, 서버가 죽으면 unlock이 호출되지 않습니다. 이를 대비해 <strong>TTL(만료 시간)</strong>을 설정합니다. TTL이 지나면 Redis가 자동으로 키를 삭제해 락이 해제됩니다. Redisson은 Watchdog 스레드가 락 보유 중 주기적으로 TTL을 연장(기본 10초마다 갱신)하고, 서버가 죽으면 Watchdog도 멈춰 TTL이 자연스럽게 만료됩니다. <strong>주의할 점은 TTL을 너무 짧게 설정하면 정상 처리 중에 락이 만료되어 다른 서버가 동시에 진입하는 문제</strong>가 생깁니다. Watchdog이 없는 직접 구현 시 TTL 설계에 주의해야 합니다.</p>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">낙관 락에서 재시도를 무한히 하면 안 되는 이유와 재시도 전략은?</div>
+      <div class="qa-a">
+        <p>충돌이 잦은 환경에서 모든 실패 요청이 재시도를 반복하면 <strong>Retry Storm</strong>이 발생합니다. 요청 수가 줄지 않고 오히려 재시도로 인해 DB 부하가 증가하고, 충돌이 더 잦아지는 악순환에 빠집니다.</p>
+        <p>안전한 재시도 전략은 세 가지입니다. 첫째, <strong>최대 재시도 횟수 제한</strong>(예: 3회)을 둡니다. 둘째, <strong>Exponential Backoff</strong>—재시도 간격을 지수적으로 늘려(1초, 2초, 4초) 충돌 시점을 분산합니다. 셋째, <strong>Jitter(무작위 지연)</strong>를 추가해 여러 클라이언트가 동시에 재시도하는 것을 방지합니다. Spring Retry의 @Retryable에 backoff 옵션을 설정하거나 Resilience4j의 Retry 모듈을 활용합니다.</p>
+        <pre><span class="annotation">@Retryable</span>(
+    value = OptimisticLockException.<span class="keyword">class</span>,
+    maxAttempts = 3,
+    backoff = <span class="annotation">@Backoff</span>(delay = 100, multiplier = 2, random = <span class="keyword">true</span>)
+)
+<span class="keyword">public void</span> decreaseStock(Long productId) { ... }</pre>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">락 없이 동시성 문제를 해결하는 방법이 있나요?</div>
+      <div class="qa-a">
+        <p>있습니다. 락은 동시성을 "직렬화"해서 해결하지만, 아예 동시성이 발생하지 않도록 구조를 바꾸는 방법도 있습니다.</p>
+        <p>첫째, <strong>메시지 큐 기반 직렬화</strong>—요청을 큐에 쌓고 단일 컨슈머가 처리합니다. 동시성 자체가 없습니다. 둘째, <strong>데이터베이스 원자 연산</strong>—<code>UPDATE stock SET count = count - 1 WHERE count > 0</code>처럼 조건부 원자 UPDATE를 씁니다. 읽기 → 판단 → 쓰기를 하나의 SQL로 합쳐 ABA 문제를 없앱니다. 셋째, <strong>이벤트 소싱(Event Sourcing)</strong>—상태를 저장하는 대신 이벤트를 순서대로 저장하고, 상태는 이벤트를 재생해 계산합니다. 이벤트 스트림이 락 없이 순서를 보장합니다. 넷째, <strong>파티셔닝</strong>—사용자 ID 기준으로 파티셔닝해 같은 파티션 내에서만 경쟁하게 하면 충돌 범위를 좁힐 수 있습니다.</p>
+        <div class="tail-q"><strong>꼬리질문:</strong> "그럼 락을 쓰는 것보다 메시지 큐가 항상 더 낫나요?" — 아닙니다. 메시지 큐는 지연이 생기고 구현이 복잡합니다. 즉각적인 응답이 필요하거나(결제 즉시 확인), 데이터 볼륨이 작으면 DB 락이 더 단순하고 빠를 수 있습니다.</div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="../js/main.js"></script>
+</body>
+</html>
