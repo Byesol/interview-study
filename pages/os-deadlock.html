@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deadlock (교착상태)</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div class="page-header">
+  <a href="../index.html" class="back-link">← 목록으로</a>
+  <h1>Deadlock (교착상태)</h1>
+  <p>발생 조건, 예방, 회피, 탐지, 실무 사례까지</p>
+</div>
+
+<div class="content">
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('p1',this)">Part 1 · 기본 개념</button>
+    <button class="tab-btn" onclick="switchTab('p2',this)">Part 2 · 해결 전략</button>
+    <button class="tab-btn" onclick="switchTab('p3',this)">Part 3 · 실무 사례</button>
+  </div>
+
+  <!-- ===== Part 1: 기본 개념 ===== -->
+  <div class="tab-content active" id="p1">
+
+    <div class="qa-card">
+      <div class="qa-q">Deadlock(교착상태)이란 무엇인가요?</div>
+      <div class="qa-a">
+        <p>Deadlock은 <strong>두 개 이상의 프로세스(또는 스레드)가 서로 상대방이 점유한 자원을 기다리면서 무한히 대기하는 상태</strong>입니다. 어떤 프로세스도 더 이상 진행하지 못하고 영원히 멈춥니다.</p>
+        <p>비유하자면, 좁은 일방통행 다리 양쪽 끝에서 차 두 대가 마주보고 서 있는 상황입니다. 각자 상대방이 먼저 비켜주길 기다리지만, 아무도 움직일 수 없습니다.</p>
+        <div class="diagram-box">
+          <svg width="480" height="220" viewBox="0 0 480 220">
+            <!-- Process A -->
+            <rect x="30" y="80" width="120" height="50" rx="10" fill="#1e2235" stroke="#6c8cff" stroke-width="2"/>
+            <text x="90" y="111" fill="#6c8cff" font-size="13" text-anchor="middle" font-weight="700">프로세스 A</text>
+            <!-- Process B -->
+            <rect x="330" y="80" width="120" height="50" rx="10" fill="#1e2235" stroke="#f87171" stroke-width="2"/>
+            <text x="390" y="111" fill="#f87171" font-size="13" text-anchor="middle" font-weight="700">프로세스 B</text>
+            <!-- Resource 1 -->
+            <rect x="155" y="20" width="90" height="40" rx="8" fill="#2a2f45" stroke="#34d399" stroke-width="1.5"/>
+            <text x="200" y="45" fill="#34d399" font-size="11" text-anchor="middle" font-weight="600">자원 R1</text>
+            <!-- Resource 2 -->
+            <rect x="235" y="145" width="90" height="40" rx="8" fill="#2a2f45" stroke="#fbbf24" stroke-width="1.5"/>
+            <text x="280" y="170" fill="#fbbf24" font-size="11" text-anchor="middle" font-weight="600">자원 R2</text>
+            <!-- A holds R1 -->
+            <line x1="150" y1="95" x2="200" y2="60" stroke="#34d399" stroke-width="2" marker-end="url(#arr)"/>
+            <text x="155" y="70" fill="#34d399" font-size="9" text-anchor="middle">보유</text>
+            <!-- B holds R2 -->
+            <line x1="330" y1="115" x2="325" y2="165" stroke="#fbbf24" stroke-width="2" marker-end="url(#arr)"/>
+            <text x="342" y="148" fill="#fbbf24" font-size="9" text-anchor="start">보유</text>
+            <!-- A waits R2 -->
+            <line x1="120" y1="120" x2="230" y2="165" stroke="#f87171" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arr2)"/>
+            <text x="165" y="162" fill="#f87171" font-size="9" text-anchor="middle">대기</text>
+            <!-- B waits R1 -->
+            <line x1="340" y1="80" x2="250" y2="55" stroke="#a78bfa" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arr3)"/>
+            <text x="310" y="60" fill="#a78bfa" font-size="9" text-anchor="middle">대기</text>
+            <text x="240" y="210" fill="#f87171" font-size="11" text-anchor="middle" font-weight="600">서로가 서로를 기다리는 순환 → 영원히 진행 불가</text>
+            <defs>
+              <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="#e2e8f0"/>
+              </marker>
+              <marker id="arr2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="#f87171"/>
+              </marker>
+              <marker id="arr3" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="#a78bfa"/>
+              </marker>
+            </defs>
+          </svg>
+        </div>
+        <div class="tail-q">
+          <strong>꼬리질문 대비:</strong> "Deadlock과 무한루프의 차이는?" — 무한루프는 CPU를 계속 사용하면서 반복 실행되지만, Deadlock은 CPU를 전혀 사용하지 않고 <em>자원을 기다리며 멈춰있는 상태</em>입니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Deadlock 발생의 4가지 필요조건(Coffman 조건)은 무엇인가요?</div>
+      <div class="qa-a">
+        <p>Deadlock은 다음 <strong>4가지 조건이 동시에 성립</strong>할 때만 발생합니다. 하나라도 깨지면 Deadlock은 불가능합니다. 이 조건들을 Coffman(1971)이 정리했습니다.</p>
+        <table>
+          <tr><th>조건</th><th>설명</th><th>예시</th></tr>
+          <tr>
+            <td><strong>1. 상호배제</strong><br>(Mutual Exclusion)</td>
+            <td>자원은 한 번에 하나의 프로세스만 사용할 수 있다</td>
+            <td>프린터, DB의 레코드 락</td>
+          </tr>
+          <tr>
+            <td><strong>2. 점유대기</strong><br>(Hold and Wait)</td>
+            <td>자원을 하나 이상 보유한 상태에서 다른 자원을 추가로 기다린다</td>
+            <td>R1 잡은 채로 R2 대기</td>
+          </tr>
+          <tr>
+            <td><strong>3. 비선점</strong><br>(No Preemption)</td>
+            <td>프로세스가 자원을 스스로 반납하기 전까지 강제로 빼앗을 수 없다</td>
+            <td>DB 락은 트랜잭션 완료 전 해제 불가</td>
+          </tr>
+          <tr>
+            <td><strong>4. 순환대기</strong><br>(Circular Wait)</td>
+            <td>프로세스들이 원형으로 서로의 자원을 기다린다</td>
+            <td>A→R2대기, B→R1대기 → 사이클 형성</td>
+          </tr>
+        </table>
+        <div class="hl org">
+          <strong>암기 팁:</strong> <em>상·점·비·순</em> — 상호배제, 점유대기, 비선점, 순환대기. 4가지 모두 동시 성립 시에만 Deadlock 발생. 예방(Prevention)은 이 중 하나를 제거하는 전략입니다.
+        </div>
+        <div class="tail-q">
+          <strong>꼬리질문 대비:</strong> "4가지 중 실무에서 가장 깨기 쉬운 조건은?" — <em>순환대기</em>입니다. 모든 스레드/트랜잭션이 동일한 순서로 자원을 요청하도록 코딩 컨벤션을 정하는 것만으로 순환대기를 원천 차단할 수 있습니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Deadlock vs Starvation vs Livelock의 차이를 설명해주세요.</div>
+      <div class="qa-a">
+        <p>세 가지 모두 프로세스가 원하는 작업을 진행하지 못하는 상황이지만 원인과 상태가 다릅니다.</p>
+        <table>
+          <tr><th>개념</th><th>상태</th><th>CPU 사용</th><th>진행 가능성</th><th>비유</th></tr>
+          <tr>
+            <td><strong>Deadlock</strong></td>
+            <td>완전히 멈춤, 자원 대기</td>
+            <td>없음 (대기 상태)</td>
+            <td>외부 개입 없이 불가</td>
+            <td>두 차가 좁은 다리서 교착</td>
+          </tr>
+          <tr>
+            <td><strong>Starvation</strong></td>
+            <td>대기 중, 다른 프로세스는 진행</td>
+            <td>없음 (대기 상태)</td>
+            <td>이론상 가능하나 실제 불가</td>
+            <td>항상 새치기 당하는 손님</td>
+          </tr>
+          <tr>
+            <td><strong>Livelock</strong></td>
+            <td>실행 중이지만 진전 없음</td>
+            <td>있음 (바쁘게 동작)</td>
+            <td>외부 개입 없이 불가</td>
+            <td>복도에서 계속 같은 방향으로 피하는 두 사람</td>
+          </tr>
+        </table>
+        <p><em>Starvation(기아)</em>은 우선순위가 낮은 프로세스가 계속 높은 우선순위 프로세스에게 밀려 자원을 영영 받지 못하는 상태입니다. Aging(시간이 지날수록 우선순위를 높여주는 기법)으로 해결합니다.</p>
+        <p><em>Livelock</em>은 두 프로세스가 서로 배려하다가 오히려 아무것도 못하는 상황입니다. 예를 들어 두 스레드가 락 충돌 시 서로 양보하는 로직이 완벽하게 동기화되어, 둘 다 계속 양보만 반복하며 작업을 진행하지 못하는 경우입니다. CPU는 사용하지만 실질적 진전이 없다는 점이 Deadlock과의 핵심 차이입니다.</p>
+        <div class="tail-q">
+          <strong>꼬리질문 대비:</strong> "Livelock 해결 방법은?" — 랜덤 백오프(Random Backoff)가 대표적입니다. Ethernet 충돌 해결(CSMA/CD)이나 분산 시스템의 재시도 로직에서 랜덤한 대기 시간을 추가하는 방식으로 Livelock을 깨뜨립니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">자원 할당 그래프(Resource Allocation Graph)란 무엇인가요?</div>
+      <div class="qa-a">
+        <p>자원 할당 그래프는 <strong>프로세스와 자원 간의 관계를 방향 그래프로 표현한 것</strong>입니다. Deadlock 유무를 시각적으로 판단하는 데 사용됩니다.</p>
+        <p>그래프의 구성 요소는 두 가지입니다. <em>노드(Node)</em>는 프로세스(원으로 표시)와 자원(사각형으로 표시, 내부 점은 자원 인스턴스 수)으로 구성됩니다. <em>간선(Edge)</em>은 두 종류가 있습니다. 요청 간선(Request Edge, P→R)은 프로세스가 자원을 요청 중임을 나타내고, 할당 간선(Assignment Edge, R→P)은 자원이 프로세스에 할당된 상태를 나타냅니다.</p>
+        <div class="diagram-box">
+          <svg width="480" height="200" viewBox="0 0 480 200">
+            <!-- P1 -->
+            <circle cx="80" cy="80" r="28" fill="#1e2235" stroke="#6c8cff" stroke-width="2"/>
+            <text x="80" y="85" fill="#6c8cff" font-size="12" text-anchor="middle" font-weight="700">P1</text>
+            <!-- P2 -->
+            <circle cx="80" cy="160" r="28" fill="#1e2235" stroke="#6c8cff" stroke-width="2"/>
+            <text x="80" y="165" fill="#6c8cff" font-size="12" text-anchor="middle" font-weight="700">P2</text>
+            <!-- R1 (1 instance) -->
+            <rect x="190" y="55" width="70" height="50" rx="6" fill="#2a2f45" stroke="#34d399" stroke-width="1.5"/>
+            <text x="225" y="72" fill="#34d399" font-size="10" text-anchor="middle">R1</text>
+            <circle cx="225" cy="91" r="7" fill="#34d399"/>
+            <!-- R2 (2 instances) -->
+            <rect x="340" y="55" width="80" height="50" rx="6" fill="#2a2f45" stroke="#fbbf24" stroke-width="1.5"/>
+            <text x="380" y="72" fill="#fbbf24" font-size="10" text-anchor="middle">R2</text>
+            <circle cx="365" cy="91" r="7" fill="#fbbf24"/>
+            <circle cx="395" cy="91" r="7" fill="#fbbf24"/>
+            <!-- P1 holds R1 (R1->P1) -->
+            <line x1="192" y1="78" x2="110" y2="78" stroke="#34d399" stroke-width="2" marker-end="url(#ga)"/>
+            <text x="151" y="70" fill="#34d399" font-size="9" text-anchor="middle">할당</text>
+            <!-- P2 requests R1 (P2->R1) -->
+            <line x1="108" y1="150" x2="192" y2="105" stroke="#f87171" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#ga2)"/>
+            <text x="155" y="145" fill="#f87171" font-size="9" text-anchor="middle">요청</text>
+            <!-- P1 requests R2 (P1->R2) -->
+            <line x1="108" y1="72" x2="342" y2="72" stroke="#f87171" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#ga2)"/>
+            <text x="225" y="65" fill="#f87171" font-size="9" text-anchor="middle">요청</text>
+            <!-- R2 -> P2 -->
+            <line x1="355" y1="103" x2="108" y2="155" stroke="#34d399" stroke-width="2" marker-end="url(#ga)"/>
+            <text x="250" y="148" fill="#34d399" font-size="9" text-anchor="middle">할당(1개)</text>
+            <text x="240" y="190" fill="#f87171" font-size="11" text-anchor="middle" font-weight="600">사이클 존재 → Deadlock (R1이 자원 1개뿐이고 사이클 형성)</text>
+            <defs>
+              <marker id="ga" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="#34d399"/>
+              </marker>
+              <marker id="ga2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="#f87171"/>
+              </marker>
+            </defs>
+          </svg>
+        </div>
+        <div class="hl">
+          <strong>Deadlock 판별 규칙:</strong> 자원 인스턴스가 하나씩인 경우, 그래프에 <em>사이클이 존재하면 반드시 Deadlock</em>. 인스턴스가 여러 개인 경우 사이클이 있어도 Deadlock이 아닐 수 있습니다 — 다른 인스턴스로 할당 가능하면 진행이 되기 때문입니다.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== Part 2: 해결 전략 ===== -->
+  <div class="tab-content" id="p2">
+
+    <div class="qa-card">
+      <div class="qa-q">Deadlock 예방(Prevention)이란? 각 조건을 어떻게 제거하나요?</div>
+      <div class="qa-a">
+        <p>Deadlock 예방은 <strong>4가지 필요조건 중 하나를 시스템 설계 단계에서 원천적으로 불성립하게 만드는 전략</strong>입니다. 가장 보수적인 접근으로, Deadlock이 절대 발생하지 않습니다. 단, 자원 활용률이 낮아지는 트레이드오프가 있습니다.</p>
+        <table>
+          <tr><th>제거할 조건</th><th>방법</th><th>단점</th></tr>
+          <tr>
+            <td><strong>상호배제 제거</strong></td>
+            <td>자원을 공유 가능하게 만듦 (읽기 전용 파일 등)</td>
+            <td>프린터·DB락 같이 본질적으로 배타적인 자원에는 적용 불가</td>
+          </tr>
+          <tr>
+            <td><strong>점유대기 제거</strong></td>
+            <td>프로세스 시작 시 필요한 모든 자원을 한꺼번에 요청, 없으면 대기</td>
+            <td>자원 이용률 저하, 기아(Starvation) 가능성</td>
+          </tr>
+          <tr>
+            <td><strong>비선점 제거</strong></td>
+            <td>자원을 기다릴 때 현재 보유 자원을 모두 반납</td>
+            <td>작업 중단·재시작 비용 발생, 일부 자원(프린터 등)엔 부적합</td>
+          </tr>
+          <tr>
+            <td><strong>순환대기 제거</strong></td>
+            <td>모든 자원에 번호를 부여하고, 오름차순 순서로만 요청 허용</td>
+            <td>자원 번호 관리 필요, 유연성 감소</td>
+          </tr>
+        </table>
+        <div class="hl grn">
+          <strong>실무에서 가장 현실적인 예방:</strong> <em>순환대기 제거</em>입니다. "항상 락을 A → B 순서로 획득한다"는 코딩 규약만으로 순환대기를 예방할 수 있습니다. 오버헤드가 거의 없어 DB, Java 멀티스레드 코드에서 널리 사용됩니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Deadlock 회피(Avoidance)란? 은행원 알고리즘(Banker's Algorithm)을 설명해주세요.</div>
+      <div class="qa-a">
+        <p>Deadlock 회피는 <strong>자원 요청이 들어올 때마다 이 요청을 허용하면 안전 상태(Safe State)가 유지되는지 검사하고, 불안전 상태가 될 것 같으면 요청을 거부하는 전략</strong>입니다. 예방보다 유연하지만, 가용 자원과 최대 요구량을 미리 알아야 한다는 전제가 있습니다.</p>
+        <p><strong>안전 상태(Safe State)</strong>란 모든 프로세스를 데드락 없이 종료시킬 수 있는 순서(안전 순서열, Safe Sequence)가 존재하는 상태입니다. 안전 상태이면 Deadlock이 발생하지 않습니다.</p>
+        <p><em>은행원 알고리즘</em>은 Dijkstra가 고안한 회피 알고리즘입니다. 은행이 대출 요청을 받을 때 모든 고객이 상환 가능한지 시뮬레이션하는 것에서 이름이 유래했습니다.</p>
+        <div class="hl">
+          <strong>동작 원리:</strong><br>
+          1. 프로세스가 자원 요청 시, 요청을 임시로 허용해 본다<br>
+          2. 자원을 할당한 후 상태가 <em>안전 상태</em>인지 검사 (안전 순서열이 존재하는지)<br>
+          3. 안전 상태 → 요청 허용 / 불안전 상태 → 요청 거부, 이전 상태로 복구
+        </div>
+        <p>안전 순서열 탐색 방법: 현재 가용 자원(Available)으로 완료 가능한 프로세스를 찾고, 그 프로세스의 자원을 회수해 가용량을 늘리는 과정을 반복합니다. 모든 프로세스를 종료시킬 수 있으면 안전 상태입니다.</p>
+        <div class="hl red">
+          <strong>은행원 알고리즘의 한계:</strong> 프로세스 수와 최대 자원 요구량을 사전에 알아야 하고, 자원 요청마다 안전 순서열 탐색(O(n²·m)) 비용이 발생합니다. 실제 운영 시스템에서는 거의 사용하지 않고, CS 이론 시험과 면접에서 자주 출제됩니다.
+        </div>
+        <div class="tail-q">
+          <strong>꼬리질문 대비:</strong> "Safe State와 Deadlock-Free State는 같은 건가요?" — 아닙니다. 안전 상태이면 Deadlock이 없습니다. 하지만 불안전 상태(Unsafe State)라고 해서 반드시 Deadlock이 발생하는 것은 아닙니다. 불안전 상태는 <em>Deadlock 가능성이 있는 상태</em>입니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Deadlock 탐지(Detection)와 Wait-for Graph는 무엇인가요?</div>
+      <div class="qa-a">
+        <p>Deadlock 탐지는 <strong>Deadlock의 발생을 허용하되, 주기적으로 시스템을 검사해 Deadlock이 생겼는지 찾아내는 전략</strong>입니다. 예방·회피보다 자원 활용률이 높지만, Deadlock 발생 후 복구 비용이 발생합니다.</p>
+        <p><em>Wait-for Graph</em>는 자원 할당 그래프에서 자원 노드를 제거하고 프로세스 간의 대기 관계만 표현한 그래프입니다. "A → B" 간선은 A가 B가 보유한 자원을 기다린다는 의미입니다.</p>
+        <div class="diagram-box">
+          <svg width="420" height="170" viewBox="0 0 420 170">
+            <!-- Wait-for Graph -->
+            <text x="210" y="18" fill="#6c8cff" font-size="12" text-anchor="middle" font-weight="700">Wait-for Graph (사이클 → Deadlock)</text>
+            <circle cx="80" cy="90" r="28" fill="#1e2235" stroke="#6c8cff" stroke-width="2"/>
+            <text x="80" y="95" fill="#6c8cff" font-size="12" text-anchor="middle" font-weight="700">P1</text>
+            <circle cx="210" cy="50" r="28" fill="#1e2235" stroke="#6c8cff" stroke-width="2"/>
+            <text x="210" y="55" fill="#6c8cff" font-size="12" text-anchor="middle" font-weight="700">P2</text>
+            <circle cx="340" cy="90" r="28" fill="#1e2235" stroke="#6c8cff" stroke-width="2"/>
+            <text x="340" y="95" fill="#6c8cff" font-size="12" text-anchor="middle" font-weight="700">P3</text>
+            <circle cx="210" cy="140" r="28" fill="#1e2235" stroke="#34d399" stroke-width="2"/>
+            <text x="210" y="145" fill="#34d399" font-size="12" text-anchor="middle" font-weight="700">P4</text>
+            <!-- P1->P2 -->
+            <line x1="106" y1="72" x2="184" y2="58" stroke="#f87171" stroke-width="2" marker-end="url(#wa)"/>
+            <!-- P2->P3 -->
+            <line x1="236" y1="64" x2="316" y2="78" stroke="#f87171" stroke-width="2" marker-end="url(#wa)"/>
+            <!-- P3->P1 (cycle) -->
+            <path d="M322 108 Q210 170 98 108" fill="none" stroke="#f87171" stroke-width="2" marker-end="url(#wa)"/>
+            <!-- P4->P2 (not in cycle) -->
+            <line x1="210" y1="112" x2="210" y2="78" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#wa2)"/>
+            <text x="390" y="108" fill="#f87171" font-size="10" text-anchor="middle">사이클</text>
+            <text x="210" y="168" fill="#f87171" font-size="10" text-anchor="middle">P1↔P2↔P3 사이클 → Deadlock / P4는 대기 중이나 사이클 외부</text>
+            <defs>
+              <marker id="wa" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="#f87171"/>
+              </marker>
+              <marker id="wa2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="#94a3b8"/>
+              </marker>
+            </defs>
+          </svg>
+        </div>
+        <p>Wait-for Graph에서 <em>사이클이 감지되면 Deadlock</em>이 발생한 것입니다(자원 인스턴스가 하나씩인 경우). 탐지 알고리즘은 DFS/BFS로 사이클을 찾습니다. 탐지 주기가 너무 잦으면 오버헤드가 크고, 너무 드물면 Deadlock이 오래 지속됩니다. 실무에서는 CPU 사용률이 급격히 낮아질 때 탐지를 트리거하는 방식을 쓰기도 합니다.</p>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Deadlock 복구(Recovery) 방법에는 무엇이 있나요?</div>
+      <div class="qa-a">
+        <p>Deadlock이 탐지된 후 이를 해결하는 방법은 크게 <strong>프로세스 종료</strong>와 <strong>자원 선점</strong> 두 가지입니다.</p>
+        <p><strong>1. 프로세스 종료(Process Termination)</strong></p>
+        <p>두 가지 방식이 있습니다. 첫째, <em>Deadlock에 관련된 프로세스를 모두 종료</em>하는 방법입니다. 가장 확실하지만, 진행 중이던 모든 작업이 손실됩니다. 둘째, <em>프로세스를 하나씩 종료</em>하면서 Deadlock이 해결될 때까지 반복하는 방법입니다. 어느 프로세스를 먼저 종료할지 선택 기준이 필요합니다.</p>
+        <div class="hl">
+          <strong>종료 프로세스 선택 기준:</strong> 우선순위가 낮은 것 / 작업 진행률이 낮은 것 / 사용한 자원이 많은 것 / 종료 후 재시작 비용이 낮은 것 / 대화형보다 배치 작업 우선
+        </div>
+        <p><strong>2. 자원 선점(Resource Preemption)</strong></p>
+        <p>Deadlock에 연루된 프로세스로부터 자원을 강제로 빼앗아 다른 프로세스에 할당합니다. 세 가지 고려사항이 있습니다.</p>
+        <table>
+          <tr><th>고려사항</th><th>내용</th></tr>
+          <tr><td><strong>선점 대상 선택</strong></td><td>어느 프로세스의 자원을 빼앗을지 결정 (비용 최소화 기준)</td></tr>
+          <tr><td><strong>롤백(Rollback)</strong></td><td>선점당한 프로세스를 안전 상태(체크포인트)로 되돌려야 함</td></tr>
+          <tr><td><strong>기아 방지</strong></td><td>같은 프로세스만 반복 선점되지 않도록 횟수 제한</td></tr>
+        </table>
+        <div class="tail-q">
+          <strong>꼬리질문 대비:</strong> "OS 수준에서 Deadlock을 어떻게 처리하나요?" — 현대 범용 OS(Linux, Windows)는 대부분 Deadlock을 무시합니다(Ostrich Algorithm). Deadlock은 드물게 발생하고 완전한 예방·회피는 오버헤드가 크기 때문에, 발생하면 사용자가 프로세스를 강제 종료하도록 맡깁니다. 대신 DB나 Java 같은 응용 프로그램 레벨에서 자체적으로 처리합니다.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== Part 3: 실무 사례 ===== -->
+  <div class="tab-content" id="p3">
+
+    <div class="qa-card">
+      <div class="qa-q">MySQL InnoDB에서 Deadlock은 어떻게 발생하고 어떻게 확인하나요?</div>
+      <div class="qa-a">
+        <p>MySQL InnoDB는 트랜잭션마다 레코드 락(Row Lock)을 사용합니다. 두 트랜잭션이 서로 다른 레코드를 잠근 채 상대방의 레코드를 기다리면 Deadlock이 발생합니다.</p>
+        <p><strong>전형적인 MySQL Deadlock 시나리오:</strong></p>
+        <pre><code><span class="comment">-- 트랜잭션 A</span>
+<span class="keyword">START TRANSACTION</span>;
+<span class="keyword">UPDATE</span> orders <span class="keyword">SET</span> status = <span class="string">'PROCESSING'</span> <span class="keyword">WHERE</span> id = <span class="string">1</span>;  <span class="comment">-- 레코드 1 락 획득</span>
+<span class="comment">-- (이 시점에 스레드 B가 레코드 2 락 획득)</span>
+<span class="keyword">UPDATE</span> orders <span class="keyword">SET</span> status = <span class="string">'PROCESSING'</span> <span class="keyword">WHERE</span> id = <span class="string">2</span>;  <span class="comment">-- 레코드 2 대기 → DEADLOCK</span>
+
+<span class="comment">-- 트랜잭션 B (동시 실행)</span>
+<span class="keyword">START TRANSACTION</span>;
+<span class="keyword">UPDATE</span> orders <span class="keyword">SET</span> status = <span class="string">'DONE'</span> <span class="keyword">WHERE</span> id = <span class="string">2</span>;    <span class="comment">-- 레코드 2 락 획득</span>
+<span class="keyword">UPDATE</span> orders <span class="keyword">SET</span> status = <span class="string">'DONE'</span> <span class="keyword">WHERE</span> id = <span class="string">1</span>;    <span class="comment">-- 레코드 1 대기 → DEADLOCK</span></code></pre>
+        <p>InnoDB는 Wait-for Graph를 내부적으로 유지하며 <strong>Deadlock을 자동 탐지</strong>합니다. 탐지되면 비용이 낮은(변경 레코드 수가 적은) 트랜잭션을 자동으로 롤백하고 <code>ERROR 1213: Deadlock found</code>를 반환합니다.</p>
+        <p><strong>Deadlock 확인 방법:</strong></p>
+        <pre><code><span class="comment">-- 가장 최근 Deadlock 정보 확인</span>
+<span class="keyword">SHOW ENGINE INNODB STATUS</span>\G
+
+<span class="comment">-- 출력에서 LATEST DETECTED DEADLOCK 섹션을 확인</span>
+<span class="comment">-- 어떤 트랜잭션이 어떤 락을 잡고 기다렸는지 상세히 나옴</span>
+
+<span class="comment">-- 현재 락 대기 현황 확인</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> performance_schema.data_lock_waits;
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> information_schema.INNODB_LOCK_WAITS;</code></pre>
+        <div class="hl org">
+          <strong>innodb_deadlock_detect:</strong> MySQL 8.0부터 <code>innodb_deadlock_detect=OFF</code>로 탐지를 끄고, 대신 <code>innodb_lock_wait_timeout</code>으로 타임아웃을 설정하는 방법도 있습니다. 고부하 시스템에서 탐지 오버헤드를 줄이기 위한 최적화입니다.
+        </div>
+        <div class="tail-q">
+          <strong>꼬리질문 대비:</strong> "MySQL에서 Deadlock을 애플리케이션 레벨에서 어떻게 처리하나요?" — <code>ERROR 1213</code>을 catch해서 트랜잭션을 재시도(Retry)합니다. Spring에서는 <code>@Retryable</code>을 활용하거나, 트랜잭션 어드바이저에 재시도 로직을 넣습니다. 단, 무한 재시도는 금지하고 최대 횟수(예: 3회)와 지수 백오프를 적용합니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Java에서 Deadlock이 발생하는 코드 패턴과 탐지 방법을 설명해주세요.</div>
+      <div class="qa-a">
+        <p>Java에서 Deadlock은 주로 <code>synchronized</code> 블록이나 <code>ReentrantLock</code>을 여러 스레드가 다른 순서로 획득할 때 발생합니다.</p>
+        <p><strong>Deadlock 발생 예시:</strong></p>
+        <pre><code><span class="keyword">public class</span> <span class="type">DeadlockExample</span> {
+    <span class="keyword">private final</span> <span class="type">Object</span> lockA = <span class="keyword">new</span> <span class="type">Object</span>();
+    <span class="keyword">private final</span> <span class="type">Object</span> lockB = <span class="keyword">new</span> <span class="type">Object</span>();
+
+    <span class="keyword">public void</span> methodA() {
+        <span class="keyword">synchronized</span> (lockA) {          <span class="comment">// 스레드1: A 먼저 획득</span>
+            <span class="type">Thread</span>.sleep(<span class="string">100</span>);
+            <span class="keyword">synchronized</span> (lockB) {      <span class="comment">// 스레드1: B 기다림 → DEADLOCK</span>
+                <span class="comment">// 작업</span>
+            }
+        }
+    }
+
+    <span class="keyword">public void</span> methodB() {
+        <span class="keyword">synchronized</span> (lockB) {          <span class="comment">// 스레드2: B 먼저 획득</span>
+            <span class="type">Thread</span>.sleep(<span class="string">100</span>);
+            <span class="keyword">synchronized</span> (lockA) {      <span class="comment">// 스레드2: A 기다림 → DEADLOCK</span>
+                <span class="comment">// 작업</span>
+            }
+        }
+    }
+}</code></pre>
+        <p><strong>jstack으로 Deadlock 탐지:</strong></p>
+        <pre><code><span class="comment"># 실행 중인 Java 프로세스의 PID 확인</span>
+jps -l
+
+<span class="comment"># 해당 PID의 스레드 덤프 출력</span>
+jstack &lt;PID&gt;
+
+<span class="comment"># 출력에서 아래 패턴을 찾음:</span>
+<span class="comment"># Found one Java-level deadlock:</span>
+<span class="comment"># "Thread-1": waiting to lock monitor 0x...  (object 0x..., a java.lang.Object)</span>
+<span class="comment">#   which is held by "Thread-0"</span>
+<span class="comment"># "Thread-0": waiting to lock monitor 0x...  (object 0x..., a java.lang.Object)</span>
+<span class="comment">#   which is held by "Thread-1"</span></code></pre>
+        <div class="hl grn">
+          <strong>프로그래밍으로 탐지:</strong> <code>ThreadMXBean</code>을 사용하면 코드 내에서 Deadlock을 감지할 수 있습니다.<br>
+          <code>ManagementFactory.getThreadMXBean().findDeadlockedThreads()</code> — null이 아니면 Deadlock 발생.
+        </div>
+        <div class="tail-q">
+          <strong>꼬리질문 대비:</strong> "ReentrantLock을 쓰면 Deadlock을 피할 수 있나요?" — Deadlock 자체를 피할 수는 없지만, <code>tryLock(timeout)</code>을 사용하면 지정 시간 내에 락을 얻지 못하면 포기하고 보유 락을 반납하게 할 수 있습니다. 이렇게 하면 Deadlock 상태에서 자동으로 빠져나올 수 있습니다(비선점 조건 위반).
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Deadlock 방지를 위한 실무 코딩 패턴을 설명해주세요.</div>
+      <div class="qa-a">
+        <p>실무에서 Deadlock을 예방하는 핵심 패턴은 4가지입니다.</p>
+        <p><strong>1. 락 획득 순서 통일 (가장 중요)</strong></p>
+        <pre><code><span class="comment">// BAD: 스레드마다 락 순서가 달라 순환대기 가능</span>
+<span class="comment">// Thread 1: lock(accountA) → lock(accountB)</span>
+<span class="comment">// Thread 2: lock(accountB) → lock(accountA)</span>
+
+<span class="comment">// GOOD: 계좌 ID 순서로 항상 작은 번호 먼저 락</span>
+<span class="keyword">public void</span> transfer(<span class="type">Account</span> from, <span class="type">Account</span> to, <span class="keyword">int</span> amount) {
+    <span class="type">Account</span> first  = from.getId() &lt; to.getId() ? from : to;
+    <span class="type">Account</span> second = from.getId() &lt; to.getId() ? to   : from;
+    <span class="keyword">synchronized</span> (first) {
+        <span class="keyword">synchronized</span> (second) {
+            from.debit(amount);
+            to.credit(amount);
+        }
+    }
+}</code></pre>
+        <p><strong>2. 타임아웃 사용 (ReentrantLock.tryLock)</strong></p>
+        <pre><code><span class="keyword">private final</span> <span class="type">ReentrantLock</span> lock = <span class="keyword">new</span> <span class="type">ReentrantLock</span>();
+
+<span class="keyword">public boolean</span> doWork() <span class="keyword">throws</span> <span class="type">InterruptedException</span> {
+    <span class="keyword">if</span> (lock.tryLock(<span class="string">500</span>, <span class="type">TimeUnit</span>.MILLISECONDS)) {
+        <span class="keyword">try</span> {
+            <span class="comment">// 작업 수행</span>
+            <span class="keyword">return true</span>;
+        } <span class="keyword">finally</span> {
+            lock.unlock();   <span class="comment">// finally에서 반드시 해제</span>
+        }
+    }
+    <span class="keyword">return false</span>;  <span class="comment">// 타임아웃 → 재시도 또는 실패 처리</span>
+}</code></pre>
+        <p><strong>3. 락 범위 최소화</strong></p>
+        <pre><code><span class="comment">// BAD: 락을 오래 보유 → 충돌 가능성 증가</span>
+<span class="keyword">synchronized</span> (this) {
+    data = fetchFromDB();   <span class="comment">// DB 호출을 락 안에서 (느림)</span>
+    process(data);
+}
+
+<span class="comment">// GOOD: 공유 상태 변경 시에만 락 사용</span>
+<span class="type">Data</span> data = fetchFromDB(); <span class="comment">// 락 밖에서 조회</span>
+<span class="keyword">synchronized</span> (this) {
+    sharedState = process(data); <span class="comment">// 필요한 최소 범위만</span>
+}</code></pre>
+        <p><strong>4. 한 번에 모든 락 획득 (점유대기 제거)</strong></p>
+        <div class="hl">
+          필요한 모든 자원을 <em>원자적으로</em> 획득하거나 아예 얻지 않는 전략. 부분 획득 후 대기하는 상황을 없앱니다. Java의 <code>StampedLock</code>이나 DB의 <code>SELECT ... FOR UPDATE SKIP LOCKED</code>가 이 원칙을 활용합니다.
+        </div>
+        <div class="tail-q">
+          <strong>꼬리질문 대비:</strong> "락 없이 동시성을 처리하는 방법은?" — <em>Lock-Free 알고리즘</em>입니다. CAS(Compare-And-Swap) 연산을 사용하는 <code>AtomicInteger</code>, <code>AtomicReference</code> 같은 java.util.concurrent.atomic 패키지가 대표적입니다. 락 없이 원자적 연산을 보장해 Deadlock 자체가 불가능합니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">분산 시스템에서의 Deadlock은 어떻게 다른가요?</div>
+      <div class="qa-a">
+        <p>분산 시스템에서의 Deadlock은 <strong>여러 노드(서버)에 걸쳐 발생</strong>하기 때문에 단일 시스템보다 탐지와 복구가 훨씬 복잡합니다.</p>
+        <p><em>분산 Deadlock의 특징:</em></p>
+        <table>
+          <tr><th>구분</th><th>단일 시스템</th><th>분산 시스템</th></tr>
+          <tr><td>탐지 방법</td><td>jstack, OS 내부 Wait-for Graph</td><td>글로벌 Wait-for Graph 수집 필요</td></tr>
+          <tr><td>복잡도</td><td>낮음</td><td>높음 (네트워크 지연, 메시지 순서 문제)</td></tr>
+          <tr><td>대표 해결책</td><td>순서 통일, tryLock 타임아웃</td><td>분산 락 타임아웃, 우선순위 기반 중단</td></tr>
+        </table>
+        <p><strong>분산 Deadlock 처리 전략:</strong></p>
+        <div class="hl org">
+          <strong>타임아웃 기반 해결 (가장 실용적):</strong> 분산 환경에서 Wait-for Graph를 글로벌하게 수집하는 것은 복잡하고 비용이 크기 때문에, 실무에서는 <em>락 타임아웃</em>을 설정해 일정 시간 내에 락을 얻지 못하면 트랜잭션을 롤백하는 방식을 주로 사용합니다. Redis 분산 락(Redlock)의 TTL, DB 락 타임아웃이 이 방식입니다.
+        </div>
+        <p><strong>Redis 분산 락 타임아웃 예시:</strong></p>
+        <pre><code><span class="comment">// Redisson을 사용한 분산 락 (타임아웃 적용)</span>
+<span class="type">RLock</span> lock = redissonClient.getLock(<span class="string">"order:lock:123"</span>);
+<span class="keyword">boolean</span> acquired = lock.tryLock(
+    <span class="string">3</span>,     <span class="comment">// 최대 3초 대기</span>
+    <span class="string">10</span>,    <span class="comment">// 락 보유 최대 10초 (TTL)</span>
+    <span class="type">TimeUnit</span>.SECONDS
+);
+<span class="keyword">if</span> (!acquired) {
+    <span class="keyword">throw new</span> <span class="type">LockAcquisitionException</span>(<span class="string">"락 획득 실패"</span>);
+}
+<span class="keyword">try</span> {
+    <span class="comment">// 임계 영역</span>
+} <span class="keyword">finally</span> {
+    lock.unlock();
+}</code></pre>
+        <div class="tail-q">
+          <strong>꼬리질문 대비:</strong> "마이크로서비스 아키텍처에서 Saga 패턴이 Deadlock과 어떤 관련이 있나요?" — Saga 패턴은 분산 트랜잭션을 여러 로컬 트랜잭션으로 분리하고, 실패 시 보상 트랜잭션(Compensating Transaction)으로 롤백합니다. 각 서비스가 독립적으로 락을 잡고 바로 해제하기 때문에 분산 Deadlock 가능성이 크게 줄어듭니다.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="../js/main.js"></script>
+</body>
+</html>

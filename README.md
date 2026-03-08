@@ -16,17 +16,23 @@
 | Key란 무엇인가? | `pages/db-key.html` |
 | Full-Text Index & ngram | `pages/db-fulltext-ngram.html` |
 | 트랜잭션 완전 정복 | `pages/db-transaction.html` |
+| JOIN & 정규화 & 쿼리 최적화 | `pages/db-join-normalization.html` |
+| Replication & Sharding | `pages/db-replication-sharding.html` |
 
 ### Operating System
 | 주제 | 파일 |
 |------|------|
 | 프로세스 & 스레드 | `pages/os-process-thread.html` |
 | TLB & 컨텍스트 스위칭 | `pages/os-tlb-context-switching.html` |
+| Deadlock (교착상태) | `pages/os-deadlock.html` |
 
 ### Backend & Spring
 | 주제 | 파일 |
 |------|------|
+| Java 핵심 면접 포인트 | `pages/java-core.html` |
+| Java 동시성 & 멀티스레드 | `pages/java-concurrency.html` |
 | JVM, GC, HTTPS, Redis, Docker, TCP/UDP | `pages/backend-jvm-gc.html` |
+| Spring 핵심 원리 | `pages/spring-core.html` |
 | Spring MVC | `pages/backend-spring-mvc.html` |
 | N+1 & Lazy Loading | `pages/backend-n1-lazy.html` |
 | 인증 방식 & JWT | `pages/backend-auth-jwt.html` |
@@ -48,7 +54,7 @@ interview-study/
 ├── index.html            # 메인 페이지
 ├── css/style.css         # 통일 다크 테마
 ├── js/main.js            # 아코디언, 탭, 검색
-└── pages/                # 주제별 Q&A 페이지 (13개)
+└── pages/                # 주제별 Q&A 페이지 (19개)
 ```
 
 ## 🚀 Deployment

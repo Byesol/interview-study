@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Replication & Sharding - 면접 Q&A</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div class="page-header">
+  <a href="../index.html" class="back-link">← 목록으로</a>
+  <h1>Replication & Sharding</h1>
+  <p>DB 확장 전략 — 복제, 샤딩, 파티셔닝, 읽기/쓰기 분리</p>
+</div>
+
+<div class="content">
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('p1',this)">Part 1 · Replication</button>
+    <button class="tab-btn" onclick="switchTab('p2',this)">Part 2 · Sharding</button>
+    <button class="tab-btn" onclick="switchTab('p3',this)">Part 3 · Partitioning</button>
+  </div>
+
+  <!-- ═══════════════════════════ PART 1 ═══════════════════════════ -->
+  <div class="tab-content active" id="p1">
+
+    <div class="category">🔄 Part 1. Replication — 복제 구조, 동기/비동기, Lag, HA</div>
+
+    <div class="qa-card">
+      <div class="qa-q">DB Replication이란 무엇이고, 왜 필요한가요?</div>
+      <div class="qa-a">
+        <p>Replication(복제)은 <strong>하나의 DB 서버(Primary/Master)의 데이터를 하나 이상의 다른 서버(Replica/Slave)에 자동으로 복사하는 기술</strong>입니다.</p>
+        <p><strong>필요한 이유:</strong></p>
+        <table>
+          <tr><th>목적</th><th>설명</th></tr>
+          <tr>
+            <td><strong>고가용성 (HA)</strong></td>
+            <td>Primary 장애 시 Replica가 Primary로 승격되어 서비스 중단 최소화</td>
+          </tr>
+          <tr>
+            <td><strong>읽기 성능 확장</strong></td>
+            <td>SELECT 쿼리를 여러 Replica에 분산시켜 부하 감소</td>
+          </tr>
+          <tr>
+            <td><strong>데이터 백업</strong></td>
+            <td>Primary에 영향 없이 Replica에서 백업 수행</td>
+          </tr>
+          <tr>
+            <td><strong>지리적 분산</strong></td>
+            <td>사용자와 가까운 지역에 Replica를 두어 지연 감소</td>
+          </tr>
+        </table>
+        <div class="hl grn">
+          <strong>핵심:</strong> Replication은 수평 확장(Scale-Out) 중 읽기(Read) 트래픽 분산에 초점을 맞춥니다. 쓰기(Write)는 여전히 하나의 Primary에서만 처리합니다 (단방향 복제 기준).
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Master-Slave(Primary-Replica) 구조를 설명해주세요. MySQL은 내부적으로 어떻게 복제하나요?</div>
+      <div class="qa-a">
+        <p>MySQL Replication은 <strong>Binary Log(binlog) 기반</strong>으로 동작합니다.</p>
+        <pre>Primary                          Replica
+┌─────────────────┐              ┌─────────────────┐
+│  쓰기 요청 처리  │──binlog 전송→ │  IO Thread      │
+│  Binary Log 기록 │              │  (binlog 수신)  │
+└─────────────────┘              │  Relay Log 저장  │
+                                 │  SQL Thread     │
+                                 │  (Relay Log 실행)│
+                                 └─────────────────┘</pre>
+        <p><strong>복제 흐름:</strong></p>
+        <p><strong>① Primary</strong>에서 데이터 변경(INSERT/UPDATE/DELETE)이 발생하면 Binary Log에 기록합니다.</p>
+        <p><strong>② Replica의 IO Thread</strong>가 Primary에 접속하여 Binary Log를 가져와 Relay Log에 저장합니다.</p>
+        <p><strong>③ Replica의 SQL Thread</strong>가 Relay Log를 읽어 순서대로 실행하여 데이터를 동기화합니다.</p>
+
+        <p><strong>Binary Log 포맷 3가지:</strong></p>
+        <table>
+          <tr><th>포맷</th><th>저장 내용</th><th>장점</th><th>단점</th></tr>
+          <tr>
+            <td><strong>Statement</strong></td>
+            <td>SQL 문장 그대로</td>
+            <td>저장 용량 작음</td>
+            <td>비결정적 함수(NOW(), RAND()) 불일치 가능</td>
+          </tr>
+          <tr>
+            <td><strong>Row</strong></td>
+            <td>변경된 행 데이터</td>
+            <td>정확한 복제 보장</td>
+            <td>binlog 크기 큼</td>
+          </tr>
+          <tr>
+            <td><strong>Mixed</strong></td>
+            <td>기본 Statement, 필요시 Row</td>
+            <td>균형</td>
+            <td>예측이 어려울 수 있음</td>
+          </tr>
+        </table>
+        <div class="hl">MySQL 5.7.7+ 기본값은 <strong>Row 포맷</strong>입니다. 정확성이 보장되므로 권장됩니다.</div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">동기 복제 vs 비동기 복제 vs 반동기 복제를 비교해주세요.</div>
+      <div class="qa-a">
+        <p><strong>비동기 복제 (Asynchronous Replication)</strong> — MySQL 기본값</p>
+        <p>Primary는 binlog를 기록하고 즉시 클라이언트에 커밋 완료를 응답합니다. Replica가 실제로 반영했는지 확인하지 않습니다. <em>Primary 장애 시 아직 Replica에 전달되지 않은 트랜잭션이 유실될 수 있습니다.</em></p>
+
+        <p><strong>동기 복제 (Synchronous Replication)</strong></p>
+        <p>Primary는 모든 Replica가 데이터를 적용했음을 확인한 뒤 커밋 응답을 보냅니다. 데이터 손실이 없지만 모든 Replica의 응답을 기다려야 하므로 <em>쓰기 지연이 매우 큽니다.</em> 네트워크 장애 시 Primary까지 멈출 수 있습니다.</p>
+
+        <p><strong>반동기 복제 (Semi-Synchronous Replication)</strong> — 실무에서 많이 사용</p>
+        <p>Primary는 <em>최소 하나의 Replica</em>가 binlog를 수신(Relay Log에 기록)했음을 확인한 뒤 커밋 응답합니다. SQL Thread 실행까지 기다리지 않습니다. 비동기보다 안전하고 동기보다 빠릅니다. 타임아웃 발생 시 자동으로 비동기로 전환됩니다.</p>
+
+        <table>
+          <tr><th>방식</th><th>성능</th><th>데이터 안전성</th><th>실무 사용</th></tr>
+          <tr>
+            <td><strong>비동기</strong></td>
+            <td style="color:var(--green)">높음</td>
+            <td style="color:var(--red)">낮음 (유실 가능)</td>
+            <td>읽기 분산 목적 Replica</td>
+          </tr>
+          <tr>
+            <td><strong>반동기</strong></td>
+            <td style="color:var(--orange)">중간</td>
+            <td style="color:var(--orange)">중간 (최소 1개 확인)</td>
+            <td>금융, 중요 데이터 서비스</td>
+          </tr>
+          <tr>
+            <td><strong>동기</strong></td>
+            <td style="color:var(--red)">낮음</td>
+            <td style="color:var(--green)">높음 (완전 보장)</td>
+            <td>MySQL Group Replication, Galera</td>
+          </tr>
+        </table>
+        <div class="tail-q">
+          <strong>꼬리 질문:</strong> MySQL Group Replication이란?<br>
+          → Paxos 기반 분산 합의 프로토콜로 여러 노드 간 동기 복제를 구현합니다. 최소 3대 이상이 필요하며, 쓰기 시 과반수(Quorum) 확인을 거칩니다. AWS Aurora MySQL도 유사한 방식입니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">복제 지연(Replication Lag) 문제와 어떻게 대응하나요?</div>
+      <div class="qa-a">
+        <p>복제 지연은 <strong>Primary에서 커밋된 변경이 Replica에 아직 반영되지 않은 시간 차이</strong>입니다. 비동기 복제의 구조적 한계입니다.</p>
+        <p><code>SHOW REPLICA STATUS\G</code>의 <strong>Seconds_Behind_Source</strong> 값으로 확인합니다.</p>
+
+        <p><strong>지연 발생 원인:</strong></p>
+        <ul style="margin-left:20px;margin-top:8px;font-size:0.88rem;color:var(--text-dim);">
+          <li>Primary의 대용량 배치 쓰기 (단일 SQL Thread가 순차 처리)</li>
+          <li>Replica 서버 스펙 부족 (CPU, I/O)</li>
+          <li>네트워크 대역폭 부족</li>
+          <li>Replica에서 대용량 읽기 쿼리와 SQL Thread 간 Lock 경합</li>
+        </ul>
+
+        <p><strong>대응 방법:</strong></p>
+        <table>
+          <tr><th>방법</th><th>설명</th></tr>
+          <tr>
+            <td><strong>병렬 복제 (MTS)</strong></td>
+            <td>MySQL 5.6+에서 Multithreaded Slave(MTS) 설정으로 여러 SQL Thread 병렬 실행. <code>replica_parallel_workers</code> 설정</td>
+          </tr>
+          <tr>
+            <td><strong>Replica 스펙 향상</strong></td>
+            <td>I/O 병목이면 SSD, CPU 병목이면 코어 증설</td>
+          </tr>
+          <tr>
+            <td><strong>읽기 일관성 보장</strong></td>
+            <td>쓰기 직후 읽기는 Primary에서 (Session stickiness). 또는 반동기 복제 도입</td>
+          </tr>
+          <tr>
+            <td><strong>Read-Your-Writes</strong></td>
+            <td>사용자가 방금 쓴 데이터를 읽을 때는 Primary로 라우팅</td>
+          </tr>
+        </table>
+        <div class="hl red">
+          <strong>실무 주의:</strong> "방금 저장했는데 조회가 안 된다"는 버그의 상당수가 Replication Lag 때문입니다. 쓰기 직후 조회는 Primary에서 읽거나, 클라이언트 캐시로 보완해야 합니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">읽기/쓰기 분리(Read/Write Splitting)란? Spring에서 어떻게 구현하나요?</div>
+      <div class="qa-a">
+        <p>읽기/쓰기 분리는 <strong>쓰기 쿼리(INSERT/UPDATE/DELETE)는 Primary로, 읽기 쿼리(SELECT)는 Replica로 라우팅</strong>하여 Primary 부하를 줄이는 패턴입니다.</p>
+
+        <p><strong>Spring에서 AbstractRoutingDataSource 활용:</strong></p>
+        <pre><span class="annotation">@Configuration</span>
+<span class="keyword">public class</span> DataSourceConfig {
+
+    <span class="annotation">@Bean</span>
+    <span class="keyword">public</span> DataSource routingDataSource(
+            <span class="annotation">@Qualifier</span>(<span class="string">"primaryDataSource"</span>) DataSource primary,
+            <span class="annotation">@Qualifier</span>(<span class="string">"replicaDataSource"</span>) DataSource replica) {
+
+        RoutingDataSource routing = <span class="keyword">new</span> RoutingDataSource();
+        Map&lt;Object, Object&gt; sources = <span class="keyword">new</span> HashMap&lt;&gt;();
+        sources.put(<span class="string">"primary"</span>, primary);
+        sources.put(<span class="string">"replica"</span>, replica);
+        routing.setTargetDataSources(sources);
+        routing.setDefaultTargetDataSource(primary);
+        <span class="keyword">return</span> routing;
+    }
+}
+
+<span class="keyword">public class</span> RoutingDataSource <span class="keyword">extends</span> AbstractRoutingDataSource {
+    <span class="annotation">@Override</span>
+    <span class="keyword">protected</span> Object determineCurrentLookupKey() {
+        <span class="comment">// @Transactional(readOnly=true)이면 replica, 아니면 primary</span>
+        <span class="keyword">return</span> TransactionSynchronizationManager.isCurrentTransactionReadOnly()
+               ? <span class="string">"replica"</span> : <span class="string">"primary"</span>;
+    }
+}</pre>
+
+        <p>위 구조에서 <code>@Transactional(readOnly = true)</code>가 붙은 메서드는 자동으로 Replica DataSource를 사용합니다.</p>
+
+        <div class="hl org">
+          <strong>주의:</strong> LazyConnectionDataSourceProxy를 함께 사용해야 합니다. 이것 없이는 트랜잭션 시작 시점에 DataSource가 결정되어, readOnly 설정이 반영되기 전에 커넥션을 획득해버립니다.
+        </div>
+        <pre><span class="annotation">@Bean</span>
+<span class="keyword">public</span> DataSource dataSource() {
+    <span class="comment">// LazyConnection으로 감싸야 readOnly 판단 후 라우팅됨</span>
+    <span class="keyword">return new</span> LazyConnectionDataSourceProxy(routingDataSource());
+}</pre>
+
+        <div class="tail-q">
+          <strong>꼬리 질문:</strong> 여러 Replica 중 하나를 선택하는 로드밸런싱은?<br>
+          → RoutingDataSource에서 Replica 목록을 List로 관리하고, Round-Robin 또는 랜덤으로 선택합니다. 또는 ProxySQL, MaxScale 같은 DB Proxy를 앞에 두면 애플리케이션 코드 없이 라우팅할 수 있습니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Failover와 고가용성(HA)을 어떻게 구성하나요?</div>
+      <div class="qa-a">
+        <p>Failover는 <strong>Primary 장애 시 Replica 중 하나를 자동으로 새 Primary로 승격</strong>시켜 서비스를 계속하는 과정입니다.</p>
+
+        <p><strong>자동 Failover 구성 방법:</strong></p>
+        <table>
+          <tr><th>솔루션</th><th>설명</th><th>사용 환경</th></tr>
+          <tr>
+            <td><strong>MySQL InnoDB Cluster</strong></td>
+            <td>Group Replication + MySQL Router + MySQL Shell. 공식 HA 솔루션</td>
+            <td>온프레미스, 자체 구성</td>
+          </tr>
+          <tr>
+            <td><strong>MHA (Master HA)</strong></td>
+            <td>Primary 장애 감지 후 가장 최신 Replica를 승격. 수십 초 내 Failover</td>
+            <td>온프레미스 레거시</td>
+          </tr>
+          <tr>
+            <td><strong>AWS RDS Multi-AZ</strong></td>
+            <td>다른 가용 영역에 동기 복제 Standby. 장애 시 60~120초 내 자동 전환</td>
+            <td>AWS 클라우드</td>
+          </tr>
+          <tr>
+            <td><strong>AWS Aurora</strong></td>
+            <td>스토리지 레이어 공유 방식. 30초 내 Failover. Replica가 바로 Primary 가능</td>
+            <td>AWS 클라우드 고성능</td>
+          </tr>
+          <tr>
+            <td><strong>Orchestrator</strong></td>
+            <td>오픈소스 Failover/토폴로지 관리 도구. GitHub이 오픈소스로 공개</td>
+            <td>대규모 온프레미스</td>
+          </tr>
+        </table>
+
+        <p><strong>Failover 시 주의사항:</strong></p>
+        <ul style="margin-left:20px;margin-top:8px;font-size:0.88rem;color:var(--text-dim);">
+          <li>Split-Brain: 두 노드가 동시에 Primary로 동작하는 상황 → 과반수(Quorum) 기반으로 방지</li>
+          <li>애플리케이션이 새 Primary 주소를 알아야 함 → VIP(Virtual IP) 또는 DNS TTL 단축으로 해결</li>
+          <li>비동기 복제에서 미전달 트랜잭션 유실 가능 → GTID 기반 복제로 추적</li>
+        </ul>
+        <div class="hl grn">
+          <strong>GTID(Global Transaction ID):</strong> 각 트랜잭션에 전역 고유 ID를 부여합니다. Failover 후 새 Replica가 어디까지 받았는지 정확히 파악하여 갭 없이 동기화할 수 있습니다.
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /p1 -->
+
+  <!-- ═══════════════════════════ PART 2 ═══════════════════════════ -->
+  <div class="tab-content" id="p2">
+
+    <div class="category">🔀 Part 2. Sharding — 수평/수직 분할, Shard Key, Consistent Hashing</div>
+
+    <div class="qa-card">
+      <div class="qa-q">Sharding이란 무엇이고, Replication과 어떻게 다른가요?</div>
+      <div class="qa-a">
+        <p>Sharding은 <strong>하나의 데이터베이스/테이블을 여러 서버에 나누어 저장하는 수평 파티셔닝 기법</strong>입니다. 각 서버(Shard)는 전체 데이터의 일부분만 보유합니다.</p>
+        <table>
+          <tr><th>구분</th><th>Replication</th><th>Sharding</th></tr>
+          <tr>
+            <td><strong>목적</strong></td>
+            <td>가용성 향상, 읽기 분산</td>
+            <td>데이터 분산, 쓰기·저장 용량 확장</td>
+          </tr>
+          <tr>
+            <td><strong>데이터</strong></td>
+            <td>각 노드가 전체 데이터 보유 (복사본)</td>
+            <td>각 노드가 데이터의 일부만 보유</td>
+          </tr>
+          <tr>
+            <td><strong>쓰기 확장</strong></td>
+            <td>불가 (Primary 단일 지점)</td>
+            <td>가능 (각 Shard에 쓰기 분산)</td>
+          </tr>
+          <tr>
+            <td><strong>저장 용량</strong></td>
+            <td>확장 어려움 (전체 복사)</td>
+            <td>Shard 추가로 선형 확장</td>
+          </tr>
+          <tr>
+            <td><strong>복잡도</strong></td>
+            <td>상대적으로 낮음</td>
+            <td>높음 (라우팅, 트랜잭션 등)</td>
+          </tr>
+        </table>
+        <div class="hl org">
+          <strong>실무에서는 Replication + Sharding을 함께 사용</strong>합니다. 각 Shard 안에서 Primary-Replica 구성으로 고가용성과 읽기 분산을 동시에 달성합니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">수평 분할(Horizontal Sharding) vs 수직 분할(Vertical Sharding)이란?</div>
+      <div class="qa-a">
+        <p><strong>수평 분할 (Horizontal Sharding)</strong></p>
+        <p>같은 스키마를 가진 테이블을 <em>행(Row) 기준</em>으로 여러 DB 서버에 나눕니다. 가장 일반적인 샤딩 방식입니다.</p>
+        <pre>users 테이블
+Shard 0: user_id % 3 == 0 → [0, 3, 6, 9, ...]
+Shard 1: user_id % 3 == 1 → [1, 4, 7, 10, ...]
+Shard 2: user_id % 3 == 2 → [2, 5, 8, 11, ...]</pre>
+        <p>장점: 각 서버의 데이터 양이 균일하게 분산. 단점: Shard 간 JOIN 불가, 트랜잭션 복잡.</p>
+
+        <p><strong>수직 분할 (Vertical Sharding)</strong></p>
+        <p>테이블 또는 기능 단위로 <em>다른 DB 서버에 나눕니다.</em> 마이크로서비스의 DB 분리와 유사합니다.</p>
+        <pre>DB 서버 A: users, profiles, follows (사용자 관련)
+DB 서버 B: posts, comments, likes (컨텐츠 관련)
+DB 서버 C: orders, payments (주문/결제 관련)</pre>
+        <p>장점: 도메인 독립성. 단점: 서비스 간 JOIN 불가, 데이터 증가 시 한계.</p>
+
+        <div class="hl">
+          <strong>일반적 전략:</strong> 먼저 수직 분할(도메인 분리)로 성장하고, 특정 도메인의 데이터가 커지면 수평 분할(샤딩) 적용. 수평 분할만으로 시작하면 관리가 복잡해집니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Shard Key는 어떤 기준으로 선택해야 하나요?</div>
+      <div class="qa-a">
+        <p>Shard Key는 <strong>데이터를 어느 Shard에 저장할지 결정하는 기준 컬럼</strong>입니다. 잘못 선택하면 특정 Shard에 부하가 몰리는 Hot Shard 문제가 발생합니다.</p>
+
+        <p><strong>좋은 Shard Key의 조건:</strong></p>
+        <table>
+          <tr><th>조건</th><th>설명</th><th>나쁜 예시</th></tr>
+          <tr>
+            <td><strong>높은 카디널리티</strong></td>
+            <td>값의 종류가 다양해야 균등 분산 가능</td>
+            <td>성별(M/F), 상태코드(3~5가지)</td>
+          </tr>
+          <tr>
+            <td><strong>균등 분포</strong></td>
+            <td>특정 값에 데이터가 쏠리지 않아야 함</td>
+            <td>생성일(특정 날짜에 집중), 국가코드</td>
+          </tr>
+          <tr>
+            <td><strong>쿼리 패턴 일치</strong></td>
+            <td>대부분의 쿼리가 Shard Key로 필터링</td>
+            <td>Shard Key 없이 전체 Shard 조회</td>
+          </tr>
+          <tr>
+            <td><strong>변경 불가</strong></td>
+            <td>한번 정해지면 변경 시 리밸런싱 필요</td>
+            <td>이메일(변경 가능), 전화번호</td>
+          </tr>
+        </table>
+
+        <p><strong>좋은 Shard Key 예시:</strong></p>
+        <ul style="margin-left:20px;margin-top:8px;font-size:0.88rem;color:var(--text-dim);">
+          <li><strong>user_id</strong>: 사용자 기반 서비스에서 가장 흔한 선택. 균등 분포, 높은 카디널리티</li>
+          <li><strong>tenant_id</strong>: SaaS 서비스에서 고객사 기준 분리</li>
+          <li><strong>UUID v4</strong>: 완전 랜덤이라 균등 분산에 유리</li>
+        </ul>
+        <div class="hl red">
+          <strong>Hot Shard 주의:</strong> 인플루언서처럼 특정 user_id에 트래픽이 집중되는 경우, 그 user가 속한 Shard만 과부하가 됩니다. 이를 Hot Shard 또는 Hot Spot이라 합니다. 해결책으로 해당 엔티티만 별도 Shard로 분리하거나, 복합 Shard Key를 사용합니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Hash Sharding vs Range Sharding을 비교해주세요.</div>
+      <div class="qa-a">
+        <p><strong>Hash Sharding</strong></p>
+        <p>Shard Key에 해시 함수를 적용하여 Shard를 결정합니다. <code>shard_id = hash(key) % N</code></p>
+        <pre>user_id = 12345
+shard_id = 12345 % 4 = 1  → Shard 1에 저장</pre>
+        <p>장점: 균등 분산 보장. 단점: 범위 쿼리(2024년 1~3월 데이터) 시 모든 Shard 조회 필요. <strong>Shard 수가 바뀌면 거의 모든 데이터를 재분배해야 합니다.</strong></p>
+
+        <p><strong>Range Sharding</strong></p>
+        <p>Shard Key의 값 범위로 Shard를 결정합니다.</p>
+        <pre>user_id 1~1,000,000     → Shard 0
+user_id 1,000,001~2,000,000 → Shard 1
+user_id 2,000,001~3,000,000 → Shard 2</pre>
+        <p>장점: 범위 쿼리 효율적 (특정 Shard만 조회). 단점: 데이터가 순차적으로 쌓이면 최신 Shard에만 쓰기 집중 (Hot Write).</p>
+
+        <table>
+          <tr><th>항목</th><th>Hash Sharding</th><th>Range Sharding</th></tr>
+          <tr><td>데이터 분산</td><td style="color:var(--green)">균등</td><td style="color:var(--orange)">불균등할 수 있음</td></tr>
+          <tr><td>범위 쿼리</td><td style="color:var(--red)">비효율 (전체 Shard)</td><td style="color:var(--green)">효율적</td></tr>
+          <tr><td>Shard 추가</td><td style="color:var(--red)">대규모 재분배 필요</td><td style="color:var(--green)">새 범위 추가만</td></tr>
+          <tr><td>Hot Spot</td><td style="color:var(--green)">낮음</td><td style="color:var(--red)">시계열 데이터에서 발생</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Consistent Hashing이란 무엇이고, 왜 필요한가요?</div>
+      <div class="qa-a">
+        <p>일반 Hash Sharding에서 서버(Shard)를 추가/제거하면 <code>hash(key) % N</code>의 N이 바뀌어 <strong>거의 모든 키의 Shard가 변경</strong>됩니다. 이는 대규모 데이터 재분배(Resharding)를 유발합니다.</p>
+
+        <p><strong>Consistent Hashing</strong>은 이 문제를 해결합니다. 해시 공간을 <em>0~2³²-1의 원형 링(Ring)</em>으로 구성하고, 서버와 데이터 모두 같은 링 위에 배치합니다.</p>
+        <pre>         0
+      /     \
+ 270 ─       ─ 90   ← 해시 링 (0~2³²-1)
+      \     /
+        180
+
+서버 A: hash("ServerA") = 90 위치
+서버 B: hash("ServerB") = 180 위치
+서버 C: hash("ServerC") = 270 위치
+
+키 K: hash(K) = 120 → 시계 방향으로 가장 가까운 서버 B에 저장</pre>
+
+        <p><strong>서버 추가/제거 시:</strong></p>
+        <p>서버 D를 링의 150 위치에 추가하면, 120~150 구간의 키만 D로 이동합니다. <em>나머지 대부분의 키는 그대로 유지</em>됩니다. 이론적으로 K/N개 키만 재분배됩니다 (K: 총 키 수, N: 서버 수).</p>
+
+        <p><strong>Virtual Node(가상 노드):</strong></p>
+        <p>서버마다 여러 개의 가상 위치를 링에 배치하여 더 균등한 분산을 달성합니다. 서버 스펙에 따라 가상 노드 수를 조절하여 가중치 부여도 가능합니다.</p>
+
+        <div class="hl grn">
+          <strong>사용 사례:</strong> Amazon DynamoDB, Apache Cassandra, Redis Cluster가 Consistent Hashing 기반입니다. 분산 캐시(Memcached 클러스터)에서도 많이 사용합니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">샤딩의 문제점들을 설명해주세요. (JOIN, 트랜잭션, 리밸런싱)</div>
+      <div class="qa-a">
+        <p><strong>① Cross-Shard JOIN 불가</strong></p>
+        <p>서로 다른 Shard에 있는 데이터는 DB 레벨에서 JOIN할 수 없습니다. 애플리케이션에서 여러 Shard에 쿼리를 보내고 결과를 합쳐야 합니다(Fan-out Query). 성능 저하와 코드 복잡도가 증가합니다.</p>
+        <pre><span class="comment">// 애플리케이션 레벨 Fan-out Join (의사코드)</span>
+List&lt;Order&gt; all = <span class="keyword">new</span> ArrayList&lt;&gt;();
+<span class="keyword">for</span> (Shard shard : allShards) {
+    all.addAll(shard.query(<span class="string">"SELECT * FROM orders WHERE ..."</span>));
+}
+<span class="comment">// 결과 병합 및 정렬을 애플리케이션에서 처리</span></pre>
+
+        <p><strong>② 분산 트랜잭션 어려움</strong></p>
+        <p>여러 Shard에 걸친 트랜잭션은 ACID를 보장하기 어렵습니다. 2PC(Two-Phase Commit)를 쓸 수 있지만 성능이 나쁘고 구현이 복잡합니다. SAGA 패턴이나 Eventual Consistency로 타협하는 경우가 많습니다.</p>
+
+        <p><strong>③ 데이터 리밸런싱 (Resharding)</strong></p>
+        <p>Shard를 추가하거나 줄일 때 기존 데이터를 재분배해야 합니다. 운영 중인 시스템에서 리밸런싱은 서비스 중단 없이 하기 매우 어렵습니다. Consistent Hashing, 더블 라이팅 전략 등으로 완화합니다.</p>
+
+        <p><strong>④ 전역 고유 ID 생성 어려움</strong></p>
+        <p>각 Shard가 독립적인 AUTO_INCREMENT를 쓰면 ID가 충돌합니다. Twitter Snowflake(타임스탬프 + 머신ID + 시퀀스), UUID, DB Sequence 서버 별도 운용 등의 해결책이 필요합니다.</p>
+
+        <p><strong>⑤ 운영 복잡도 증가</strong></p>
+        <p>배포, 스키마 마이그레이션, 모니터링, 백업 모두 Shard 수만큼 작업이 증가합니다.</p>
+
+        <div class="tail-q">
+          <strong>꼬리 질문:</strong> Snowflake ID란?<br>
+          → Twitter가 오픈소스로 공개한 분산 환경 ID 생성 알고리즘. 64비트로 구성: 41비트(밀리초 타임스탬프) + 10비트(데이터센터+머신ID) + 12비트(시퀀스). 시간 순서를 보장하면서 충돌 없이 분산 생성 가능합니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">실무에서의 샤딩 사례를 알고 계신 것이 있나요?</div>
+      <div class="qa-a">
+        <p><strong>카카오 / 네이버 — user_id 기반 Hash Sharding</strong></p>
+        <p>메시지, 피드, 친구 데이터를 user_id로 해싱하여 Shard에 분산합니다. 동일 사용자의 데이터는 같은 Shard에 모여 Single-Shard 트랜잭션을 유지합니다.</p>
+
+        <p><strong>Pinterest — 복합 Shard Key</strong></p>
+        <p><code>shard_id(16bit) + entity_type(10bit) + local_id(38bit)</code>를 합친 64비트 ID를 사용합니다. ID만 보고 어느 Shard에 있는지 즉시 파악 가능합니다.</p>
+
+        <p><strong>GitHub — Vitess</strong></p>
+        <p>MySQL 위에서 투명한 샤딩을 제공하는 미들웨어인 Vitess를 사용합니다. 애플리케이션은 샤딩을 의식하지 않고 일반 MySQL처럼 쿼리를 보내면 Vitess가 라우팅합니다. YouTube도 동일 솔루션 사용.</p>
+
+        <p><strong>MongoDB — Sharded Cluster</strong></p>
+        <p>MongoDB는 내장 샤딩을 지원합니다. Config Server(메타데이터) + Router(mongos, 라우팅) + Shard(데이터 저장) 구조. Chunk 단위로 데이터를 분산하고 자동 Balancer가 균등 유지합니다.</p>
+
+        <div class="hl">
+          <strong>샤딩 도입 판단 기준:</strong> 단일 MySQL 인스턴스가 100~200GB를 초과하거나, 쓰기 처리량이 Primary 한계에 도달했을 때. 그 전까지는 Replication + 인덱스 최적화 + 캐시(Redis)로 버티는 것이 현명합니다.
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /p2 -->
+
+  <!-- ═══════════════════════════ PART 3 ═══════════════════════════ -->
+  <div class="tab-content" id="p3">
+
+    <div class="category">📦 Part 3. Partitioning — 파티션 종류, Pruning, 샤딩과 차이</div>
+
+    <div class="qa-card">
+      <div class="qa-q">Partitioning과 Sharding의 차이는 무엇인가요?</div>
+      <div class="qa-a">
+        <p>두 개념 모두 데이터를 나눈다는 공통점이 있지만 핵심 차이가 있습니다.</p>
+        <table>
+          <tr><th>구분</th><th>Partitioning</th><th>Sharding</th></tr>
+          <tr>
+            <td><strong>위치</strong></td>
+            <td>하나의 DB 서버 안에서 분리</td>
+            <td>여러 DB 서버에 분리</td>
+          </tr>
+          <tr>
+            <td><strong>서버</strong></td>
+            <td>단일 DB 인스턴스</td>
+            <td>복수 DB 인스턴스</td>
+          </tr>
+          <tr>
+            <td><strong>목적</strong></td>
+            <td>쿼리 성능 향상 (파티션 프루닝), 관리 효율화</td>
+            <td>저장 용량·쓰기 부하 분산 (스케일아웃)</td>
+          </tr>
+          <tr>
+            <td><strong>JOIN</strong></td>
+            <td>DB 내 파티션 간 JOIN 가능</td>
+            <td>Shard 간 JOIN 불가 (애플리케이션 처리)</td>
+          </tr>
+          <tr>
+            <td><strong>투명성</strong></td>
+            <td>애플리케이션이 파티션 구조 몰라도 됨</td>
+            <td>라우팅 로직이 애플리케이션 또는 미들웨어에 필요</td>
+          </tr>
+          <tr>
+            <td><strong>용량 한계</strong></td>
+            <td>단일 서버 한계 있음</td>
+            <td>서버 추가로 무제한 확장 이론상 가능</td>
+          </tr>
+        </table>
+        <div class="hl grn">
+          <strong>비유:</strong> Partitioning = 하나의 큰 창고를 구역 A, B, C로 나누어 정리 (창고는 하나). Sharding = 창고를 여러 건물로 쪼개어 각각 운영 (건물이 여러 개).
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Partitioning의 종류(Range, List, Hash, Key)를 설명해주세요.</div>
+      <div class="qa-a">
+
+        <p><strong>① Range Partitioning</strong></p>
+        <p>파티션 키의 <em>값 범위</em>에 따라 파티션을 나눕니다. 시계열 데이터(날짜, 연도)에 가장 많이 사용합니다.</p>
+        <pre><span class="keyword">CREATE TABLE</span> orders (
+    id <span class="type">INT</span>, created_at <span class="type">DATE</span>, amount <span class="type">DECIMAL</span>
+) <span class="keyword">PARTITION BY RANGE</span> (<span class="type">YEAR</span>(created_at)) (
+    <span class="keyword">PARTITION</span> p2022 <span class="keyword">VALUES LESS THAN</span> (2023),
+    <span class="keyword">PARTITION</span> p2023 <span class="keyword">VALUES LESS THAN</span> (2024),
+    <span class="keyword">PARTITION</span> p2024 <span class="keyword">VALUES LESS THAN</span> (2025),
+    <span class="keyword">PARTITION</span> p_future <span class="keyword">VALUES LESS THAN MAXVALUE</span>
+);</pre>
+        <p>장점: 오래된 파티션 한 번에 DROP 가능 (대용량 삭제 빠름). 단점: 최신 파티션 Hot Spot.</p>
+
+        <p><strong>② List Partitioning</strong></p>
+        <p>파티션 키의 <em>특정 값 목록</em>으로 나눕니다. 지역, 카테고리 등 열거 값에 적합합니다.</p>
+        <pre><span class="keyword">PARTITION BY LIST</span> (region) (
+    <span class="keyword">PARTITION</span> p_korea <span class="keyword">VALUES IN</span> (<span class="string">'KR'</span>, <span class="string">'KR-SEO'</span>),
+    <span class="keyword">PARTITION</span> p_us    <span class="keyword">VALUES IN</span> (<span class="string">'US'</span>, <span class="string">'US-NY'</span>),
+    <span class="keyword">PARTITION</span> p_eu    <span class="keyword">VALUES IN</span> (<span class="string">'DE'</span>, <span class="string">'FR'</span>, <span class="string">'GB'</span>)
+);</pre>
+
+        <p><strong>③ Hash Partitioning</strong></p>
+        <p>파티션 키에 <em>해시 함수</em>를 적용하여 N개 파티션에 균등 분산합니다. 특정 범위 조회보다는 균등 분산이 목적일 때 사용합니다.</p>
+        <pre><span class="keyword">PARTITION BY HASH</span>(user_id)
+<span class="keyword">PARTITIONS</span> 8;</pre>
+
+        <p><strong>④ Key Partitioning</strong></p>
+        <p>Hash와 유사하지만 MySQL 내장 해시 함수를 사용합니다. 파티션 키가 PK 또는 Unique Key여야 합니다. 문자열 컬럼도 사용 가능합니다.</p>
+        <pre><span class="keyword">PARTITION BY KEY</span>(email)
+<span class="keyword">PARTITIONS</span> 4;</pre>
+
+        <table>
+          <tr><th>종류</th><th>적합한 컬럼</th><th>범위 쿼리</th><th>데이터 관리</th></tr>
+          <tr><td><strong>Range</strong></td><td>날짜, 순번</td><td style="color:var(--green)">효율적</td><td>파티션 DROP 용이</td></tr>
+          <tr><td><strong>List</strong></td><td>지역, 카테고리</td><td style="color:var(--orange)">제한적</td><td>명시적 값 관리</td></tr>
+          <tr><td><strong>Hash</strong></td><td>user_id 등 숫자</td><td style="color:var(--red)">비효율</td><td>균등 분산</td></tr>
+          <tr><td><strong>Key</strong></td><td>PK/Unique (문자 포함)</td><td style="color:var(--red)">비효율</td><td>균등 분산</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">파티션 프루닝(Partition Pruning)이란 무엇인가요?</div>
+      <div class="qa-a">
+        <p>파티션 프루닝은 <strong>쿼리의 WHERE 조건을 분석하여 관련 없는 파티션을 조회에서 제외하는 최적화</strong>입니다. 마치 필요한 구역만 열어서 찾는 것과 같습니다.</p>
+        <pre><span class="comment">-- 2024년 데이터만 있는 p2024 파티션만 읽음 (다른 파티션 스킵)</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> orders
+<span class="keyword">WHERE</span> created_at >= <span class="string">'2024-01-01'</span> <span class="keyword">AND</span> created_at < <span class="string">'2025-01-01'</span>;</pre>
+
+        <pre><span class="comment">-- EXPLAIN PARTITIONS로 확인</span>
+<span class="keyword">EXPLAIN PARTITIONS SELECT</span> * <span class="keyword">FROM</span> orders
+<span class="keyword">WHERE</span> created_at >= <span class="string">'2024-01-01'</span>;
+<span class="comment">-- partitions: p2024  ← 이 파티션만 조회됨</span></pre>
+
+        <p><strong>프루닝이 동작하지 않는 경우:</strong></p>
+        <ul style="margin-left:20px;margin-top:8px;font-size:0.88rem;color:var(--text-dim);">
+          <li>파티션 키 컬럼에 함수를 사용: <code>WHERE YEAR(created_at) = 2024</code> → 인덱스 미사용과 같은 이유로 프루닝도 안 됨</li>
+          <li>서브쿼리로 파티션 키를 비교하는 경우</li>
+          <li>파티션 키가 WHERE 조건에 포함되지 않은 경우 → 전체 파티션 스캔</li>
+        </ul>
+        <div class="hl grn">
+          <strong>설계 원칙:</strong> 파티션 키는 쿼리의 WHERE 조건에 항상 포함되어야 합니다. 그렇지 않으면 전체 파티션을 다 스캔해서 오히려 성능이 더 나빠질 수 있습니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">언제 파티셔닝을 쓰고, 언제 샤딩을 써야 하나요?</div>
+      <div class="qa-a">
+        <p>데이터 규모와 서비스 요구사항에 따라 다릅니다.</p>
+
+        <p><strong>파티셔닝을 먼저 고려하는 경우:</strong></p>
+        <ul style="margin-left:20px;margin-top:8px;font-size:0.88rem;color:var(--text-dim);">
+          <li>단일 서버로도 처리량은 충분하지만, 특정 테이블이 수억 건을 넘어 관리가 어려운 경우</li>
+          <li>시계열 로그 데이터처럼 오래된 데이터를 주기적으로 삭제/아카이빙해야 하는 경우 (파티션 DROP이 DELETE보다 수백 배 빠름)</li>
+          <li>날짜 범위 쿼리가 많아 특정 기간 데이터만 빠르게 조회해야 하는 경우</li>
+          <li>애플리케이션 코드 변경 없이 DB 레벨에서만 최적화하고 싶은 경우</li>
+        </ul>
+
+        <p><strong>샤딩을 고려하는 경우:</strong></p>
+        <ul style="margin-left:20px;margin-top:8px;font-size:0.88rem;color:var(--text-dim);">
+          <li>단일 서버의 쓰기 처리량(TPS)이 한계에 도달한 경우</li>
+          <li>데이터 총량이 단일 서버의 물리적 한계(수 TB)를 초과하는 경우</li>
+          <li>특정 서버 장애가 전체 서비스에 영향을 주는 것을 막고 싶은 경우</li>
+          <li>글로벌 서비스처럼 지리적으로 분산된 데이터 저장이 필요한 경우</li>
+        </ul>
+
+        <table>
+          <tr><th>단계</th><th>전략</th><th>적용 시점</th></tr>
+          <tr>
+            <td>1단계</td>
+            <td>인덱스 최적화 + 쿼리 튜닝</td>
+            <td>항상 먼저</td>
+          </tr>
+          <tr>
+            <td>2단계</td>
+            <td>Replication (읽기 분산)</td>
+            <td>읽기 트래픽 과부하</td>
+          </tr>
+          <tr>
+            <td>3단계</td>
+            <td>캐싱 (Redis, Memcached)</td>
+            <td>동일 데이터 반복 조회</td>
+          </tr>
+          <tr>
+            <td>4단계</td>
+            <td>Partitioning</td>
+            <td>대용량 단일 테이블 관리</td>
+          </tr>
+          <tr>
+            <td>5단계</td>
+            <td>Vertical Sharding (도메인 분리)</td>
+            <td>서비스 도메인별 독립 필요</td>
+          </tr>
+          <tr>
+            <td>6단계</td>
+            <td>Horizontal Sharding</td>
+            <td>쓰기 한계 도달, 수십억 행 이상</td>
+          </tr>
+        </table>
+        <div class="hl red">
+          <strong>조기 샤딩의 위험:</strong> 샤딩은 개발·운영 복잡도가 크게 증가합니다. "언젠가 필요할 것 같아서" 조기에 도입하면 팀 생산성이 크게 저하됩니다. 실제 병목이 측정된 이후에 도입하는 것이 원칙입니다.
+        </div>
+
+        <div class="tail-q">
+          <strong>꼬리 질문:</strong> MySQL 파티셔닝의 제약사항은?<br>
+          → ① 파티션 키는 테이블의 모든 Unique Key에 포함되어야 합니다. ② 외래키(FK) 사용 불가. ③ 전체 파티션 수는 최대 8192개 (MySQL 8.0). ④ 서브파티셔닝은 Range+Hash, Range+Key, List+Hash, List+Key 조합만 가능합니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="category">✦ 면접 한 줄 정리</div>
+
+    <div class="hl grn"><strong>Replication</strong> = 데이터 복제로 가용성 + 읽기 분산. Primary에만 쓰기. 비동기가 기본, 반동기로 안전성 향상.</div>
+    <div class="hl org"><strong>Replication Lag</strong> = 비동기 복제의 구조적 한계. 쓰기 직후 읽기는 Primary로. 병렬 복제(MTS)로 완화.</div>
+    <div class="hl blu"><strong>Sharding</strong> = 여러 DB 서버에 데이터 분산. 쓰기 확장 가능. Cross-Shard JOIN/트랜잭션이 어려워 복잡도 폭증.</div>
+    <div class="hl"><strong>Consistent Hashing</strong> = Shard 추가 시 최소 데이터만 재분배. K/N개만 이동. Virtual Node로 균등 분산.</div>
+    <div class="hl pnk"><strong>Partitioning</strong> = 단일 서버 내 논리적 분리. 파티션 프루닝으로 성능 향상. Range 파티션 + 날짜 조건이 가장 흔한 사례.</div>
+    <div class="hl red"><strong>확장 순서:</strong> 인덱스 → 캐시 → Replication → Partitioning → Vertical Sharding → Horizontal Sharding. 조기 샤딩은 독.</div>
+
+  </div><!-- /p3 -->
+
+</div><!-- .content -->
+
+<script src="../js/main.js"></script>
+</body>
+</html>

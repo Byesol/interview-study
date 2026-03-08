@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Java 핵심 면접 포인트</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div class="page-header">
+  <a href="../index.html" class="back-link">← 목록으로</a>
+  <h1>Java 핵심 면접 포인트</h1>
+  <p>equals/hashCode, String, Generic, 불변 객체, 예외 처리</p>
+</div>
+
+<div class="content">
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('p1',this)">Part 1 · equals &amp; hashCode</button>
+    <button class="tab-btn" onclick="switchTab('p2',this)">Part 2 · String</button>
+    <button class="tab-btn" onclick="switchTab('p3',this)">Part 3 · Generic</button>
+    <button class="tab-btn" onclick="switchTab('p4',this)">Part 4 · 불변 &amp; 예외</button>
+  </div>
+
+  <!-- ===== Part 1: equals & hashCode ===== -->
+  <div class="tab-content active" id="p1">
+
+    <div class="qa-card">
+      <div class="qa-q">== 연산자와 equals() 메서드의 차이는 무엇인가요?</div>
+      <div class="qa-a">
+        <p><code>==</code>는 <strong>참조(주소) 동일성</strong>을 비교하고, <code>equals()</code>는 <strong>값(내용) 동등성</strong>을 비교합니다. 기본형(primitive)에서 <code>==</code>는 값 자체를 비교하지만, 참조형(Reference Type)에서는 두 변수가 힙의 동일한 객체를 가리키는지를 비교합니다.</p>
+        <pre><code><span class="type">String</span> a = <span class="keyword">new</span> <span class="type">String</span>(<span class="string">"hello"</span>);
+<span class="type">String</span> b = <span class="keyword">new</span> <span class="type">String</span>(<span class="string">"hello"</span>);
+
+a == b;         <span class="comment">// false  → 힙의 서로 다른 객체를 가리킴</span>
+a.equals(b);    <span class="comment">// true   → 문자열 내용이 같음</span>
+
+<span class="type">String</span> c = <span class="string">"hello"</span>;
+<span class="type">String</span> d = <span class="string">"hello"</span>;
+c == d;         <span class="comment">// true   → String Pool의 같은 객체 (intern)</span></code></pre>
+        <p><code>Object</code>의 기본 <code>equals()</code> 구현은 <code>==</code>와 동일하게 참조를 비교합니다. 따라서 <strong>값 동등성이 필요한 클래스는 반드시 <code>equals()</code>를 재정의</strong>해야 합니다. <code>String</code>, <code>Integer</code>, <code>LocalDate</code> 등 Java 표준 라이브러리 클래스들은 이미 재정의되어 있습니다.</p>
+        <div class="tail-q">
+          <strong>꼬리질문 대비:</strong> "null에 대해 equals()를 호출하면?" — <code>a.equals(null)</code>은 <code>false</code>를 반환해야 하며(NPE 없이), <code>null.equals(a)</code>는 NPE가 발생합니다. <code>Objects.equals(a, b)</code>를 사용하면 null 안전하게 비교할 수 있습니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">equals()를 재정의해야 하는 이유와 올바른 구현 조건은 무엇인가요?</div>
+      <div class="qa-a">
+        <p>비즈니스 객체는 같은 내용을 가진 두 인스턴스를 "같다"고 판단해야 하는 경우가 많습니다. 예를 들어 <code>User(id=1)</code>이 두 번 조회되어 다른 객체로 생성되었더라도, ID가 같으면 논리적으로 같은 사용자입니다. <code>Object</code>의 기본 <code>equals()</code>는 참조를 비교하므로 이를 <strong>값 기반으로 재정의</strong>해야 합니다.</p>
+        <p><strong>equals() 계약(Contract) — 반드시 지켜야 할 5가지 속성:</strong></p>
+        <table>
+          <tr><th>속성</th><th>의미</th></tr>
+          <tr><td><strong>반사성 (Reflexive)</strong></td><td><code>x.equals(x)</code>는 항상 true</td></tr>
+          <tr><td><strong>대칭성 (Symmetric)</strong></td><td><code>x.equals(y)</code>이면 <code>y.equals(x)</code>도 true</td></tr>
+          <tr><td><strong>추이성 (Transitive)</strong></td><td><code>x.equals(y)</code>이고 <code>y.equals(z)</code>이면 <code>x.equals(z)</code>도 true</td></tr>
+          <tr><td><strong>일관성 (Consistent)</strong></td><td>객체가 변경되지 않으면 여러 번 호출해도 항상 같은 결과</td></tr>
+          <tr><td><strong>null 비교</strong></td><td><code>x.equals(null)</code>은 항상 false (NPE 발생 금지)</td></tr>
+        </table>
+        <pre><code><span class="keyword">public class</span> <span class="type">User</span> {
+    <span class="keyword">private final</span> <span class="keyword">long</span> id;
+    <span class="keyword">private final</span> <span class="type">String</span> name;
+
+    <span class="annotation">@Override</span>
+    <span class="keyword">public boolean</span> equals(<span class="type">Object</span> o) {
+        <span class="keyword">if</span> (<span class="keyword">this</span> == o) <span class="keyword">return true</span>;           <span class="comment">// 1. 같은 참조</span>
+        <span class="keyword">if</span> (!(o <span class="keyword">instanceof</span> <span class="type">User</span>)) <span class="keyword">return false</span>; <span class="comment">// 2. 타입 확인 (null도 처리)</span>
+        <span class="type">User</span> user = (<span class="type">User</span>) o;
+        <span class="keyword">return</span> id == user.id;                   <span class="comment">// 3. 핵심 필드만 비교</span>
+    }
+}</code></pre>
+        <div class="hl red">
+          <strong>주의:</strong> 상속 관계에서 equals() 재정의는 추이성(Transitivity)을 깨뜨릴 수 있습니다. 조슈아 블로크(Effective Java)는 상속 대신 <em>컴포지션(Composition)</em>을 사용하라고 권장합니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">hashCode()를 equals()와 함께 재정의해야 하는 이유는 무엇인가요?</div>
+      <div class="qa-a">
+        <p>Java 명세에 따르면 <strong><code>equals()</code>로 같다고 판단된 두 객체는 반드시 같은 <code>hashCode()</code>를 가져야 합니다.</strong> 이것이 equals-hashCode 계약입니다. 이 계약을 지키지 않으면 <code>HashMap</code>, <code>HashSet</code> 같은 해시 기반 컬렉션이 오동작합니다.</p>
+        <pre><code><span class="comment">// hashCode()를 재정의하지 않은 경우</span>
+<span class="type">User</span> u1 = <span class="keyword">new</span> <span class="type">User</span>(<span class="string">1L</span>, <span class="string">"Alice"</span>);
+<span class="type">User</span> u2 = <span class="keyword">new</span> <span class="type">User</span>(<span class="string">1L</span>, <span class="string">"Alice"</span>);
+
+u1.equals(u2);  <span class="comment">// true (재정의했으므로)</span>
+
+<span class="type">Set</span>&lt;<span class="type">User</span>&gt; set = <span class="keyword">new</span> <span class="type">HashSet</span>&lt;&gt;();
+set.add(u1);
+set.contains(u2);  <span class="comment">// false!! → hashCode가 달라 다른 버킷을 탐색</span>
+
+<span class="type">Map</span>&lt;<span class="type">User</span>, <span class="type">String</span>&gt; map = <span class="keyword">new</span> <span class="type">HashMap</span>&lt;&gt;();
+map.put(u1, <span class="string">"value"</span>);
+map.get(u2);  <span class="comment">// null!! → 같은 키로 조회해도 찾지 못함</span></code></pre>
+        <p><strong>올바른 hashCode() 구현:</strong></p>
+        <pre><code><span class="annotation">@Override</span>
+<span class="keyword">public int</span> hashCode() {
+    <span class="keyword">return</span> <span class="type">Objects</span>.hash(id);  <span class="comment">// equals에서 사용한 필드만 포함</span>
+}
+
+<span class="comment">// 또는 직접 구현 (31을 곱하는 이유: 홀수 소수, XOR 연산 최적화)</span>
+<span class="annotation">@Override</span>
+<span class="keyword">public int</span> hashCode() {
+    <span class="keyword">int</span> result = <span class="keyword">Long</span>.hashCode(id);
+    result = <span class="string">31</span> * result + (name != <span class="keyword">null</span> ? name.hashCode() : <span class="string">0</span>);
+    <span class="keyword">return</span> result;
+}</code></pre>
+        <div class="hl">
+          <strong>equals-hashCode 계약 요약:</strong><br>
+          - <code>equals()</code>가 true이면 → hashCode()는 반드시 같아야 함<br>
+          - hashCode()가 같다고 해서 → <code>equals()</code>가 true일 필요는 없음 (해시 충돌 허용)<br>
+          - 즉, <em>equals() true → hashCode() 같음</em>은 필수. 역방향은 불필요.
+        </div>
+        <div class="tail-q">
+          <strong>꼬리질문 대비:</strong> "hashCode()가 항상 같은 값(예: 1)을 반환하면 어떻게 되나요?" — 계약은 지켜지지만 성능이 최악입니다. HashMap이 O(1)에서 O(n)으로 저하됩니다. 모든 객체가 하나의 버킷에 쌓여 연결 리스트(또는 트리)로 탐색하게 되기 때문입니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">HashMap에서 equals()와 hashCode()가 어떻게 동작하는지 설명해주세요.</div>
+      <div class="qa-a">
+        <p>HashMap은 키-값 쌍을 <strong>버킷(bucket) 배열</strong>에 저장합니다. 조회 시 두 단계를 거칩니다.</p>
+        <div class="diagram-box">
+          <svg width="500" height="200" viewBox="0 0 500 200">
+            <text x="250" y="16" fill="#6c8cff" font-size="12" text-anchor="middle" font-weight="700">HashMap.get(key) 동작 흐름</text>
+            <!-- Step 1 -->
+            <rect x="10" y="30" width="120" height="40" rx="6" fill="#2a2f45" stroke="#fbbf24" stroke-width="1.5"/>
+            <text x="70" y="48" fill="#fbbf24" font-size="10" text-anchor="middle" font-weight="700">1. hashCode()</text>
+            <text x="70" y="62" fill="#94a3b8" font-size="9" text-anchor="middle">해시값 계산</text>
+            <!-- arrow -->
+            <line x1="130" y1="50" x2="155" y2="50" stroke="#e2e8f0" stroke-width="1.5" marker-end="url(#ha)"/>
+            <!-- Step 2 -->
+            <rect x="155" y="30" width="130" height="40" rx="6" fill="#2a2f45" stroke="#34d399" stroke-width="1.5"/>
+            <text x="220" y="48" fill="#34d399" font-size="10" text-anchor="middle" font-weight="700">2. 버킷 인덱스 계산</text>
+            <text x="220" y="62" fill="#94a3b8" font-size="9" text-anchor="middle">hash % capacity</text>
+            <!-- arrow -->
+            <line x1="285" y1="50" x2="310" y2="50" stroke="#e2e8f0" stroke-width="1.5" marker-end="url(#ha)"/>
+            <!-- Step 3 -->
+            <rect x="310" y="30" width="130" height="40" rx="6" fill="#2a2f45" stroke="#a78bfa" stroke-width="1.5"/>
+            <text x="375" y="48" fill="#a78bfa" font-size="10" text-anchor="middle" font-weight="700">3. equals() 비교</text>
+            <text x="375" y="62" fill="#94a3b8" font-size="9" text-anchor="middle">같은 버킷 내 탐색</text>
+            <!-- Buckets -->
+            <text x="30" y="105" fill="#6c8cff" font-size="10" font-weight="700">버킷 배열</text>
+            <rect x="10" y="112" width="60" height="30" rx="4" fill="#1e2235" stroke="#2e3348"/>
+            <text x="40" y="132" fill="#94a3b8" font-size="9" text-anchor="middle">[0]</text>
+            <rect x="75" y="112" width="60" height="30" rx="4" fill="#2a2f45" stroke="#34d399"/>
+            <text x="105" y="132" fill="#34d399" font-size="9" text-anchor="middle">[1] ●</text>
+            <rect x="140" y="112" width="60" height="30" rx="4" fill="#1e2235" stroke="#2e3348"/>
+            <text x="170" y="132" fill="#94a3b8" font-size="9" text-anchor="middle">[2]</text>
+            <rect x="205" y="112" width="60" height="30" rx="4" fill="#2a2f45" stroke="#fbbf24"/>
+            <text x="235" y="132" fill="#fbbf24" font-size="9" text-anchor="middle">[3] ●●</text>
+            <text x="280" y="132" fill="#94a3b8" font-size="10">...</text>
+            <!-- collision note -->
+            <text x="235" y="165" fill="#fbbf24" font-size="9" text-anchor="middle">해시 충돌 → 같은 버킷에 여러 항목</text>
+            <text x="235" y="180" fill="#a78bfa" font-size="9" text-anchor="middle">버킷 내에서 equals()로 정확한 항목 찾기</text>
+            <text x="250" y="197" fill="#94a3b8" font-size="9" text-anchor="middle">Java 8+: 버킷 항목 8개 이상 → LinkedList에서 Red-Black Tree로 전환 O(log n)</text>
+            <defs>
+              <marker id="ha" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="#e2e8f0"/>
+              </marker>
+            </defs>
+          </svg>
+        </div>
+        <p><strong>put/get 동작 순서:</strong></p>
+        <ol style="list-style:none;counter-reset:step2;padding-left:0;margin:12px 0;">
+          <li style="counter-increment:step2;padding:5px 0 5px 34px;position:relative;font-size:0.9rem;"><span style="position:absolute;left:0;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;text-align:center;line-height:22px;font-size:0.78rem;font-weight:700;">1</span>키의 <code>hashCode()</code>를 호출해 해시값을 얻는다</li>
+          <li style="counter-increment:step2;padding:5px 0 5px 34px;position:relative;font-size:0.9rem;"><span style="position:absolute;left:0;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;text-align:center;line-height:22px;font-size:0.78rem;font-weight:700;">2</span>해시값을 버킷 배열 인덱스로 변환 <code>(hash ^ (hash >>> 16)) & (n-1)</code></li>
+          <li style="counter-increment:step2;padding:5px 0 5px 34px;position:relative;font-size:0.9rem;"><span style="position:absolute;left:0;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;text-align:center;line-height:22px;font-size:0.78rem;font-weight:700;">3</span>해당 버킷에서 <code>equals()</code>로 키를 하나씩 비교해 정확한 항목을 찾는다</li>
+        </ol>
+        <div class="hl grn">
+          <strong>결론:</strong> hashCode()가 다르면 equals() 비교 자체가 일어나지 않습니다 (다른 버킷을 탐색). hashCode()가 같으면 그때 equals()로 정밀 비교합니다. 그래서 "hashCode가 같으면 equals도 같아야 한다"는 계약이 필수입니다.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== Part 2: String ===== -->
+  <div class="tab-content" id="p2">
+
+    <div class="qa-card">
+      <div class="qa-q">String이 불변(immutable)인 이유는 무엇인가요?</div>
+      <div class="qa-a">
+        <p>Java의 <code>String</code>은 <strong>한 번 생성되면 내용을 변경할 수 없는 불변 객체</strong>입니다. <code>String</code>에 <code>concat()</code>이나 <code>+</code> 연산을 하면 기존 객체를 수정하는 게 아니라 새로운 <code>String</code> 객체가 생성됩니다.</p>
+        <p>불변으로 설계된 이유는 크게 4가지입니다.</p>
+        <table>
+          <tr><th>이유</th><th>설명</th></tr>
+          <tr>
+            <td><strong>1. String Pool 공유 가능</strong></td>
+            <td>불변이기 때문에 여러 변수가 같은 객체를 안전하게 참조할 수 있음. 변경 가능하면 한 쪽에서 수정 시 다른 참조자에게 영향을 미침</td>
+          </tr>
+          <tr>
+            <td><strong>2. 스레드 안전(Thread-Safe)</strong></td>
+            <td>불변 객체는 상태가 변하지 않아 동기화 없이 여러 스레드가 안전하게 공유 가능</td>
+          </tr>
+          <tr>
+            <td><strong>3. 해시코드 캐싱</strong></td>
+            <td>hashCode()를 최초 계산 후 캐싱 가능. HashMap의 키로 자주 사용되는 String 성능에 중요</td>
+          </tr>
+          <tr>
+            <td><strong>4. 보안</strong></td>
+            <td>클래스 로딩, 네트워크 연결 등에 String이 파라미터로 사용될 때 변경 불가능하면 보안 위협 차단</td>
+          </tr>
+        </table>
+        <div class="tail-q">
+          <strong>꼬리질문 대비:</strong> "Reflection으로 String 내부 char 배열을 바꿀 수 있지 않나요?" — 기술적으로 가능하지만, 이는 불변성 계약을 위반하는 행위로 String Pool을 오염시켜 예측 불가능한 버그를 유발합니다. 실무에서 절대로 해서는 안 됩니다. Java 9부터 String 내부가 <code>byte[]</code>로 변경(Compact Strings)되어 메모리가 더 효율적으로 됐습니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">String Pool(Intern Pool)이란 무엇인가요?</div>
+      <div class="qa-a">
+        <p>String Pool은 <strong>JVM이 힙 영역 내 특별 영역(Java 7+ 기준 힙 내부)에 문자열 리터럴을 캐싱해두는 공간</strong>입니다. 같은 문자열 리터럴이 여러 번 사용될 때 동일한 객체를 재사용해 메모리를 절약합니다.</p>
+        <pre><code><span class="type">String</span> a = <span class="string">"hello"</span>;         <span class="comment">// Pool에 "hello" 저장</span>
+<span class="type">String</span> b = <span class="string">"hello"</span>;         <span class="comment">// Pool에서 같은 객체 재사용</span>
+<span class="type">String</span> c = <span class="keyword">new</span> <span class="type">String</span>(<span class="string">"hello"</span>); <span class="comment">// 힙에 새 객체 생성 (Pool 사용 안 함)</span>
+<span class="type">String</span> d = c.intern();     <span class="comment">// Pool에서 "hello" 반환 → a와 같은 객체</span>
+
+a == b;  <span class="comment">// true  (같은 Pool 객체)</span>
+a == c;  <span class="comment">// false (c는 힙에 별도 생성)</span>
+a == d;  <span class="comment">// true  (intern()으로 Pool 객체 반환)</span></code></pre>
+        <div class="diagram-box">
+          <svg width="460" height="170" viewBox="0 0 460 170">
+            <text x="230" y="16" fill="#6c8cff" font-size="12" text-anchor="middle" font-weight="700">JVM 힙 구조 (Java 7+)</text>
+            <!-- Heap -->
+            <rect x="10" y="25" width="440" height="135" rx="8" fill="#1e2235" stroke="#2e3348" stroke-width="1.5"/>
+            <text x="30" y="42" fill="#94a3b8" font-size="10">Heap</text>
+            <!-- String Pool -->
+            <rect x="25" y="50" width="200" height="98" rx="6" fill="#2a2f45" stroke="#6c8cff" stroke-width="1.5"/>
+            <text x="125" y="67" fill="#6c8cff" font-size="11" text-anchor="middle" font-weight="700">String Pool</text>
+            <rect x="40" y="75" width="170" height="26" rx="4" fill="#1e2235"/>
+            <text x="125" y="93" fill="#34d399" font-size="10" text-anchor="middle">"hello"  ← a, b, d 참조</text>
+            <rect x="40" y="108" width="170" height="26" rx="4" fill="#1e2235"/>
+            <text x="125" y="126" fill="#34d399" font-size="10" text-anchor="middle">"world"</text>
+            <!-- Heap general -->
+            <rect x="250" y="50" width="185" height="98" rx="6" fill="#2a2f45" stroke="#fbbf24" stroke-width="1.5"/>
+            <text x="342" y="67" fill="#fbbf24" font-size="11" text-anchor="middle" font-weight="700">일반 힙 영역</text>
+            <rect x="265" y="75" width="155" height="26" rx="4" fill="#1e2235"/>
+            <text x="342" y="93" fill="#34d399" font-size="10" text-anchor="middle">new String("hello") ← c 참조</text>
+            <text x="342" y="130" fill="#94a3b8" font-size="9" text-anchor="middle">GC 대상 (참조 없으면 수거)</text>
+          </svg>
+        </div>
+        <div class="hl org">
+          <strong>Java 6 vs Java 7+ 차이:</strong> Java 6까지 String Pool은 <em>Permanent Generation(PermGen)</em>에 위치해 크기가 고정되어 <code>OutOfMemoryError</code>가 발생하기 쉬웠습니다. Java 7부터 <em>힙(Heap)</em>으로 이동해 GC 대상이 되고 크기 제한이 유연해졌습니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">String vs StringBuilder vs StringBuffer의 차이는 무엇인가요?</div>
+      <div class="qa-a">
+        <p>세 클래스 모두 문자열을 다루지만 <strong>가변성과 스레드 안전성</strong>에서 차이가 있습니다.</p>
+        <table>
+          <tr><th>클래스</th><th>가변성</th><th>스레드 안전</th><th>성능</th><th>사용 시기</th></tr>
+          <tr>
+            <td><strong>String</strong></td>
+            <td>불변 (Immutable)</td>
+            <td>안전</td>
+            <td>반복 연결 시 느림</td>
+            <td>문자열이 변경 없이 사용될 때</td>
+          </tr>
+          <tr>
+            <td><strong>StringBuilder</strong></td>
+            <td>가변 (Mutable)</td>
+            <td>안전하지 않음</td>
+            <td>가장 빠름</td>
+            <td>단일 스레드에서 문자열 반복 조합</td>
+          </tr>
+          <tr>
+            <td><strong>StringBuffer</strong></td>
+            <td>가변 (Mutable)</td>
+            <td>안전 (synchronized)</td>
+            <td>중간</td>
+            <td>멀티스레드에서 공유 문자열 조합</td>
+          </tr>
+        </table>
+        <pre><code><span class="comment">// BAD: 루프에서 String + 연산 → 매 반복마다 새 객체 생성 O(n²)</span>
+<span class="type">String</span> result = <span class="string">""</span>;
+<span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="string">0</span>; i &lt; <span class="string">10000</span>; i++) {
+    result += i;  <span class="comment">// 매번 새로운 String 객체 생성!</span>
+}
+
+<span class="comment">// GOOD: StringBuilder 사용 → O(n)</span>
+<span class="type">StringBuilder</span> sb = <span class="keyword">new</span> <span class="type">StringBuilder</span>();
+<span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="string">0</span>; i &lt; <span class="string">10000</span>; i++) {
+    sb.append(i);  <span class="comment">// 내부 버퍼에 추가, 새 객체 생성 없음</span>
+}
+<span class="type">String</span> result = sb.toString();</code></pre>
+        <div class="hl grn">
+          <strong>Java 컴파일러 최적화:</strong> 단순한 <code>"a" + "b" + "c"</code>는 컴파일러가 자동으로 <code>StringBuilder</code>로 변환합니다. 하지만 루프 내 문자열 연결은 매 반복마다 새 StringBuilder를 생성하므로, 루프 밖에서 명시적으로 StringBuilder를 선언해야 합니다.
+        </div>
+        <div class="tail-q">
+          <strong>꼬리질문 대비:</strong> "실무에서 StringBuffer를 언제 쓰나요?" — 거의 쓰지 않습니다. 멀티스레드 환경에서 문자열을 공유해야 한다면 StringBuffer보다 스레드 로컬(ThreadLocal)이나 동기화 설계를 재검토하는 것이 나을 때가 많습니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">new String("abc")와 "abc"의 차이, 그리고 String의 hashCode 캐싱을 설명해주세요.</div>
+      <div class="qa-a">
+        <p><code>"abc"</code>는 <strong>String Pool에서 객체를 찾아 반환</strong>하고, <code>new String("abc")</code>는 <strong>힙에 무조건 새 객체를 생성</strong>합니다. Pool에 있든 없든 관계없이 별도 객체를 만들기 때문에 불필요한 메모리 낭비가 생깁니다.</p>
+        <pre><code><span class="type">String</span> s1 = <span class="string">"abc"</span>;                  <span class="comment">// Pool 사용</span>
+<span class="type">String</span> s2 = <span class="keyword">new</span> <span class="type">String</span>(<span class="string">"abc"</span>);     <span class="comment">// 힙에 새 객체</span>
+<span class="type">String</span> s3 = s2.intern();           <span class="comment">// Pool에서 "abc" 반환</span>
+
+s1 == s2;       <span class="comment">// false</span>
+s1 == s3;       <span class="comment">// true</span>
+s1.equals(s2);  <span class="comment">// true (내용은 같음)</span></code></pre>
+        <p><strong>String의 hashCode 캐싱:</strong></p>
+        <p>String은 내부에 <code>private int hash;</code> 필드를 가지며, 최초 <code>hashCode()</code> 호출 시 계산한 값을 이 필드에 저장합니다. 이후 호출에서는 저장된 값을 바로 반환합니다. 불변 객체이기 때문에 값이 변하지 않으므로 이 캐싱이 안전합니다.</p>
+        <pre><code><span class="comment">// String.java 내부 (간략화)</span>
+<span class="keyword">public int</span> hashCode() {
+    <span class="keyword">int</span> h = hash;
+    <span class="keyword">if</span> (h == <span class="string">0</span> &amp;&amp; !hashIsZero) {
+        h = isLatin1() ? <span class="type">StringLatin1</span>.hashCode(value)
+                       : <span class="type">StringUTF16</span>.hashCode(value);
+        <span class="keyword">if</span> (h == <span class="string">0</span>) hashIsZero = <span class="keyword">true</span>;
+        <span class="keyword">else</span> hash = h;  <span class="comment">// 캐싱</span>
+    }
+    <span class="keyword">return</span> h;
+}</code></pre>
+        <div class="hl">
+          <strong>HashMap의 키로 String이 선호되는 이유:</strong> 불변성(키가 변경되지 않음) + hashCode 캐싱(매 조회마다 재계산 불필요)의 조합으로 HashMap에서 최고의 성능을 냅니다.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== Part 3: Generic ===== -->
+  <div class="tab-content" id="p3">
+
+    <div class="qa-card">
+      <div class="qa-q">Generic이란 무엇이고, 왜 사용하나요?</div>
+      <div class="qa-a">
+        <p>Generic은 <strong>클래스, 인터페이스, 메서드를 정의할 때 타입을 파라미터로 지정하는 기능</strong>입니다. Java 5에서 도입되었으며, 컴파일 시점에 타입을 검사해 런타임 타입 오류를 방지합니다.</p>
+        <p>Generic 도입 전에는 컬렉션에서 꺼낼 때마다 형변환(Casting)이 필요하고, 잘못된 타입을 넣어도 컴파일러가 잡아주지 못해 런타임에 <code>ClassCastException</code>이 발생했습니다.</p>
+        <pre><code><span class="comment">// Generic 없는 코드 (Java 5 이전)</span>
+<span class="type">List</span> list = <span class="keyword">new</span> <span class="type">ArrayList</span>();
+list.add(<span class="string">"hello"</span>);
+list.add(<span class="string">42</span>);                      <span class="comment">// 컴파일 통과! 런타임에 문제</span>
+<span class="type">String</span> s = (<span class="type">String</span>) list.get(<span class="string">1</span>);  <span class="comment">// ClassCastException!</span>
+
+<span class="comment">// Generic 사용 (타입 안전)</span>
+<span class="type">List</span>&lt;<span class="type">String</span>&gt; list = <span class="keyword">new</span> <span class="type">ArrayList</span>&lt;&gt;();
+list.add(<span class="string">"hello"</span>);
+list.add(<span class="string">42</span>);         <span class="comment">// 컴파일 오류! → 실수를 즉시 발견</span>
+<span class="type">String</span> s = list.get(<span class="string">0</span>); <span class="comment">// 형변환 불필요</span></code></pre>
+        <p>Generic의 3가지 장점: <em>타입 안전성</em>(컴파일 시 오류 감지), <em>코드 재사용성</em>(하나의 클래스로 다양한 타입 처리), <em>가독성</em>(형변환 코드 제거로 깔끔해짐).</p>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">타입 소거(Type Erasure)란 무엇인가요?</div>
+      <div class="qa-a">
+        <p>타입 소거는 <strong>Java 컴파일러가 Generic 타입 정보를 컴파일 시에만 사용하고, 바이트코드에서는 제거(소거)하는 것</strong>입니다. 런타임에는 Generic 타입 정보가 존재하지 않습니다. Java 5 이전 코드와의 하위 호환성을 위해 이 방식을 선택했습니다.</p>
+        <pre><code><span class="comment">// 컴파일 전 (소스 코드)</span>
+<span class="type">List</span>&lt;<span class="type">String</span>&gt; strings = <span class="keyword">new</span> <span class="type">ArrayList</span>&lt;<span class="type">String</span>&gt;();
+strings.add(<span class="string">"hello"</span>);
+<span class="type">String</span> s = strings.get(<span class="string">0</span>);
+
+<span class="comment">// 컴파일 후 바이트코드 (타입 소거됨)</span>
+<span class="type">List</span> strings = <span class="keyword">new</span> <span class="type">ArrayList</span>();  <span class="comment">// &lt;String&gt; 사라짐</span>
+strings.add(<span class="string">"hello"</span>);
+<span class="type">String</span> s = (<span class="type">String</span>) strings.get(<span class="string">0</span>); <span class="comment">// 컴파일러가 자동 형변환 삽입</span></code></pre>
+        <p>타입 소거로 인해 발생하는 제약사항:</p>
+        <table>
+          <tr><th>제약사항</th><th>이유</th><th>대안</th></tr>
+          <tr><td><code>new T()</code> 불가</td><td>런타임에 T가 뭔지 모름</td><td>팩토리 메서드, Class&lt;T&gt; 파라미터 전달</td></tr>
+          <tr><td><code>T[] arr</code> 생성 불가</td><td>배열은 런타임 타입 검사를 함</td><td>List&lt;T&gt; 사용</td></tr>
+          <tr><td><code>o instanceof T</code> 불가</td><td>런타임에 T 정보 없음</td><td>Class&lt;T&gt;.isInstance(o) 사용</td></tr>
+          <tr><td>오버로딩 제약</td><td>소거 후 시그니처가 같아짐</td><td>메서드 이름 다르게 지정</td></tr>
+        </table>
+        <div class="tail-q">
+          <strong>꼬리질문 대비:</strong> "런타임에 Generic 타입을 알아내는 방법이 있나요?" — <em>Reified Generics</em> 패턴을 사용합니다. 익명 클래스를 이용해 슈퍼타입에서 타입 파라미터를 읽어낼 수 있습니다 (Jackson의 <code>TypeReference</code>, Spring의 <code>ParameterizedTypeReference</code>가 이 방식 사용). Kotlin의 <code>reified</code> 키워드는 인라인 함수에서 타입 소거 없이 타입을 다룰 수 있습니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">와일드카드(?, extends, super)와 PECS 원칙을 설명해주세요.</div>
+      <div class="qa-a">
+        <p>와일드카드는 Generic 타입 파라미터에 유연성을 주기 위한 문법입니다. <code>?</code>는 "알 수 없는 타입"을 의미합니다.</p>
+        <table>
+          <tr><th>문법</th><th>의미</th><th>가능</th><th>불가능</th></tr>
+          <tr>
+            <td><code>List&lt;?&gt;</code></td>
+            <td>어떤 타입이든 OK (비한정 와일드카드)</td>
+            <td>읽기 (Object로)</td>
+            <td>null 외 쓰기</td>
+          </tr>
+          <tr>
+            <td><code>List&lt;? extends T&gt;</code></td>
+            <td>T 또는 T의 하위 타입 (상한 경계)</td>
+            <td>읽기 (T로)</td>
+            <td>쓰기</td>
+          </tr>
+          <tr>
+            <td><code>List&lt;? super T&gt;</code></td>
+            <td>T 또는 T의 상위 타입 (하한 경계)</td>
+            <td>쓰기 (T 추가)</td>
+            <td>타입 안전 읽기</td>
+          </tr>
+        </table>
+        <p><strong>PECS (Producer Extends, Consumer Super)</strong></p>
+        <p>Joshua Bloch가 정리한 원칙으로, 컬렉션의 역할에 따라 와일드카드를 결정합니다.</p>
+        <pre><code><span class="comment">// Producer: 데이터를 꺼내서(생산) 사용 → extends</span>
+<span class="keyword">public void</span> printAll(<span class="type">List</span>&lt;? <span class="keyword">extends</span> <span class="type">Number</span>&gt; list) {
+    <span class="keyword">for</span> (<span class="type">Number</span> n : list) <span class="type">System</span>.out.println(n); <span class="comment">// 읽기 OK</span>
+    <span class="comment">// list.add(1.0);  → 컴파일 오류 (어떤 서브타입인지 모르므로)</span>
+}
+
+<span class="comment">// Consumer: 데이터를 받아서(소비) 저장 → super</span>
+<span class="keyword">public void</span> addNumbers(<span class="type">List</span>&lt;? <span class="keyword">super</span> <span class="type">Integer</span>&gt; list) {
+    list.add(<span class="string">1</span>);   <span class="comment">// 쓰기 OK (Integer는 어떤 상위 타입에도 들어갈 수 있음)</span>
+    list.add(<span class="string">2</span>);
+}
+
+<span class="comment">// Collections.copy의 실제 시그니처</span>
+<span class="keyword">public static</span> &lt;<span class="type">T</span>&gt; <span class="keyword">void</span> copy(<span class="type">List</span>&lt;? <span class="keyword">super</span> <span class="type">T</span>&gt; dest,    <span class="comment">// Consumer (super)</span>
+                            <span class="type">List</span>&lt;? <span class="keyword">extends</span> <span class="type">T</span>&gt; src) { <span class="comment">// Producer (extends)</span>
+    <span class="keyword">for</span> (<span class="type">T</span> t : src) dest.add(t);
+}</code></pre>
+        <div class="hl org">
+          <strong>PECS 암기법:</strong> 데이터를 꺼내 <em>생산(produce)</em>하면 <em>extends</em>, 데이터를 받아 <em>소비(consume)</em>하면 <em>super</em>. 읽기만 하면 extends, 쓰기만 하면 super, 둘 다 하면 구체적 타입 파라미터 T.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Generic의 제한사항 — primitive 불가, instanceof 불가 등을 설명해주세요.</div>
+      <div class="qa-a">
+        <p>타입 소거와 Java 타입 시스템의 특성상 Generic에는 여러 제한사항이 있습니다.</p>
+        <pre><code><span class="comment">// 1. 기본형(primitive) 타입 파라미터 불가</span>
+<span class="type">List</span>&lt;<span class="keyword">int</span>&gt; list = <span class="keyword">new</span> <span class="type">ArrayList</span>&lt;&gt;(); <span class="comment">// 컴파일 오류!</span>
+<span class="type">List</span>&lt;<span class="type">Integer</span>&gt; list = <span class="keyword">new</span> <span class="type">ArrayList</span>&lt;&gt;(); <span class="comment">// OK (오토박싱 활용)</span>
+<span class="comment">// 이유: Generic은 Object 기반이고 int는 Object가 아님</span>
+<span class="comment">// Java 10+ Valhalla 프로젝트에서 해결 예정</span>
+
+<span class="comment">// 2. instanceof 검사 불가</span>
+<span class="keyword">if</span> (obj <span class="keyword">instanceof</span> <span class="type">List</span>&lt;<span class="type">String</span>&gt;) { } <span class="comment">// 컴파일 오류!</span>
+<span class="keyword">if</span> (obj <span class="keyword">instanceof</span> <span class="type">List</span>&lt;?&gt;) { }    <span class="comment">// OK (비한정 와일드카드)</span>
+
+<span class="comment">// 3. Generic 타입의 배열 생성 불가</span>
+<span class="type">T</span>[] arr = <span class="keyword">new</span> <span class="type">T</span>[<span class="string">10</span>]; <span class="comment">// 컴파일 오류!</span>
+<span class="comment">// 이유: 배열은 공변(covariant)이고 런타임 타입 검사를 하는데</span>
+<span class="comment">// 타입 소거로 T가 없어지면 타입 안전성을 보장 못 함</span>
+<span class="annotation">@SuppressWarnings</span>(<span class="string">"unchecked"</span>)
+<span class="type">T</span>[] arr = (<span class="type">T</span>[]) <span class="keyword">new</span> <span class="type">Object</span>[<span class="string">10</span>]; <span class="comment">// 우회 (비권장)</span>
+
+<span class="comment">// 4. Static 멤버에 타입 파라미터 사용 불가</span>
+<span class="keyword">class</span> <span class="type">Box</span>&lt;<span class="type">T</span>&gt; {
+    <span class="keyword">private static</span> <span class="type">T</span> instance; <span class="comment">// 컴파일 오류!</span>
+    <span class="comment">// static은 클래스 수준이지만 T는 인스턴스 수준</span>
+}
+
+<span class="comment">// 5. Generic 예외 클래스 불가</span>
+<span class="keyword">class</span> <span class="type">MyException</span>&lt;<span class="type">T</span>&gt; <span class="keyword">extends</span> <span class="type">Exception</span> { } <span class="comment">// 컴파일 오류!</span>
+<span class="comment">// catch 블록에서 타입 소거로 구별 불가</span></code></pre>
+        <div class="tail-q">
+          <strong>꼬리질문 대비:</strong> "Generic 메서드와 Generic 클래스의 차이는?" — Generic 클래스는 클래스 전체에서 타입 파라미터를 공유합니다(<code>class Box&lt;T&gt;</code>). Generic 메서드는 해당 메서드에서만 독립적인 타입 파라미터를 선언합니다(<code>public &lt;T&gt; T identity(T t)</code>). static 메서드는 Generic 클래스의 T를 쓸 수 없으므로 Generic 메서드로 별도 선언해야 합니다.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== Part 4: 불변 객체 & 예외 ===== -->
+  <div class="tab-content" id="p4">
+
+    <div class="qa-card">
+      <div class="qa-q">불변 객체(Immutable Object)란 무엇이고, 어떤 장점이 있나요?</div>
+      <div class="qa-a">
+        <p>불변 객체는 <strong>한 번 생성된 후 상태(필드 값)가 절대 변경되지 않는 객체</strong>입니다. <code>String</code>, <code>Integer</code>, <code>LocalDate</code>, <code>BigDecimal</code>이 대표적입니다.</p>
+        <p><strong>불변 객체의 장점:</strong></p>
+        <table>
+          <tr><th>장점</th><th>설명</th></tr>
+          <tr>
+            <td><strong>스레드 안전</strong></td>
+            <td>상태가 변하지 않으므로 동기화 없이 여러 스레드가 공유 가능. synchronized 불필요</td>
+          </tr>
+          <tr>
+            <td><strong>방어적 복사 불필요</strong></td>
+            <td>공유해도 변경될 우려가 없으므로 복사 없이 참조를 전달해도 안전</td>
+          </tr>
+          <tr>
+            <td><strong>HashMap 키로 안전</strong></td>
+            <td>키 객체가 변경되어 hashCode가 달라지는 문제 없음</td>
+          </tr>
+          <tr>
+            <td><strong>실패 원자성 보장</strong></td>
+            <td>생성이 실패해도 기존 상태를 오염시키지 않음</td>
+          </tr>
+          <tr>
+            <td><strong>캐싱 가능</strong></td>
+            <td>값이 변하지 않으므로 안전하게 캐싱, String Pool이 대표적 예</td>
+          </tr>
+        </table>
+        <div class="hl grn">
+          <strong>Effective Java 원칙:</strong> "클래스는 꼭 필요한 경우가 아니라면 불변으로 만들라." 불변으로 만들 수 없다면 변경 가능성을 최소화하라.
+        </div>
+        <div class="tail-q">
+          <strong>꼬리질문 대비:</strong> "불변 객체의 단점은?" — 값을 변경할 때마다 새 객체를 생성해야 하므로 객체 생성 비용이 증가합니다. 특히 <code>String</code> 연결을 반복할 때가 전형적인 예입니다. 이 경우 중간 단계 객체를 재사용하는 가변 동반 클래스(StringBuilder)를 사용합니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">불변 객체를 만드는 방법을 코드로 설명해주세요.</div>
+      <div class="qa-a">
+        <p>불변 객체를 만들기 위한 핵심 규칙은 다음과 같습니다.</p>
+        <pre><code><span class="keyword">public final class</span> <span class="type">ImmutableOrder</span> {   <span class="comment">// 1. 클래스를 final로 (상속 금지)</span>
+
+    <span class="keyword">private final long</span> orderId;         <span class="comment">// 2. 모든 필드를 private final</span>
+    <span class="keyword">private final</span> <span class="type">String</span> customerName;
+    <span class="keyword">private final</span> <span class="type">List</span>&lt;<span class="type">String</span>&gt; items;  <span class="comment">// 3. 가변 객체 필드는 방어적 복사 필요</span>
+
+    <span class="keyword">public</span> <span class="type">ImmutableOrder</span>(<span class="keyword">long</span> orderId, <span class="type">String</span> customerName,
+                          <span class="type">List</span>&lt;<span class="type">String</span>&gt; items) {
+        <span class="keyword">this</span>.orderId = orderId;
+        <span class="keyword">this</span>.customerName = customerName;
+        <span class="comment">// 4. 생성자에서 방어적 복사 (외부 변경 차단)</span>
+        <span class="keyword">this</span>.items = <span class="type">List</span>.copyOf(items);  <span class="comment">// Java 10+ 불변 리스트</span>
+    }
+
+    <span class="keyword">public long</span> getOrderId() { <span class="keyword">return</span> orderId; }
+    <span class="keyword">public</span> <span class="type">String</span> getCustomerName() { <span class="keyword">return</span> customerName; }
+
+    <span class="comment">// 5. getter에서도 방어적 복사 (내부 상태 노출 차단)</span>
+    <span class="keyword">public</span> <span class="type">List</span>&lt;<span class="type">String</span>&gt; getItems() {
+        <span class="keyword">return</span> <span class="type">Collections</span>.unmodifiableList(items); <span class="comment">// 또는 List.copyOf(items)</span>
+    }
+
+    <span class="comment">// 6. setter 없음</span>
+    <span class="comment">// 7. 상태 변경 대신 새 객체 반환</span>
+    <span class="keyword">public</span> <span class="type">ImmutableOrder</span> withCustomerName(<span class="type">String</span> newName) {
+        <span class="keyword">return new</span> <span class="type">ImmutableOrder</span>(orderId, newName, items);
+    }
+}</code></pre>
+        <div class="hl">
+          <strong>방어적 복사의 타이밍:</strong> 생성자에서 받은 가변 객체(Date, List 등)는 <em>즉시 복사</em>해야 합니다. TOCTOU(Time-Of-Check-Time-Of-Use) 취약점을 막기 위해 타입 검사 후 복사가 아니라 복사 후 타입 검사 순서를 지켜야 합니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Checked Exception vs Unchecked Exception의 차이와 언제 사용해야 하나요?</div>
+      <div class="qa-a">
+        <p>Java 예외 계층 구조에서 <code>Throwable</code>은 <code>Error</code>와 <code>Exception</code>으로 나뉩니다. <code>Exception</code> 중 <code>RuntimeException</code>을 상속하면 Unchecked, 그 외는 Checked입니다.</p>
+        <div class="diagram-box">
+          <svg width="500" height="170" viewBox="0 0 500 170">
+            <text x="250" y="14" fill="#6c8cff" font-size="12" text-anchor="middle" font-weight="700">Java 예외 계층 구조</text>
+            <!-- Throwable -->
+            <rect x="185" y="20" width="130" height="32" rx="6" fill="#2a2f45" stroke="#6c8cff" stroke-width="1.5"/>
+            <text x="250" y="41" fill="#6c8cff" font-size="11" text-anchor="middle" font-weight="700">Throwable</text>
+            <!-- Error -->
+            <rect x="20" y="80" width="120" height="32" rx="6" fill="#2a2f45" stroke="#f87171" stroke-width="1.5"/>
+            <text x="80" y="101" fill="#f87171" font-size="11" text-anchor="middle" font-weight="700">Error</text>
+            <!-- Exception -->
+            <rect x="360" y="80" width="120" height="32" rx="6" fill="#2a2f45" stroke="#fbbf24" stroke-width="1.5"/>
+            <text x="420" y="101" fill="#fbbf24" font-size="11" text-anchor="middle" font-weight="700">Exception</text>
+            <!-- lines -->
+            <line x1="220" y1="52" x2="80" y2="78" stroke="#94a3b8" stroke-width="1.5"/>
+            <line x1="280" y1="52" x2="420" y2="78" stroke="#94a3b8" stroke-width="1.5"/>
+            <!-- RuntimeException -->
+            <rect x="20" y="140" width="155" height="26" rx="6" fill="#2a2f45" stroke="#34d399" stroke-width="1.5"/>
+            <text x="97" y="158" fill="#34d399" font-size="10" text-anchor="middle" font-weight="700">RuntimeException (Unchecked)</text>
+            <!-- Checked -->
+            <rect x="300" y="140" width="185" height="26" rx="6" fill="#2a2f45" stroke="#60a5fa" stroke-width="1.5"/>
+            <text x="392" y="158" fill="#60a5fa" font-size="10" text-anchor="middle" font-weight="700">IOException 등 (Checked)</text>
+            <line x1="420" y1="112" x2="97" y2="138" stroke="#94a3b8" stroke-width="1"/>
+            <line x1="420" y1="112" x2="392" y2="138" stroke="#94a3b8" stroke-width="1"/>
+          </svg>
+        </div>
+        <table>
+          <tr><th>구분</th><th>Checked Exception</th><th>Unchecked (RuntimeException)</th></tr>
+          <tr><td>컴파일러 강제</td><td>try-catch 또는 throws 선언 필수</td><td>강제 아님</td></tr>
+          <tr><td>예시</td><td>IOException, SQLException, ParseException</td><td>NullPointerException, IllegalArgumentException</td></tr>
+          <tr><td>사용 시기</td><td>호출자가 복구 가능한 외부 상황 (파일 없음, 네트워크 오류)</td><td>프로그래밍 오류 (null 전달, 잘못된 인덱스)</td></tr>
+          <tr><td>단점</td><td>API가 복잡해짐, 과도하면 catch 블록 남용</td><td>예외 놓칠 수 있음</td></tr>
+        </table>
+        <div class="hl red">
+          <strong>실무 추세:</strong> Spring, JPA 등 현대 프레임워크는 대부분 Unchecked Exception을 선호합니다. Checked Exception은 호출자에게 복구 가능한 경우에만 한정해 사용하고, 복구 불가능한 오류는 RuntimeException으로 wrapping해 던집니다.
+        </div>
+        <div class="tail-q">
+          <strong>꼬리질문 대비:</strong> "Error는 catch하면 안 되나요?" — <code>OutOfMemoryError</code>, <code>StackOverflowError</code> 같은 Error는 JVM 수준의 심각한 문제로, 일반적으로 catch해서 복구를 시도하면 안 됩니다. 다만 특수한 경우(특정 OOM 후 리소스 해제 등)에 catch하되 재던지거나 종료하는 패턴을 쓰기도 합니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">try-with-resources는 무엇이고, finally와 어떻게 다른가요?</div>
+      <div class="qa-a">
+        <p>try-with-resources는 Java 7에서 도입된 문법으로, <strong><code>AutoCloseable</code>을 구현한 자원을 자동으로 닫아주는 기능</strong>입니다. 예외가 발생하든 안 하든 반드시 <code>close()</code>가 호출됩니다.</p>
+        <pre><code><span class="comment">// 기존 finally 방식 (Java 6 이하) — 문제: close()에서도 예외 발생 시 복잡</span>
+<span class="type">Connection</span> conn = <span class="keyword">null</span>;
+<span class="keyword">try</span> {
+    conn = dataSource.getConnection();
+    <span class="comment">// ... 작업 ...</span>
+} <span class="keyword">finally</span> {
+    <span class="keyword">if</span> (conn != <span class="keyword">null</span>) {
+        <span class="keyword">try</span> { conn.close(); }
+        <span class="keyword">catch</span> (<span class="type">SQLException</span> e) { <span class="comment">/* 삼킴 */</span> }
+    }
+}
+
+<span class="comment">// try-with-resources (Java 7+) — 깔끔하고 안전</span>
+<span class="keyword">try</span> (<span class="type">Connection</span> conn = dataSource.getConnection();
+     <span class="type">PreparedStatement</span> ps = conn.prepareStatement(sql)) {
+    <span class="comment">// ... 작업 ...</span>
+}  <span class="comment">// 블록 종료 시 ps.close(), conn.close() 자동 호출 (역순)</span>
+
+<span class="comment">// AutoCloseable 직접 구현</span>
+<span class="keyword">public class</span> <span class="type">ManagedResource</span> <span class="keyword">implements</span> <span class="type">AutoCloseable</span> {
+    <span class="annotation">@Override</span>
+    <span class="keyword">public void</span> close() {
+        <span class="comment">// 자원 해제 로직</span>
+    }
+}</code></pre>
+        <div class="hl">
+          <strong>억제된 예외(Suppressed Exceptions):</strong> try 블록과 close()에서 동시에 예외 발생 시, close()의 예외는 억제되고 try 블록의 예외가 전파됩니다. 억제된 예외는 <code>Throwable.getSuppressed()</code>로 확인할 수 있습니다. 기존 finally에서는 close() 예외가 원본 예외를 덮어쓰는 버그가 있었습니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">커스텀 예외를 만드는 기준은 무엇인가요?</div>
+      <div class="qa-a">
+        <p>커스텀 예외는 <strong>표준 예외로 표현할 수 없는 도메인 특유의 에러 상황</strong>을 명확히 표현하고, 호출자가 특정 예외를 구분해 처리해야 할 때 만듭니다.</p>
+        <p><strong>커스텀 예외를 만들어야 하는 경우:</strong></p>
+        <table>
+          <tr><th>상황</th><th>예시</th></tr>
+          <tr><td>도메인 특유의 비즈니스 오류</td><td>주문 불가 상태, 잔액 부족, 중복 예약</td></tr>
+          <tr><td>에러 코드 체계가 필요한 경우</td><td>API 응답에 에러 코드 포함 필요</td></tr>
+          <tr><td>계층별 예외 변환이 필요한 경우</td><td>Repository 예외 → Service 예외로 wrapping</td></tr>
+        </table>
+        <pre><code><span class="comment">// 기본 커스텀 예외 구조</span>
+<span class="keyword">public class</span> <span class="type">OrderException</span> <span class="keyword">extends</span> <span class="type">RuntimeException</span> {
+
+    <span class="keyword">private final</span> <span class="type">ErrorCode</span> errorCode;
+
+    <span class="keyword">public</span> <span class="type">OrderException</span>(<span class="type">ErrorCode</span> errorCode) {
+        <span class="keyword">super</span>(errorCode.getMessage());
+        <span class="keyword">this</span>.errorCode = errorCode;
+    }
+
+    <span class="keyword">public</span> <span class="type">OrderException</span>(<span class="type">ErrorCode</span> errorCode, <span class="type">Throwable</span> cause) {
+        <span class="keyword">super</span>(errorCode.getMessage(), cause); <span class="comment">// 원인 예외 체인</span>
+        <span class="keyword">this</span>.errorCode = errorCode;
+    }
+
+    <span class="keyword">public</span> <span class="type">ErrorCode</span> getErrorCode() { <span class="keyword">return</span> errorCode; }
+}
+
+<span class="keyword">public enum</span> <span class="type">ErrorCode</span> {
+    ORDER_NOT_FOUND(<span class="string">"ORDER_001"</span>, <span class="string">"주문을 찾을 수 없습니다"</span>),
+    INSUFFICIENT_STOCK(<span class="string">"ORDER_002"</span>, <span class="string">"재고가 부족합니다"</span>);
+
+    <span class="keyword">private final</span> <span class="type">String</span> code;
+    <span class="keyword">private final</span> <span class="type">String</span> message;
+    <span class="comment">// 생성자, getter 생략</span>
+}</code></pre>
+        <div class="hl org">
+          <strong>피해야 할 안티패턴:</strong><br>
+          - 예외를 단순히 메시지 전달 용도로만 사용하고 실제 처리 없이 catch 후 rethrow<br>
+          - 너무 세분화된 예외 (ExceptionA, ExceptionB, ExceptionC...)로 예외 계층이 과도하게 복잡<br>
+          - <em>예외를 흐름 제어(flow control)용으로 사용</em> — 정상 로직 분기에 예외를 쓰면 성능 저하와 가독성 문제
+        </div>
+        <div class="tail-q">
+          <strong>꼬리질문 대비:</strong> "예외 메시지에 민감한 정보를 담아도 되나요?" — 안 됩니다. 예외 메시지는 로그에 남고 스택 트레이스와 함께 외부에 노출될 수 있습니다. 비밀번호, 카드번호, 개인정보는 절대 예외 메시지에 포함하지 않습니다. Spring의 <code>@ControllerAdvice</code>에서 클라이언트 응답 시 내부 메시지를 필터링해야 합니다.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="../js/main.js"></script>
+</body>
+</html>

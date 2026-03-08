@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spring 핵심 원리</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div class="page-header">
+  <a href="../index.html" class="back-link">← 목록으로</a>
+  <h1>Spring 핵심 원리</h1>
+  <p>IoC/DI · AOP · Bean 생명주기 · 스코프 · 순환 참조</p>
+</div>
+
+<div class="content">
+
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('p1',this)">Part 1 IoC &amp; DI</button>
+  <button class="tab-btn" onclick="switchTab('p2',this)">Part 2 Bean</button>
+  <button class="tab-btn" onclick="switchTab('p3',this)">Part 3 AOP</button>
+  <button class="tab-btn" onclick="switchTab('p4',this)">Part 4 심화</button>
+</div>
+
+<!-- ═══ TAB: Part 1 ═══ -->
+<div id="p1" class="tab-content active">
+
+  <div class="category">Part 1 — IoC &amp; DI · 스프링의 근본 철학인 제어의 역전과 의존성 주입의 원리를 이해합니다.</div>
+
+  <div class="qa-card">
+    <div class="qa-q">IoC(제어의 역전)란 무엇인가요?</div>
+    <div class="qa-a">
+      <p><strong>IoC(Inversion of Control, 제어의 역전)</strong>는 객체의 생성과 의존성 관리의 <strong>제어권을 개발자가 아닌 프레임워크(컨테이너)에게 위임</strong>하는 설계 원칙입니다.</p>
+      <p>전통적인 방식에서는 개발자가 직접 객체를 생성하고, 의존하는 객체도 직접 생성해서 연결합니다.</p>
+      <pre><span class="comment">// 전통적 방식 — 개발자가 제어</span>
+<span class="keyword">class</span> <span class="type">OrderService</span> {
+    <span class="keyword">private</span> <span class="type">OrderRepository</span> repo = <span class="keyword">new</span> <span class="type">OrderRepositoryImpl</span>(); <span class="comment">// 직접 생성</span>
+
+    <span class="keyword">public void</span> order() { repo.save(...); }
+}
+
+<span class="comment">// IoC 방식 — 컨테이너가 제어</span>
+<span class="keyword">class</span> <span class="type">OrderService</span> {
+    <span class="keyword">private final</span> <span class="type">OrderRepository</span> repo; <span class="comment">// 선언만 함</span>
+
+    <span class="keyword">public</span> <span class="type">OrderService</span>(<span class="type">OrderRepository</span> repo) {
+        <span class="keyword">this</span>.repo = repo; <span class="comment">// Spring이 주입해줌</span>
+    }
+}</pre>
+      <p>IoC의 핵심 이점은 <strong>관심사의 분리</strong>입니다. 비즈니스 로직을 담은 객체가 "어떤 구현체를 사용할지"를 신경 쓰지 않아도 됩니다. 이는 <strong>낮은 결합도(Low Coupling)</strong>와 <strong>높은 응집도(High Cohesion)</strong>로 이어집니다. IoC는 개념이고, 이를 구현하는 구체적인 패턴이 <strong>DI(의존성 주입)</strong>입니다.</p>
+      <div class="tail-q">
+        <div class="tq-label">꼬리질문 대비</div>
+        <p>"IoC 컨테이너와 DI 컨테이너는 같은 말인가요?" — 엄밀히는 다르지만 실무에서 혼용됩니다. IoC 컨테이너는 더 넓은 개념으로 객체 생명주기 전반을 관리하고, DI 컨테이너는 그 중 의존성 주입에 초점을 둔 표현입니다. Spring의 ApplicationContext는 둘 다입니다.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">DI(의존성 주입)의 3가지 방법과 왜 생성자 주입을 권장하는지 설명해주세요.</div>
+    <div class="qa-a">
+      <p>Spring에서 의존성을 주입하는 방법은 세 가지입니다.</p>
+      <pre><span class="comment">// 1. 생성자 주입 (Constructor Injection) — 권장</span>
+<span class="annotation">@Service</span>
+<span class="keyword">public class</span> <span class="type">OrderService</span> {
+    <span class="keyword">private final</span> <span class="type">OrderRepository</span> orderRepository;
+    <span class="keyword">private final</span> <span class="type">PaymentService</span> paymentService;
+
+    <span class="comment">// Lombok @RequiredArgsConstructor로 대체 가능</span>
+    <span class="keyword">public</span> <span class="type">OrderService</span>(<span class="type">OrderRepository</span> orderRepository,
+                        <span class="type">PaymentService</span> paymentService) {
+        <span class="keyword">this</span>.orderRepository = orderRepository;
+        <span class="keyword">this</span>.paymentService = paymentService;
+    }
+}
+
+<span class="comment">// 2. 세터 주입 (Setter Injection) — 선택적 의존성에만 사용</span>
+<span class="annotation">@Service</span>
+<span class="keyword">public class</span> <span class="type">OrderService</span> {
+    <span class="keyword">private</span> <span class="type">OrderRepository</span> orderRepository;
+
+    <span class="annotation">@Autowired</span>
+    <span class="keyword">public void</span> setOrderRepository(<span class="type">OrderRepository</span> repo) {
+        <span class="keyword">this</span>.orderRepository = repo;
+    }
+}
+
+<span class="comment">// 3. 필드 주입 (Field Injection) — 실무에서 지양</span>
+<span class="annotation">@Service</span>
+<span class="keyword">public class</span> <span class="type">OrderService</span> {
+    <span class="annotation">@Autowired</span>
+    <span class="keyword">private</span> <span class="type">OrderRepository</span> orderRepository; <span class="comment">// 간결하지만 문제 있음</span>
+}</pre>
+      <table>
+        <tr><th>방식</th><th>장점</th><th>단점</th></tr>
+        <tr><td><strong>생성자 주입</strong></td><td>불변성(final), 필수 의존성 명확, 테스트 용이, 순환 참조 조기 감지</td><td>파라미터 많으면 코드 길어짐 (Lombok으로 해결)</td></tr>
+        <tr><td>세터 주입</td><td>선택적 의존성 표현 가능</td><td>불변성 없음, 런타임 NPE 위험</td></tr>
+        <tr><td>필드 주입</td><td>코드 간결</td><td>테스트 시 Spring 없이 주입 불가, 불변성 없음, 순환 참조 감지 늦음</td></tr>
+      </table>
+      <p><strong>생성자 주입을 권장하는 이유</strong>: ① <code>final</code>로 선언하여 <strong>불변성 보장</strong>. ② 객체 생성 시점에 모든 의존성이 주입되므로 <strong>완전한 객체 보장</strong>. ③ 순수 자바로 테스트 가능 (Spring 컨텍스트 없이 <code>new</code>로 직접 주입). ④ 순환 참조 발생 시 <strong>애플리케이션 시작 시점에 즉시 예외</strong>가 발생하여 조기 감지.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">@Autowired의 동작 원리를 설명해주세요.</div>
+    <div class="qa-a">
+      <p><strong>@Autowired</strong>는 Spring이 의존성을 자동으로 주입하게 하는 어노테이션입니다. 주입 우선순위는 <strong>타입(Type) → 이름(Name)</strong> 순서입니다.</p>
+      <p>동작 과정: ① Spring 컨테이너가 @Autowired가 붙은 지점을 스캔합니다. ② 주입 대상의 <strong>타입</strong>으로 컨테이너에서 빈을 조회합니다. ③ 해당 타입의 빈이 정확히 하나면 주입합니다. ④ 빈이 없으면 <code>NoSuchBeanDefinitionException</code> (required=false로 선택적 처리 가능). ⑤ 빈이 여러 개면 <code>NoUniqueBeanDefinitionException</code> — 이때 @Qualifier나 @Primary로 해결합니다.</p>
+      <pre><span class="comment">// 타입으로 여러 빈이 있을 때 해결 방법</span>
+<span class="annotation">@Autowired</span>
+<span class="keyword">private</span> <span class="type">PaymentService</span> kakaoPaymentService; <span class="comment">// 필드명 = 빈 이름으로 매칭</span>
+
+<span class="annotation">@Autowired</span>
+<span class="annotation">@Qualifier</span>(<span class="string">"kakaoPaymentService"</span>)
+<span class="keyword">private</span> <span class="type">PaymentService</span> paymentService; <span class="comment">// 명시적 이름 지정</span></pre>
+      <p>내부적으로 Spring은 <code>AutowiredAnnotationBeanPostProcessor</code>라는 <strong>BeanPostProcessor</strong>를 통해 빈 생성 후 @Autowired 처리를 수행합니다. 이것이 바로 Spring AOP, 트랜잭션 등 다양한 기능도 BeanPostProcessor 패턴으로 동작하는 이유입니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">@Qualifier와 @Primary의 차이와 사용법을 설명해주세요.</div>
+    <div class="qa-a">
+      <p>같은 타입의 빈이 여러 개일 때 어떤 빈을 주입할지 결정하는 두 가지 방법입니다.</p>
+      <pre><span class="annotation">@Component</span>
+<span class="annotation">@Primary</span> <span class="comment">// 같은 타입에서 기본으로 선택될 빈</span>
+<span class="keyword">public class</span> <span class="type">KakaoPaymentService</span> <span class="keyword">implements</span> <span class="type">PaymentService</span> { ... }
+
+<span class="annotation">@Component</span>
+<span class="keyword">public class</span> <span class="type">TossPaymentService</span> <span class="keyword">implements</span> <span class="type">PaymentService</span> { ... }
+
+<span class="comment">// @Primary — 특별히 지정 안 하면 KakaoPaymentService가 주입됨</span>
+<span class="annotation">@Autowired</span>
+<span class="keyword">private</span> <span class="type">PaymentService</span> paymentService; <span class="comment">// → KakaoPaymentService</span>
+
+<span class="comment">// @Qualifier — 명시적으로 특정 빈 지정 (@Primary보다 우선순위 높음)</span>
+<span class="annotation">@Autowired</span>
+<span class="annotation">@Qualifier</span>(<span class="string">"tossPaymentService"</span>)
+<span class="keyword">private</span> <span class="type">PaymentService</span> paymentService; <span class="comment">// → TossPaymentService</span></pre>
+      <table>
+        <tr><th>구분</th><th>@Primary</th><th>@Qualifier</th></tr>
+        <tr><td>선언 위치</td><td>빈 클래스/메서드에 선언</td><td>주입받는 곳에 선언</td></tr>
+        <tr><td>범위</td><td>해당 타입의 전역 기본값</td><td>특정 주입 지점에만 적용</td></tr>
+        <tr><td>우선순위</td><td>낮음 (기본값 역할)</td><td>높음 (@Primary보다 우선)</td></tr>
+        <tr><td>사용 상황</td><td>주로 사용될 구현체 지정</td><td>특정 위치에서 다른 구현체 사용</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">의존성 주입 시 인터페이스를 사용하는 이유는 무엇인가요?</div>
+    <div class="qa-a">
+      <p>인터페이스로 의존성을 선언하면 <strong>DIP(의존 역전 원칙, Dependency Inversion Principle)</strong>을 만족합니다. 고수준 모듈이 저수준 구현에 직접 의존하지 않고, 둘 다 추상화(인터페이스)에 의존합니다.</p>
+      <pre><span class="comment">// 구현체에 의존 — 나쁜 예</span>
+<span class="keyword">private</span> <span class="type">MySQLOrderRepository</span> repository; <span class="comment">// MySQL로 고정됨</span>
+
+<span class="comment">// 인터페이스에 의존 — 좋은 예</span>
+<span class="keyword">private</span> <span class="type">OrderRepository</span> repository; <span class="comment">// 구현체 교체에 자유로움</span></pre>
+      <p>인터페이스를 사용하는 구체적 이점: ① <strong>OCP(개방-폐쇄 원칙)</strong>: 새 구현체를 추가해도 사용하는 코드를 수정하지 않아도 됩니다. ② <strong>테스트 용이성</strong>: 테스트 시 Mock 객체로 교체가 쉽습니다. ③ <strong>Spring AOP 적용</strong>: Spring은 인터페이스가 있을 때 JDK Dynamic Proxy를 사용하여 프록시를 생성합니다(트랜잭션, AOP 등이 동작하려면 프록시가 필요).</p>
+      <div class="hl grn">실무 팁: 구현체가 하나뿐이어서 인터페이스가 과하다고 느낄 수 있지만, <strong>테스트 가능성</strong>과 <strong>AOP 호환성</strong> 때문에 Service 레이어에는 인터페이스를 두는 것이 관례입니다. 다만 Repository는 Spring Data JPA 인터페이스 자체가 추상화 역할을 하므로 별도 인터페이스가 필요하지 않습니다.</div>
+    </div>
+  </div>
+
+</div><!-- #p1 -->
+
+<!-- ═══ TAB: Part 2 ═══ -->
+<div id="p2" class="tab-content">
+
+  <div class="category">Part 2 — Bean · Spring Bean의 등록 방법, 생명주기, 스코프, 주의사항을 이해합니다.</div>
+
+  <div class="qa-card">
+    <div class="qa-q">Spring Bean이란 무엇인가요?</div>
+    <div class="qa-a">
+      <p><strong>Spring Bean</strong>은 <strong>Spring IoC 컨테이너가 관리하는 자바 객체</strong>입니다. 일반 자바 객체(<code>new ClassName()</code>로 생성)와 달리, 스프링 빈은 컨테이너가 생성, 의존성 주입, 초기화, 소멸 전 과정을 관리합니다.</p>
+      <p>비유하면, 일반 객체는 직접 채용한 프리랜서이고, 스프링 빈은 회사(컨테이너)가 정규직으로 채용하고 관리하는 직원입니다. 회사가 출퇴근, 업무 지시, 퇴직 절차를 모두 관리합니다.</p>
+      <p>스프링 빈으로 관리되면 얻는 혜택: ① <strong>자동 의존성 주입(@Autowired)</strong>. ② <strong>AOP 적용</strong> (트랜잭션, 로깅 등). ③ <strong>생명주기 콜백</strong> (@PostConstruct, @PreDestroy). ④ <strong>스코프 관리</strong> (싱글톤, 프로토타입 등).</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">Bean 등록 방법 — @Component, @Bean, @Configuration의 차이를 설명해주세요.</div>
+    <div class="qa-a">
+      <pre><span class="comment">// 1. @Component 계열 — 클래스에 직접 붙여 자동 등록 (컴포넌트 스캔)</span>
+<span class="annotation">@Component</span>   <span class="comment">// 범용</span>
+<span class="annotation">@Service</span>     <span class="comment">// 비즈니스 로직 레이어 (의미상 구분)</span>
+<span class="annotation">@Repository</span> <span class="comment">// 데이터 접근 레이어 + 예외 변환</span>
+<span class="annotation">@Controller</span> <span class="comment">// 웹 레이어</span>
+<span class="annotation">@RestController</span> <span class="comment">// @Controller + @ResponseBody</span>
+
+<span class="annotation">@Service</span>
+<span class="keyword">public class</span> <span class="type">OrderService</span> { ... } <span class="comment">// 자동으로 빈 등록됨</span>
+
+<span class="comment">// 2. @Bean — @Configuration 클래스 내 메서드에 붙여 수동 등록</span>
+<span class="annotation">@Configuration</span>
+<span class="keyword">public class</span> <span class="type">AppConfig</span> {
+
+    <span class="annotation">@Bean</span>
+    <span class="keyword">public</span> <span class="type">ObjectMapper</span> objectMapper() {
+        <span class="keyword">return new</span> <span class="type">ObjectMapper</span>()
+            .configure(<span class="type">DeserializationFeature</span>.FAIL_ON_UNKNOWN_PROPERTIES, <span class="keyword">false</span>);
+    }
+
+    <span class="annotation">@Bean</span>
+    <span class="keyword">public</span> <span class="type">RestTemplate</span> restTemplate() {
+        <span class="keyword">return new</span> <span class="type">RestTemplate</span>();
+    }
+}</pre>
+      <table>
+        <tr><th>구분</th><th>@Component</th><th>@Bean</th></tr>
+        <tr><td>선언 위치</td><td>클래스에 직접</td><td>@Configuration 클래스 내 메서드</td></tr>
+        <tr><td>빈 생성 제어</td><td>제한적 (클래스 생성자만)</td><td>자유롭게 커스터마이징 가능</td></tr>
+        <tr><td>외부 라이브러리</td><td>불가 (소스 수정 불가)</td><td>가능 (ObjectMapper, RestTemplate 등)</td></tr>
+        <tr><td>적합한 상황</td><td>직접 만든 클래스</td><td>외부 라이브러리, 복잡한 초기화 필요 시</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">Bean 생명주기 — 생성부터 소멸까지의 과정을 설명해주세요.</div>
+    <div class="qa-a">
+      <p>스프링 빈의 생명주기는 다음 순서로 진행됩니다.</p>
+      <div class="diagram-box">
+        <div class="flow-wrap">
+          <div class="flow-box">1. 인스턴스화<br><small>객체 생성(new)</small></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box">2. 의존성 주입<br><small>@Autowired</small></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box">3. 초기화 콜백<br><small>@PostConstruct</small></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box">4. 사용</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box">5. 소멸 콜백<br><small>@PreDestroy</small></div>
+        </div>
+        <div class="diagram-label">Spring Bean 생명주기</div>
+      </div>
+      <pre><span class="annotation">@Component</span>
+<span class="keyword">public class</span> <span class="type">DatabaseConnectionPool</span> {
+
+    <span class="annotation">@Autowired</span>
+    <span class="keyword">private</span> <span class="type">DataSourceProperties</span> props;
+
+    <span class="annotation">@PostConstruct</span> <span class="comment">// 의존성 주입 완료 후 호출 — 초기화 로직</span>
+    <span class="keyword">public void</span> init() {
+        <span class="comment">// props가 이미 주입되어 있어 안전하게 사용 가능</span>
+        connectToDatabase(props.getUrl());
+    }
+
+    <span class="annotation">@PreDestroy</span> <span class="comment">// 컨테이너 종료 직전 호출 — 자원 해제 로직</span>
+    <span class="keyword">public void</span> destroy() {
+        closeAllConnections();
+    }
+}</pre>
+      <p>@PostConstruct와 @PreDestroy는 JSR-250 표준 어노테이션이므로 Spring에 종속되지 않아 권장됩니다. 이외에 <code>InitializingBean</code> 인터페이스의 <code>afterPropertiesSet()</code>이나 @Bean의 <code>initMethod/destroyMethod</code> 속성도 사용 가능하지만, @PostConstruct가 가장 일반적입니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">Bean Scope의 종류와 각각의 특징을 설명해주세요.</div>
+    <div class="qa-a">
+      <table>
+        <tr><th>스코프</th><th>인스턴스 생성</th><th>적합한 상황</th></tr>
+        <tr><td><strong>singleton</strong> (기본)</td><td>컨테이너당 1개</td><td>대부분의 빈 (무상태 서비스, 레포지토리)</td></tr>
+        <tr><td><strong>prototype</strong></td><td>요청마다 새 인스턴스</td><td>상태를 가지는 객체, 매번 새 인스턴스 필요 시</td></tr>
+        <tr><td><strong>request</strong></td><td>HTTP 요청마다</td><td>요청별 컨텍스트 (Spring MVC)</td></tr>
+        <tr><td><strong>session</strong></td><td>HTTP 세션마다</td><td>사용자 세션 데이터</td></tr>
+        <tr><td><strong>application</strong></td><td>ServletContext당 1개</td><td>애플리케이션 전체 공유 데이터</td></tr>
+      </table>
+      <pre><span class="annotation">@Component</span>
+<span class="annotation">@Scope</span>(<span class="string">"prototype"</span>)
+<span class="keyword">public class</span> <span class="type">ShoppingCart</span> { <span class="comment">// 요청마다 새 카트 생성</span>
+    <span class="keyword">private</span> <span class="type">List</span>&lt;<span class="type">Item</span>&gt; items = <span class="keyword">new</span> <span class="type">ArrayList</span>&lt;&gt;();
+}
+
+<span class="comment">// request 스코프 — HTTP 요청 단위로 하나의 빈</span>
+<span class="annotation">@Component</span>
+<span class="annotation">@Scope</span>(value = <span class="string">"request"</span>, proxyMode = <span class="type">ScopedProxyMode</span>.TARGET_CLASS)
+<span class="keyword">public class</span> <span class="type">RequestContext</span> {
+    <span class="keyword">private</span> <span class="type">String</span> requestId;
+}</pre>
+      <div class="hl org"><strong>prototype 주의점</strong>: prototype 빈은 Spring 컨테이너가 생성과 주입만 담당하고, 이후 관리는 하지 않습니다. <strong>@PreDestroy가 호출되지 않습니다.</strong> 자원 해제가 필요하다면 직접 처리해야 합니다.</div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">Singleton Bean에서 상태를 가지면 안 되는 이유는 무엇인가요?</div>
+    <div class="qa-a">
+      <p>Singleton 빈은 컨테이너당 하나의 인스턴스가 <strong>모든 스레드에서 공유</strong>됩니다. 이 인스턴스가 상태(instance variable)를 가지면 다음과 같은 동시성 문제가 발생합니다.</p>
+      <pre><span class="comment">// 위험한 코드 — 상태를 가진 싱글톤 빈</span>
+<span class="annotation">@Service</span>
+<span class="keyword">public class</span> <span class="type">OrderService</span> {
+    <span class="keyword">private</span> <span class="type">User</span> currentUser; <span class="comment">// 위험! 모든 요청이 공유</span>
+
+    <span class="keyword">public void</span> process(<span class="type">User</span> user) {
+        <span class="keyword">this</span>.currentUser = user; <span class="comment">// 스레드A가 설정</span>
+        <span class="comment">// 스레드B가 다른 user로 덮어쓸 수 있음!</span>
+        doProcess(currentUser);
+    }
+}
+
+<span class="comment">// 올바른 코드 — 로컬 변수 사용</span>
+<span class="annotation">@Service</span>
+<span class="keyword">public class</span> <span class="type">OrderService</span> {
+    <span class="keyword">public void</span> process(<span class="type">User</span> user) {
+        <span class="comment">// user는 스택(메서드 파라미터)에 저장 → 스레드 독립적</span>
+        doProcess(user);
+    }
+}</pre>
+      <p>규칙: Singleton 빈의 필드는 <strong>무상태(stateless)</strong>이거나 <strong>불변(final, 읽기 전용)</strong>이어야 합니다. 요청별 상태가 필요하다면 메서드 파라미터나 로컬 변수를 사용하고, 부득이한 경우 <strong>ThreadLocal</strong>을 활용합니다.</p>
+    </div>
+  </div>
+
+</div><!-- #p2 -->
+
+<!-- ═══ TAB: Part 3 ═══ -->
+<div id="p3" class="tab-content">
+
+  <div class="category">Part 3 — AOP · 관점 지향 프로그래밍의 개념, Spring AOP의 프록시 방식, 실무 활용을 이해합니다.</div>
+
+  <div class="qa-card">
+    <div class="qa-q">AOP(관점 지향 프로그래밍)란 무엇인가요?</div>
+    <div class="qa-a">
+      <p><strong>AOP(Aspect-Oriented Programming)</strong>는 <strong>횡단 관심사(Cross-Cutting Concern)를 핵심 비즈니스 로직에서 분리</strong>하는 프로그래밍 패러다임입니다.</p>
+      <p>횡단 관심사란 로깅, 트랜잭션, 보안 인증, 성능 측정처럼 여러 비즈니스 메서드에 <strong>공통으로 반복 적용</strong>되는 코드입니다. AOP가 없다면 이 코드를 모든 메서드에 직접 삽입해야 합니다.</p>
+      <div class="diagram-box">
+        <div class="flow-wrap">
+          <div class="flow-box">OrderService<br><small>주문 로직</small></div>
+          <div class="flow-box">UserService<br><small>회원 로직</small></div>
+          <div class="flow-box">PaymentService<br><small>결제 로직</small></div>
+        </div>
+        <div class="flow-wrap" style="margin-top:8px">
+          <div class="flow-box hl">Aspect<br><small>로깅 / 트랜잭션 / 인증</small></div>
+        </div>
+        <div class="diagram-label">AOP — 횡단 관심사를 Aspect로 분리하여 각 서비스에 적용</div>
+      </div>
+      <p>AOP를 사용하면 비즈니스 로직 코드에 공통 코드가 없어지므로 <strong>단일 책임 원칙(SRP)</strong>을 더 잘 지킬 수 있고, 공통 로직의 변경이 한 곳(Aspect)에서만 이루어집니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">AOP 핵심 개념 — Aspect, Advice, Pointcut, JoinPoint, Weaving을 설명해주세요.</div>
+    <div class="qa-a">
+      <table>
+        <tr><th>용어</th><th>의미</th><th>비유</th></tr>
+        <tr><td><strong>Aspect</strong></td><td>횡단 관심사를 모듈화한 것. Advice + Pointcut의 묶음</td><td>보안 요원 부서 전체</td></tr>
+        <tr><td><strong>Advice</strong></td><td>실제 실행할 부가 로직 (언제 무엇을 할지)</td><td>보안 요원이 하는 행동</td></tr>
+        <tr><td><strong>Pointcut</strong></td><td>Advice를 적용할 지점을 정의하는 표현식</td><td>보안 검사 대상 구역 선택</td></tr>
+        <tr><td><strong>JoinPoint</strong></td><td>Advice가 적용될 수 있는 모든 지점 (메서드 실행, 예외 발생 등)</td><td>보안 검사가 가능한 모든 출입구</td></tr>
+        <tr><td><strong>Weaving</strong></td><td>Aspect를 대상 객체에 적용하는 과정</td><td>보안 시스템 설치</td></tr>
+        <tr><td><strong>Target</strong></td><td>Advice가 적용되는 실제 객체</td><td>보안 검사 대상</td></tr>
+      </table>
+      <pre><span class="annotation">@Aspect</span>
+<span class="annotation">@Component</span>
+<span class="keyword">public class</span> <span class="type">LoggingAspect</span> {
+
+    <span class="comment">// Pointcut: service 패키지의 모든 public 메서드</span>
+    <span class="annotation">@Pointcut</span>(<span class="string">"execution(public * com.example.service.*.*(..))"</span>)
+    <span class="keyword">public void</span> serviceLayer() {}
+
+    <span class="comment">// Advice: 메서드 실행 전후</span>
+    <span class="annotation">@Around</span>(<span class="string">"serviceLayer()"</span>)
+    <span class="keyword">public</span> <span class="type">Object</span> logExecutionTime(<span class="type">ProceedingJoinPoint</span> pjp) <span class="keyword">throws</span> <span class="type">Throwable</span> {
+        <span class="keyword">long</span> start = <span class="type">System</span>.currentTimeMillis();
+        <span class="type">Object</span> result = pjp.proceed(); <span class="comment">// 실제 메서드 실행 (JoinPoint)</span>
+        <span class="keyword">long</span> elapsed = <span class="type">System</span>.currentTimeMillis() - start;
+        log.info(<span class="string">"{} executed in {}ms"</span>, pjp.getSignature(), elapsed);
+        <span class="keyword">return</span> result;
+    }
+}</pre>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">Advice 종류(@Before, @After, @Around 등)를 각각 설명해주세요.</div>
+    <div class="qa-a">
+      <table>
+        <tr><th>Advice</th><th>실행 시점</th><th>주요 용도</th></tr>
+        <tr><td><strong>@Before</strong></td><td>메서드 실행 전</td><td>파라미터 검증, 인증 확인</td></tr>
+        <tr><td><strong>@After</strong></td><td>메서드 실행 후 (성공/예외 무관)</td><td>자원 해제, 로그 기록</td></tr>
+        <tr><td><strong>@AfterReturning</strong></td><td>메서드 정상 반환 후</td><td>반환값 로깅, 결과 캐싱</td></tr>
+        <tr><td><strong>@AfterThrowing</strong></td><td>예외 발생 후</td><td>예외 로깅, 알림 발송</td></tr>
+        <tr><td><strong>@Around</strong></td><td>전체 (Before + After + 예외 모두 제어)</td><td>성능 측정, 트랜잭션, 재시도</td></tr>
+      </table>
+      <pre><span class="annotation">@Before</span>(<span class="string">"execution(* com.example.service.*.*(..))"</span>)
+<span class="keyword">public void</span> checkAuth(<span class="type">JoinPoint</span> jp) {
+    <span class="comment">// jp.getArgs()로 파라미터 접근 가능</span>
+    <span class="keyword">if</span> (!isAuthenticated()) <span class="keyword">throw new</span> <span class="type">UnauthorizedException</span>();
+}
+
+<span class="annotation">@AfterReturning</span>(pointcut = <span class="string">"execution(* getUser(..))"</span>, returning = <span class="string">"result"</span>)
+<span class="keyword">public void</span> logResult(<span class="type">JoinPoint</span> jp, <span class="type">Object</span> result) {
+    log.info(<span class="string">"Result: {}"</span>, result); <span class="comment">// 반환값 접근 가능</span>
+}
+
+<span class="annotation">@AfterThrowing</span>(pointcut = <span class="string">"execution(* pay(..))"</span>, throwing = <span class="string">"ex"</span>)
+<span class="keyword">public void</span> handleException(<span class="type">JoinPoint</span> jp, <span class="type">Exception</span> ex) {
+    alertTeam(ex); <span class="comment">// 예외 정보 접근 가능</span>
+}</pre>
+      <p><strong>@Around</strong>가 가장 강력하며, <code>pjp.proceed()</code>를 직접 호출하므로 실행 자체를 막거나 반환값을 수정할 수도 있습니다. 단, proceed()를 잊으면 실제 메서드가 실행되지 않으므로 주의해야 합니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">Spring AOP vs AspectJ의 차이를 설명해주세요.</div>
+    <div class="qa-a">
+      <table>
+        <tr><th>구분</th><th>Spring AOP</th><th>AspectJ</th></tr>
+        <tr><td>Weaving 방식</td><td>런타임 프록시 (런타임 위빙)</td><td>컴파일 타임 / 로드 타임 위빙</td></tr>
+        <tr><td>JoinPoint 지원</td><td>메서드 실행만</td><td>필드 접근, 생성자, static 메서드 등 모두</td></tr>
+        <tr><td>Self-Invocation</td><td>동작 안 함 (프록시 우회)</td><td>동작 함 (바이트코드 직접 수정)</td></tr>
+        <tr><td>Spring Bean 필요</td><td>필요 (빈에만 적용)</td><td>불필요 (모든 객체 적용 가능)</td></tr>
+        <tr><td>성능</td><td>약간의 런타임 오버헤드</td><td>컴파일 시 적용, 런타임 오버헤드 없음</td></tr>
+        <tr><td>설정 복잡도</td><td>낮음 (Spring Boot 자동 설정)</td><td>높음 (컴파일러, 에이전트 설정 필요)</td></tr>
+      </table>
+      <p>실무에서는 <strong>Spring AOP로 충분한 경우가 대부분</strong>입니다. AspectJ는 Spring 빈이 아닌 도메인 객체에 AOP를 적용하거나, self-invocation 문제를 해결해야 할 때 사용합니다. Spring Boot에서 <code>spring-boot-starter-aop</code>를 추가하면 Spring AOP(AspectJ 문법을 차용)가 활성화됩니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">Spring AOP의 프록시 방식 — JDK Dynamic Proxy vs CGLIB의 차이를 설명해주세요.</div>
+    <div class="qa-a">
+      <p>Spring AOP는 실제 빈을 감싸는 <strong>프록시 객체</strong>를 만들어 메서드 호출을 가로챕니다. 두 가지 프록시 방식이 있습니다.</p>
+      <div class="diagram-box">
+        <div class="flow-wrap">
+          <div class="flow-box">호출자</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box hl">Proxy 객체<br><small>(가로채기)</small></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box">실제 빈<br><small>(Target)</small></div>
+        </div>
+        <div class="diagram-label">Spring AOP 프록시 동작 구조</div>
+      </div>
+      <table>
+        <tr><th>구분</th><th>JDK Dynamic Proxy</th><th>CGLIB</th></tr>
+        <tr><td>조건</td><td>인터페이스 구현 필요</td><td>클래스만 있어도 가능</td></tr>
+        <tr><td>원리</td><td>java.lang.reflect.Proxy — 인터페이스 기반 프록시</td><td>바이트코드 조작으로 서브클래스 생성</td></tr>
+        <tr><td>final 클래스/메서드</td><td>해당 없음</td><td>적용 불가 (상속 기반)</td></tr>
+        <tr><td>Spring Boot 기본</td><td>아니오</td><td>예 (Spring Boot 2.x+부터 기본)</td></tr>
+      </table>
+      <pre><span class="comment">// JDK Dynamic Proxy — 인터페이스 타입으로만 주입 가능</span>
+<span class="type">OrderService</span> service = context.getBean(<span class="type">OrderService</span>.class);  <span class="comment">// OK</span>
+<span class="type">OrderServiceImpl</span> impl = context.getBean(<span class="type">OrderServiceImpl</span>.class); <span class="comment">// 실패!</span>
+
+<span class="comment">// CGLIB — 구체 클래스 타입으로도 주입 가능</span>
+<span class="type">OrderServiceImpl</span> impl = context.getBean(<span class="type">OrderServiceImpl</span>.class); <span class="comment">// OK</span></pre>
+      <p>Spring Boot 2.x부터 <code>spring.aop.proxy-target-class=true</code>가 기본값이어서 CGLIB를 기본으로 사용합니다. <strong>Self-Invocation 문제</strong>: 같은 클래스 내에서 메서드를 호출하면 프록시를 거치지 않아 AOP가 동작하지 않습니다. 해결법은 self 주입(@Autowired로 자기 자신 주입)하거나, AopContext.currentProxy()를 사용합니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">AOP 실무 활용 사례를 설명해주세요.</div>
+    <div class="qa-a">
+      <p>Spring에서 AOP가 실제로 사용되는 대표적인 사례들입니다.</p>
+      <pre><span class="comment">// 1. 트랜잭션 — @Transactional의 내부 구현이 AOP</span>
+<span class="annotation">@Transactional</span>
+<span class="keyword">public void</span> transfer(<span class="type">Long</span> from, <span class="type">Long</span> to, <span class="type">BigDecimal</span> amount) {
+    <span class="comment">// AOP가 메서드 전: beginTransaction()</span>
+    <span class="comment">// AOP가 메서드 후: commit() 또는 rollback()</span>
+}
+
+<span class="comment">// 2. 커스텀 로깅 Aspect — 모든 API 요청 자동 로깅</span>
+<span class="annotation">@Around</span>(<span class="string">"@annotation(org.springframework.web.bind.annotation.GetMapping)"</span>)
+<span class="keyword">public</span> <span class="type">Object</span> logApiCall(<span class="type">ProceedingJoinPoint</span> pjp) <span class="keyword">throws</span> <span class="type">Throwable</span> {
+    log.info(<span class="string">"API: {}"</span>, pjp.getSignature());
+    <span class="keyword">return</span> pjp.proceed();
+}
+
+<span class="comment">// 3. 커스텀 어노테이션으로 권한 확인</span>
+<span class="annotation">@Target</span>(<span class="type">ElementType</span>.METHOD)
+<span class="annotation">@Retention</span>(<span class="type">RetentionPolicy</span>.RUNTIME)
+<span class="keyword">public @interface</span> <span class="type">AdminOnly</span> {}
+
+<span class="annotation">@Before</span>(<span class="string">"@annotation(AdminOnly)"</span>)
+<span class="keyword">public void</span> checkAdmin() {
+    <span class="keyword">if</span> (!SecurityUtils.isAdmin()) <span class="keyword">throw new</span> <span class="type">ForbiddenException</span>();
+}</pre>
+      <p>실무에서 AOP를 사용하면 좋은 영역: ① <strong>성능 모니터링</strong> (메서드 실행 시간 측정). ② <strong>분산 추적</strong> (Trace ID 로그 삽입). ③ <strong>캐싱</strong> (@Cacheable 내부도 AOP). ④ <strong>재시도 로직</strong> (@Retryable). ⑤ <strong>API 호출 제한</strong> (Rate Limiting).</p>
+    </div>
+  </div>
+
+</div><!-- #p3 -->
+
+<!-- ═══ TAB: Part 4 ═══ -->
+<div id="p4" class="tab-content">
+
+  <div class="category">Part 4 — 심화 · 순환 참조, @Configuration CGLIB, BeanFactory vs ApplicationContext, 자동 설정 원리를 이해합니다.</div>
+
+  <div class="qa-card">
+    <div class="qa-q">순환 참조(Circular Dependency)란 무엇이고, 어떻게 해결하나요?</div>
+    <div class="qa-a">
+      <p><strong>순환 참조</strong>는 A → B → A처럼 두 빈이 서로를 의존하는 상황입니다. Spring에서는 이를 어떻게 처리하는지가 주입 방식에 따라 달라집니다.</p>
+      <pre><span class="comment">// 순환 참조 예시</span>
+<span class="annotation">@Service</span>
+<span class="keyword">public class</span> <span class="type">ServiceA</span> {
+    <span class="keyword">private final</span> <span class="type">ServiceB</span> serviceB; <span class="comment">// A는 B가 필요</span>
+    <span class="keyword">public</span> <span class="type">ServiceA</span>(<span class="type">ServiceB</span> serviceB) { <span class="keyword">this</span>.serviceB = serviceB; }
+}
+
+<span class="annotation">@Service</span>
+<span class="keyword">public class</span> <span class="type">ServiceB</span> {
+    <span class="keyword">private final</span> <span class="type">ServiceA</span> serviceA; <span class="comment">// B는 A가 필요</span>
+    <span class="keyword">public</span> <span class="type">ServiceB</span>(<span class="type">ServiceA</span> serviceA) { <span class="keyword">this</span>.serviceA = serviceA; }
+}
+<span class="comment">// Spring Boot 2.6+ 기본: BeanCurrentlyInCreationException 발생!</span></pre>
+      <p>해결 방법 세 가지:</p>
+      <pre><span class="comment">// 해결 1: 설계 개선 — 공통 의존 추출 (권장)</span>
+<span class="comment">// ServiceA, ServiceB 모두 의존하는 공통 로직을 ServiceC로 분리</span>
+
+<span class="comment">// 해결 2: @Lazy — 지연 주입으로 순환 고리 끊기</span>
+<span class="annotation">@Service</span>
+<span class="keyword">public class</span> <span class="type">ServiceA</span> {
+    <span class="keyword">private final</span> <span class="type">ServiceB</span> serviceB;
+    <span class="keyword">public</span> <span class="type">ServiceA</span>(<span class="annotation">@Lazy</span> <span class="type">ServiceB</span> serviceB) {
+        <span class="keyword">this</span>.serviceB = serviceB; <span class="comment">// 실제 사용 시점에 초기화</span>
+    }
+}
+
+<span class="comment">// 해결 3: 세터/필드 주입으로 변경 (비권장)</span>
+<span class="comment">// 필드 주입 시 Spring이 "3단계 캐시"로 처리 가능하지만</span>
+<span class="comment">// 이는 잘못된 설계를 숨기는 것에 불과</span></pre>
+      <div class="hl red"><strong>근본 해결책</strong>: 순환 참조는 대부분 <strong>설계 문제의 신호</strong>입니다. @Lazy로 숨기기보다 의존성 방향을 재설계하는 것이 최선입니다. 공통 로직을 새 클래스로 추출하거나, 이벤트(ApplicationEvent)로 의존 방향을 역전시키는 방법도 있습니다.</div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">@Configuration의 CGLIB 프록시 동작 원리를 설명해주세요.</div>
+    <div class="qa-a">
+      <p><strong>@Configuration</strong>은 단순한 마커 어노테이션이 아닙니다. Spring은 @Configuration 클래스를 <strong>CGLIB로 프록싱</strong>하여 @Bean 메서드 간 호출이 항상 싱글톤 빈을 반환하도록 보장합니다.</p>
+      <pre><span class="annotation">@Configuration</span>
+<span class="keyword">public class</span> <span class="type">AppConfig</span> {
+
+    <span class="annotation">@Bean</span>
+    <span class="keyword">public</span> <span class="type">MemberService</span> memberService() {
+        <span class="keyword">return new</span> <span class="type">MemberService</span>(memberRepository()); <span class="comment">// 메서드 직접 호출</span>
+    }
+
+    <span class="annotation">@Bean</span>
+    <span class="keyword">public</span> <span class="type">OrderService</span> orderService() {
+        <span class="keyword">return new</span> <span class="type">OrderService</span>(memberRepository()); <span class="comment">// 메서드 직접 호출</span>
+    }
+
+    <span class="annotation">@Bean</span>
+    <span class="keyword">public</span> <span class="type">MemberRepository</span> memberRepository() {
+        <span class="keyword">return new</span> <span class="type">MemoryMemberRepository</span>(); <span class="comment">// new가 3번 호출될 것 같지만?</span>
+    }
+}
+<span class="comment">// 실제로는 memberRepository()가 컨테이너에서 같은 빈을 반환 → 인스턴스 1개만 생성</span></pre>
+      <p>CGLIB 프록시가 @Bean 메서드 호출을 가로채서, 이미 컨테이너에 등록된 빈이 있으면 그것을 반환합니다. 덕분에 <code>memberRepository()</code>를 여러 번 호출해도 항상 동일한 인스턴스를 사용합니다.</p>
+      <div class="hl org"><strong>@Configuration vs @Component</strong>: @Bean 메서드를 @Component 클래스 안에 정의하면 CGLIB 프록시가 없어서 메서드 직접 호출 시 매번 새 객체가 생성됩니다. 이를 <strong>Lite Mode</strong>라고 합니다. @Bean 간 의존이 있으면 반드시 @Configuration을 사용해야 합니다.</div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">BeanFactory vs ApplicationContext — 차이점을 설명해주세요.</div>
+    <div class="qa-a">
+      <p>둘 다 Spring IoC 컨테이너이지만, ApplicationContext가 BeanFactory를 상속하고 더 많은 기능을 제공합니다.</p>
+      <table>
+        <tr><th>기능</th><th>BeanFactory</th><th>ApplicationContext</th></tr>
+        <tr><td>빈 관리</td><td>기본 DI 컨테이너</td><td>BeanFactory 모든 기능 포함</td></tr>
+        <tr><td>빈 초기화 시점</td><td>Lazy (getBean() 호출 시)</td><td>Eager (컨테이너 시작 시 싱글톤 즉시 생성)</td></tr>
+        <tr><td>이벤트 발행</td><td>없음</td><td>ApplicationEvent, ApplicationListener</td></tr>
+        <tr><td>국제화(i18n)</td><td>없음</td><td>MessageSource</td></tr>
+        <tr><td>환경/프로파일</td><td>없음</td><td>Environment, @Profile</td></tr>
+        <tr><td>AOP</td><td>제한적</td><td>완전 지원</td></tr>
+      </table>
+      <p>실무에서는 <strong>항상 ApplicationContext를 사용</strong>합니다. BeanFactory는 임베디드 기기 등 리소스가 극히 제한된 환경에서만 고려합니다. Spring Boot에서는 <code>SpringApplication.run()</code>이 내부적으로 <code>AnnotationConfigServletWebServerApplicationContext</code>(또는 Reactive 환경이면 다른 구현체)를 생성합니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">Spring의 Environment, Profile, Property 관리를 설명해주세요.</div>
+    <div class="qa-a">
+      <p><strong>Environment</strong>는 애플리케이션의 환경 정보(프로파일, 프로퍼티)를 추상화하는 인터페이스입니다.</p>
+      <pre><span class="comment">// 프로파일별 빈 등록</span>
+<span class="annotation">@Configuration</span>
+<span class="annotation">@Profile</span>(<span class="string">"prod"</span>) <span class="comment">// prod 환경에서만 활성화</span>
+<span class="keyword">public class</span> <span class="type">ProdDataSourceConfig</span> {
+    <span class="annotation">@Bean</span>
+    <span class="keyword">public</span> <span class="type">DataSource</span> dataSource() { <span class="keyword">return</span> createRDSDataSource(); }
+}
+
+<span class="annotation">@Configuration</span>
+<span class="annotation">@Profile</span>(<span class="string">"local"</span>)
+<span class="keyword">public class</span> <span class="type">LocalDataSourceConfig</span> {
+    <span class="annotation">@Bean</span>
+    <span class="keyword">public</span> <span class="type">DataSource</span> dataSource() { <span class="keyword">return</span> createH2DataSource(); }
+}
+
+<span class="comment">// application.yml에서 프로파일 지정</span>
+<span class="comment">// spring.profiles.active=prod</span>
+<span class="comment">// 또는 JVM 옵션: -Dspring.profiles.active=prod</span>
+
+<span class="comment">// 프로퍼티 읽기</span>
+<span class="annotation">@Value</span>(<span class="string">"${app.max-size:100}"</span>) <span class="comment">// 없으면 기본값 100</span>
+<span class="keyword">private int</span> maxSize;
+
+<span class="annotation">@ConfigurationProperties</span>(<span class="string">"app"</span>) <span class="comment">// 타입 안전 프로퍼티 바인딩 (권장)</span>
+<span class="annotation">@Component</span>
+<span class="keyword">public class</span> <span class="type">AppProperties</span> {
+    <span class="keyword">private int</span> maxSize;
+    <span class="keyword">private</span> <span class="type">String</span> name;
+    <span class="comment">// getter/setter</span>
+}</pre>
+      <p>프로퍼티 우선순위 (높을수록 우선): 커맨드라인 인수 > 환경 변수 > application-{profile}.yml > application.yml > @PropertySource. 실무에서 민감한 정보(DB 비밀번호, API 키)는 환경 변수나 AWS Secrets Manager 같은 외부 저장소에서 주입하는 것이 보안상 권장됩니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">Spring Boot 자동 설정(@EnableAutoConfiguration) 원리를 설명해주세요.</div>
+    <div class="qa-a">
+      <p>Spring Boot의 핵심 마법인 <strong>자동 설정(Auto-Configuration)</strong>은 클래스패스에 특정 라이브러리가 있으면 관련 빈을 자동으로 등록해주는 메커니즘입니다.</p>
+      <pre><span class="comment">// @SpringBootApplication = @SpringBootConfiguration + @EnableAutoConfiguration + @ComponentScan</span>
+<span class="annotation">@SpringBootApplication</span>
+<span class="keyword">public class</span> <span class="type">Application</span> {
+    <span class="keyword">public static void</span> main(<span class="type">String</span>[] args) {
+        <span class="type">SpringApplication</span>.run(<span class="type">Application</span>.<span class="keyword">class</span>, args);
+    }
+}</pre>
+      <p>동작 원리 단계별 설명:</p>
+      <p>① <code>@EnableAutoConfiguration</code>이 <code>AutoConfigurationImportSelector</code>를 활성화합니다.</p>
+      <p>② <code>AutoConfigurationImportSelector</code>는 클래스패스의 모든 JAR에서 <code>META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports</code> 파일(Spring Boot 2.7 이전은 spring.factories)을 읽습니다.</p>
+      <p>③ 이 파일에 등록된 수백 개의 AutoConfiguration 클래스 목록을 가져옵니다.</p>
+      <p>④ 각 AutoConfiguration 클래스에 붙은 <strong>@ConditionalOn*</strong> 어노테이션으로 실제 적용 여부를 결정합니다.</p>
+      <pre><span class="comment">// Spring Boot 내부 DataSourceAutoConfiguration 단순화 예시</span>
+<span class="annotation">@AutoConfiguration</span>
+<span class="annotation">@ConditionalOnClass</span>(<span class="type">DataSource</span>.<span class="keyword">class</span>) <span class="comment">// DataSource 클래스가 클래스패스에 있을 때만</span>
+<span class="annotation">@ConditionalOnMissingBean</span>(<span class="type">DataSource</span>.<span class="keyword">class</span>) <span class="comment">// 개발자가 직접 DataSource 빈을 정의하지 않았을 때만</span>
+<span class="annotation">@EnableConfigurationProperties</span>(<span class="type">DataSourceProperties</span>.<span class="keyword">class</span>)
+<span class="keyword">public class</span> <span class="type">DataSourceAutoConfiguration</span> {
+    <span class="annotation">@Bean</span>
+    <span class="keyword">public</span> <span class="type">DataSource</span> dataSource(<span class="type">DataSourceProperties</span> properties) {
+        <span class="keyword">return</span> properties.initializeDataSourceBuilder().build();
+    }
+}</pre>
+      <p>핵심: <strong>@ConditionalOnMissingBean</strong> 덕분에 개발자가 직접 빈을 정의하면 자동 설정이 비켜갑니다. 이것이 "Spring Boot는 기본값을 제공하되, 개발자가 오버라이드할 수 있다"는 철학의 구현입니다.</p>
+      <div class="tail-q">
+        <div class="tq-label">꼬리질문 대비</div>
+        <p>"어떤 자동 설정이 적용되는지 확인하는 방법은?" — <code>application.yml</code>에 <code>logging.level.org.springframework.boot.autoconfigure=DEBUG</code>를 추가하거나, <code>--debug</code> 옵션으로 실행하면 Conditions Evaluation Report가 출력되어 어떤 AutoConfiguration이 적용/제외되었는지 확인할 수 있습니다.</p>
+      </div>
+    </div>
+  </div>
+
+</div><!-- #p4 -->
+
+<div class="hl grn" style="margin-top:2rem"><strong>IoC</strong> = 제어권을 컨테이너에 위임. <strong>DI</strong> = 생성자 주입 권장 (불변성 + 테스트 + 조기 오류 감지)</div>
+<div class="hl org"><strong>Bean 생명주기</strong> = 생성 → 의존 주입 → @PostConstruct → 사용 → @PreDestroy → 소멸</div>
+<div class="hl blu"><strong>AOP</strong> = 횡단 관심사 분리. Spring AOP = 런타임 프록시 (JDK Dynamic / CGLIB)</div>
+<div class="hl"><strong>Singleton Bean</strong> = 상태(instance variable) 금지 — 모든 스레드 공유</div>
+<div class="hl pnk"><strong>순환 참조</strong> = 설계 문제의 신호. @Lazy 임시방편보다 설계 개선이 근본 해결</div>
+<div class="hl red"><strong>자동 설정</strong> = @ConditionalOn* + AutoConfiguration.imports. @ConditionalOnMissingBean으로 오버라이드</div>
+
+</div><!-- .content -->
+
+<script src="../js/main.js"></script>
+</body>
+</html>
