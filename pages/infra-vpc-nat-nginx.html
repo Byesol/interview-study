@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VPC · NAT · Nginx · RAG · Keep-Alive 면접 가이드</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div class="page-header">
+  <a href="../index.html" class="back-link">← 목록으로</a>
+  <h1>VPC · NAT · Nginx · RAG · Keep-Alive</h1>
+  <p>인프라 / 네트워크 / AI 면접 가이드 — 실전 Q&amp;A</p>
+</div>
+
+<div class="content">
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('p1',this)">Part 1 · VPC &amp; Subnet</button>
+    <button class="tab-btn" onclick="switchTab('p2',this)">Part 2 · NAT</button>
+    <button class="tab-btn" onclick="switchTab('p3',this)">Part 3 · Nginx</button>
+    <button class="tab-btn" onclick="switchTab('p4',this)">Part 4 · RAG</button>
+    <button class="tab-btn" onclick="switchTab('p5',this)">Part 5 · Keep-Alive</button>
+    <button class="tab-btn" onclick="switchTab('p6',this)">Part 6 · 꼬리질문</button>
+  </div>
+
+  <!-- ==================== PART 1: VPC & Subnet ==================== -->
+  <div class="tab-content active" id="p1">
+
+    <div class="qa-card">
+      <div class="qa-q">VPC(Virtual Private Cloud)란 무엇이고, 왜 필요한가요?</div>
+      <div class="qa-a">
+        <p>VPC는 <strong>클라우드 내에서 논리적으로 격리된 네트워크 공간</strong>입니다. 비유하자면 거대한 오피스 빌딩(AWS/GCP)에서 우리 회사만의 전용 층을 임대한 것과 같습니다. 같은 빌딩에 다른 회사(다른 계정)가 있지만, 우리 층에는 우리만 출입할 수 있습니다.</p>
+        <p>VPC가 필요한 이유는 <strong>보안 격리</strong>와 <strong>네트워크 제어</strong> 때문입니다. VPC를 사용하면 IP 대역(CIDR)을 직접 설정하고, 서브넷을 나누고, 라우팅 테이블과 보안 그룹으로 트래픽을 세밀하게 제어할 수 있습니다. 기본적으로 VPC 간에는 통신이 차단되므로, 멀티 테넌트 환경에서도 다른 고객의 리소스와 완전히 분리됩니다.</p>
+        <p>실무에서는 보통 <strong>10.0.0.0/16</strong> 같은 프라이빗 CIDR 블록을 할당하여 최대 65,536개의 IP를 사용할 수 있도록 구성합니다. 이 안에서 서브넷을 나누어 퍼블릭 영역과 프라이빗 영역을 분리하는 것이 기본 아키텍처 패턴입니다.</p>
+        <div class="tail-q">
+          <strong>꼬리질문 대비:</strong> "VPC 피어링과 Transit Gateway의 차이"를 물어볼 수 있습니다. 피어링은 1:1 연결이라 VPC가 많아지면 관리가 복잡해지고, Transit Gateway는 허브-스포크 모델로 중앙에서 관리합니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Public Subnet과 Private Subnet은 어떻게 다르고, 왜 분리하나요?</div>
+      <div class="qa-a">
+        <p>둘의 핵심 차이는 <strong>인터넷 게이트웨이(IGW)로의 라우팅이 있느냐 없느냐</strong>입니다. Public Subnet은 라우팅 테이블에 <code>0.0.0.0/0 → IGW</code> 경로가 있어서 인터넷과 직접 통신할 수 있고, Private Subnet에는 이 경로가 없어 외부에서 직접 접근이 불가능합니다.</p>
+        <p>분리하는 이유는 <strong>최소 권한 원칙(Principle of Least Privilege)</strong>을 네트워크 수준에서 적용하기 위해서입니다. 비유하자면 식당에서 홀(Public)과 주방(Private)을 나누는 것과 같습니다. 손님은 홀까지만 오고, 주방에는 직원만 들어갑니다. 마찬가지로 DB, 내부 API 서버, 캐시 서버 등은 Private Subnet에 두어 인터넷에 직접 노출되지 않게 합니다.</p>
+
+        <table>
+          <tr><th>구분</th><th>Public Subnet</th><th>Private Subnet</th></tr>
+          <tr><td>인터넷 접근</td><td>IGW 통해 직접 가능</td><td>불가 (NAT 통해 아웃바운드만)</td></tr>
+          <tr><td>Public IP</td><td>할당 가능</td><td>불필요 / 할당 안 함</td></tr>
+          <tr><td>배치 대상</td><td>ALB, Bastion Host, NAT GW</td><td>WAS, DB, Redis, 내부 서비스</td></tr>
+          <tr><td>보안 수준</td><td>상대적으로 낮음 (외부 노출)</td><td>높음 (외부 차단)</td></tr>
+        </table>
+
+        <p>실무에서는 보통 가용영역(AZ)마다 Public/Private 서브넷 쌍을 만들어 <strong>고가용성</strong>을 확보합니다. 예를 들어 2개 AZ라면 최소 4개 서브넷(Public 2 + Private 2)이 기본 구성이 됩니다.</p>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">VPC의 일반적인 아키텍처를 설명해 주세요.</div>
+      <div class="qa-a">
+        <div class="diagram-box">
+          <svg viewBox="0 0 700 360" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+            <rect x="10" y="10" width="680" height="340" rx="16" fill="none" stroke="#6c8cff" stroke-width="2" stroke-dasharray="6,4"/>
+            <text x="50" y="40" fill="#6c8cff" font-size="14" font-weight="700">VPC 10.0.0.0/16</text>
+            <!-- AZ-a -->
+            <rect x="40" y="60" width="290" height="270" rx="10" fill="rgba(108,140,255,.06)" stroke="#2e3348"/>
+            <text x="55" y="82" fill="#94a3b8" font-size="11">AZ-a</text>
+            <!-- Public -->
+            <rect x="60" y="95" width="250" height="70" rx="8" fill="rgba(52,211,153,.08)" stroke="#34d399"/>
+            <text x="75" y="115" fill="#34d399" font-size="12" font-weight="600">Public Subnet 10.0.1.0/24</text>
+            <rect x="80" y="125" width="70" height="28" rx="6" fill="#232736" stroke="#34d399"/>
+            <text x="92" y="144" fill="#34d399" font-size="11">ALB</text>
+            <rect x="165" y="125" width="70" height="28" rx="6" fill="#232736" stroke="#fbbf24"/>
+            <text x="172" y="144" fill="#fbbf24" font-size="11">NAT GW</text>
+            <!-- Private -->
+            <rect x="60" y="180" width="250" height="130" rx="8" fill="rgba(167,139,250,.08)" stroke="#a78bfa"/>
+            <text x="75" y="200" fill="#a78bfa" font-size="12" font-weight="600">Private Subnet 10.0.2.0/24</text>
+            <rect x="80" y="212" width="70" height="28" rx="6" fill="#232736" stroke="#a78bfa"/>
+            <text x="86" y="231" fill="#a78bfa" font-size="11">Nginx</text>
+            <rect x="165" y="212" width="60" height="28" rx="6" fill="#232736" stroke="#a78bfa"/>
+            <text x="177" y="231" fill="#a78bfa" font-size="11">WAS</text>
+            <rect x="80" y="260" width="70" height="28" rx="6" fill="#232736" stroke="#f87171"/>
+            <text x="98" y="279" fill="#f87171" font-size="11">DB</text>
+            <rect x="165" y="260" width="60" height="28" rx="6" fill="#232736" stroke="#f87171"/>
+            <text x="172" y="279" fill="#f87171" font-size="11">Redis</text>
+            <!-- AZ-b -->
+            <rect x="370" y="60" width="290" height="270" rx="10" fill="rgba(108,140,255,.06)" stroke="#2e3348"/>
+            <text x="385" y="82" fill="#94a3b8" font-size="11">AZ-b</text>
+            <rect x="390" y="95" width="250" height="70" rx="8" fill="rgba(52,211,153,.08)" stroke="#34d399"/>
+            <text x="405" y="115" fill="#34d399" font-size="12" font-weight="600">Public Subnet 10.0.3.0/24</text>
+            <rect x="410" y="125" width="70" height="28" rx="6" fill="#232736" stroke="#34d399"/>
+            <text x="422" y="144" fill="#34d399" font-size="11">ALB</text>
+            <rect x="495" y="125" width="70" height="28" rx="6" fill="#232736" stroke="#fbbf24"/>
+            <text x="502" y="144" fill="#fbbf24" font-size="11">NAT GW</text>
+            <rect x="390" y="180" width="250" height="130" rx="8" fill="rgba(167,139,250,.08)" stroke="#a78bfa"/>
+            <text x="405" y="200" fill="#a78bfa" font-size="12" font-weight="600">Private Subnet 10.0.4.0/24</text>
+            <rect x="410" y="212" width="70" height="28" rx="6" fill="#232736" stroke="#a78bfa"/>
+            <text x="416" y="231" fill="#a78bfa" font-size="11">Nginx</text>
+            <rect x="495" y="212" width="60" height="28" rx="6" fill="#232736" stroke="#a78bfa"/>
+            <text x="507" y="231" fill="#a78bfa" font-size="11">WAS</text>
+            <rect x="410" y="260" width="70" height="28" rx="6" fill="#232736" stroke="#f87171"/>
+            <text x="428" y="279" fill="#f87171" font-size="11">DB</text>
+            <rect x="495" y="260" width="60" height="28" rx="6" fill="#232736" stroke="#f87171"/>
+            <text x="502" y="279" fill="#f87171" font-size="11">Redis</text>
+            <!-- Internet -->
+            <text x="320" y="45" fill="#94a3b8" font-size="11" text-anchor="middle">↕ Internet Gateway</text>
+          </svg>
+        </div>
+        <p>위 다이어그램은 전형적인 2-AZ VPC 구성입니다. <strong>Public Subnet</strong>에는 ALB(Application Load Balancer)와 NAT Gateway를 배치하고, <strong>Private Subnet</strong>에는 Nginx(리버스 프록시), WAS(애플리케이션 서버), DB, 캐시 서버를 배치합니다. 외부 트래픽은 IGW → ALB → Private Subnet의 서버 순으로 흐르고, Private Subnet의 아웃바운드 트래픽(패키지 업데이트, 외부 API 호출 등)은 NAT Gateway를 거쳐 나갑니다.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ==================== PART 2: NAT ==================== -->
+  <div class="tab-content" id="p2">
+
+    <div class="qa-card">
+      <div class="qa-q">NAT가 무엇이고, 클라우드에서 왜 필요한가요?</div>
+      <div class="qa-a">
+        <p>NAT는 <strong>사설 IP 주소를 공인 IP 주소로 변환</strong>해주는 기술입니다. 비유하자면, 회사 내선 전화(사설 IP)로 외부에 전화를 걸 때 회사 대표번호(공인 IP)로 발신되는 것과 같습니다. 외부에서는 대표번호만 보이고 내선번호는 알 수 없습니다.</p>
+        <p>클라우드에서 NAT가 필요한 핵심 이유는, <strong>Private Subnet의 인스턴스가 인터넷에 접근해야 하는 경우가 있기 때문</strong>입니다. OS 패치, 외부 API 호출, NTP 시간 동기화, 패키지 다운로드 등이 대표적입니다. 하지만 동시에 외부에서 이 인스턴스에 직접 접근하는 것은 차단해야 합니다. NAT는 이 <strong>아웃바운드는 허용, 인바운드는 차단</strong>이라는 비대칭 통신을 가능하게 해줍니다.</p>
+        <div class="tail-q">
+          <strong>꼬리질문 대비:</strong> "NAT를 안 쓰고 Private Subnet에서 외부 통신을 할 수 있는 방법은?" — VPC Endpoint(S3, DynamoDB 등 AWS 서비스 접근), PrivateLink(다른 서비스와 프라이빗 연결) 등이 있습니다. 이들은 인터넷을 거치지 않아 더 안전하고 비용도 절감됩니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">NAT Gateway와 NAT Instance의 차이는?</div>
+      <div class="qa-a">
+        <p>AWS 기준으로, 둘 다 NAT 기능을 제공하지만 운영 방식이 크게 다릅니다.</p>
+        <table>
+          <tr><th>구분</th><th>NAT Gateway (관리형)</th><th>NAT Instance (EC2 기반)</th></tr>
+          <tr><td>관리</td><td>AWS가 관리 (패치, 가용성)</td><td>직접 EC2 운영 · 패치</td></tr>
+          <tr><td>가용성</td><td>AZ 내 자동 이중화</td><td>직접 HA 구성 필요</td></tr>
+          <tr><td>대역폭</td><td>최대 100 Gbps 자동 확장</td><td>인스턴스 타입에 의존</td></tr>
+          <tr><td>비용</td><td>시간당 + 데이터 처리 요금</td><td>EC2 비용 (저렴할 수 있음)</td></tr>
+          <tr><td>보안그룹</td><td>연결 불가 (NACL로 제어)</td><td>보안그룹 적용 가능</td></tr>
+          <tr><td>포트포워딩</td><td>불가</td><td>가능 (iptables)</td></tr>
+        </table>
+        <p>실무에서는 <strong>프로덕션 환경에서는 거의 100% NAT Gateway</strong>를 사용합니다. 관리 부담이 없고 자동 확장·이중화가 보장되기 때문입니다. 다만 비용이 걱정되는 개발/테스트 환경에서는 NAT Instance나 <strong>fck-nat</strong> 같은 경량 솔루션을 쓰기도 합니다. 면접에서는 "관리형 vs 비관리형의 trade-off를 이해하고 상황에 맞게 선택한다"는 점을 보여주는 것이 중요합니다.</p>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">NAT Gateway의 동작 원리를 설명해 주세요.</div>
+      <div class="qa-a">
+        <p>Private Subnet의 인스턴스(예: 10.0.2.10)가 외부 API(예: api.github.com)에 요청을 보낸다고 가정하겠습니다. 이때 흐름은 다음과 같습니다.</p>
+        <ol style="margin:12px 0; padding-left:0; counter-reset:step; list-style:none;">
+          <li style="counter-increment:step; padding:6px 0 6px 32px; position:relative;"><span style="position:absolute; left:0; width:22px; height:22px; background:#6c8cff; color:#0f1117; border-radius:50%; text-align:center; font-size:12px; font-weight:700; line-height:22px; display:inline-block;">1</span>인스턴스가 패킷을 보냅니다. 출발지: <code>10.0.2.10:54321</code>, 도착지: <code>140.82.121.3:443</code></li>
+          <li style="counter-increment:step; padding:6px 0 6px 32px; position:relative;"><span style="position:absolute; left:0; width:22px; height:22px; background:#6c8cff; color:#0f1117; border-radius:50%; text-align:center; font-size:12px; font-weight:700; line-height:22px; display:inline-block;">2</span>Private Subnet의 라우팅 테이블에 <code>0.0.0.0/0 → NAT Gateway</code>로 설정되어 있으므로, 패킷이 NAT Gateway로 전달됩니다.</li>
+          <li style="counter-increment:step; padding:6px 0 6px 32px; position:relative;"><span style="position:absolute; left:0; width:22px; height:22px; background:#6c8cff; color:#0f1117; border-radius:50%; text-align:center; font-size:12px; font-weight:700; line-height:22px; display:inline-block;">3</span>NAT Gateway가 출발지 IP를 자신의 <strong>Elastic IP(공인 IP)</strong>로 변환하고, 내부적으로 변환 테이블(Connection Tracking Table)에 매핑을 기록합니다.</li>
+          <li style="counter-increment:step; padding:6px 0 6px 32px; position:relative;"><span style="position:absolute; left:0; width:22px; height:22px; background:#6c8cff; color:#0f1117; border-radius:50%; text-align:center; font-size:12px; font-weight:700; line-height:22px; display:inline-block;">4</span>응답이 돌아오면, NAT Gateway가 변환 테이블을 조회하여 원래 인스턴스(10.0.2.10)로 패킷을 전달합니다.</li>
+        </ol>
+        <p>핵심은 이 과정에서 외부 서버는 NAT Gateway의 공인 IP만 알 뿐, <strong>Private Subnet 인스턴스의 사설 IP는 전혀 노출되지 않는다</strong>는 것입니다. 또한 외부에서 먼저 연결을 시도해도 변환 테이블에 매핑이 없으므로 패킷이 드롭됩니다.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ==================== PART 3: Nginx ==================== -->
+  <div class="tab-content" id="p3">
+
+    <div class="qa-card">
+      <div class="qa-q">Nginx란 무엇이고, Apache와 어떻게 다른가요?</div>
+      <div class="qa-a">
+        <p>Nginx는 <strong>이벤트 기반(Event-Driven) 비동기 아키텍처</strong>의 웹 서버이자 리버스 프록시입니다. Apache가 식당에서 손님 한 명당 웨이터 한 명을 배치하는 방식(프로세스/스레드 기반)이라면, Nginx는 한 명의 슈퍼 웨이터가 수십 개 테이블을 동시에 관리하는 방식입니다.</p>
+        <p>Apache는 기본적으로 <strong>prefork(프로세스)</strong>나 <strong>worker(스레드)</strong> MPM을 사용하여 각 연결마다 프로세스나 스레드를 할당합니다. 동시 접속이 수만 건으로 늘어나면 메모리 사용량이 급격히 증가합니다. 반면 Nginx는 소수의 워커 프로세스가 <strong>epoll/kqueue</strong> 같은 OS 이벤트 알림 메커니즘을 사용해 수천~수만 개의 동시 연결을 비동기로 처리합니다. 이 때문에 <strong>C10K 문제</strong>(동시 1만 연결 처리)를 해결하는 대표적인 솔루션으로 자리잡았습니다.</p>
+
+        <table>
+          <tr><th>구분</th><th>Nginx</th><th>Apache</th></tr>
+          <tr><td>아키텍처</td><td>이벤트 기반 비동기</td><td>프로세스/스레드 기반</td></tr>
+          <tr><td>동시 접속 처리</td><td>수만 연결도 적은 메모리</td><td>연결당 프로세스/스레드</td></tr>
+          <tr><td>정적 파일 처리</td><td>매우 빠름</td><td>상대적으로 느림</td></tr>
+          <tr><td>설정 반영</td><td>설정 파일 기반, reload</td><td>.htaccess 지원 (동적)</td></tr>
+          <tr><td>모듈</td><td>컴파일 시 포함 (동적 모듈도 지원)</td><td>런타임 동적 로드</td></tr>
+        </table>
+
+        <p>실무에서는 둘을 경쟁 관계보다는 <strong>조합</strong>해서 쓰기도 합니다. Nginx를 프론트(리버스 프록시)에 두고, 뒤에 Apache+PHP 같은 전통적 스택을 두는 구성도 흔합니다.</p>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Nginx의 리버스 프록시 역할을 설명해 주세요.</div>
+      <div class="qa-a">
+        <p>리버스 프록시란 <strong>클라이언트와 백엔드 서버 사이에서 중개자 역할</strong>을 하는 서버입니다. 비유하자면 호텔의 컨시어지 데스크와 같습니다. 고객(클라이언트)은 컨시어지(Nginx)에게 요청하고, 컨시어지가 적절한 직원(백엔드 서버)에게 전달한 뒤 결과를 고객에게 돌려줍니다. 고객은 뒤에서 누가 처리했는지 알 필요가 없습니다.</p>
+        <p>Nginx가 리버스 프록시로서 수행하는 핵심 기능은 다음과 같습니다. <strong>로드 밸런싱</strong>으로 여러 WAS에 트래픽을 분산하고, <strong>SSL Termination</strong>으로 HTTPS 처리를 Nginx에서 담당하여 백엔드 부담을 줄이며, <strong>캐싱</strong>으로 정적 컨텐츠를 Nginx 레벨에서 바로 응답하고, <strong>보안</strong> 측면에서 백엔드 서버의 IP와 구조를 외부에 숨깁니다.</p>
+<pre><code># 기본 리버스 프록시 설정 예시
+upstream backend {
+    server 10.0.2.10:8080;
+    server 10.0.2.11:8080;
+}
+
+server {
+    listen 80;
+    server_name api.example.com;
+
+    location / {
+        proxy_pass http://backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}</code></pre>
+        <p>위 설정에서 <code>proxy_set_header X-Real-IP</code>는 면접에서 자주 나오는 포인트입니다. Nginx가 중개하면 백엔드에는 Nginx의 IP가 찍히므로, 원래 클라이언트 IP를 전달하기 위해 이 헤더를 설정해야 합니다.</p>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Nginx의 로드 밸런싱 알고리즘은 어떤 것들이 있나요?</div>
+      <div class="qa-a">
+        <p>Nginx는 여러 로드 밸런싱 방식을 지원하며, 상황에 따라 적절한 것을 선택해야 합니다.</p>
+        <table>
+          <tr><th>알고리즘</th><th>설명</th><th>적합한 상황</th></tr>
+          <tr><td><strong>Round Robin</strong> (기본)</td><td>순서대로 돌아가며 배분</td><td>서버 성능이 동일할 때</td></tr>
+          <tr><td><strong>Weighted Round Robin</strong></td><td>가중치에 따라 배분</td><td>서버 스펙이 다를 때</td></tr>
+          <tr><td><strong>Least Connections</strong></td><td>현재 연결이 가장 적은 서버로</td><td>요청 처리 시간이 불균일할 때</td></tr>
+          <tr><td><strong>IP Hash</strong></td><td>클라이언트 IP로 해시하여 고정</td><td>세션 유지가 필요할 때</td></tr>
+        </table>
+        <p>면접관이 여기서 파고들 수 있는데요, "<strong>세션 유지가 필요하면 IP Hash를 쓰는 게 최선인가?</strong>"라는 질문이 올 수 있습니다. IP Hash는 특정 서버에 부하가 집중되는 문제가 있고, 프록시 뒤의 사용자는 같은 IP로 묶이므로, 실무에서는 <strong>Sticky Session(쿠키 기반)</strong>이나 아예 세션을 Redis 같은 외부 저장소로 분리하는 것이 더 나은 접근입니다.</p>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Nginx의 이벤트 기반 아키텍처는 내부적으로 어떻게 동작하나요?</div>
+      <div class="qa-a">
+        <p>Nginx는 <strong>Master-Worker 프로세스 모델</strong>로 동작합니다. Master 프로세스는 설정 파일을 읽고 워커 프로세스를 관리하는 역할만 하고, 실제 요청 처리는 Worker 프로세스가 담당합니다. 보통 Worker 수는 CPU 코어 수와 동일하게 설정합니다(<code>worker_processes auto;</code>).</p>
+        <p>각 Worker 프로세스는 하나의 스레드에서 <strong>이벤트 루프(Event Loop)</strong>를 돌며 수천 개의 연결을 비동기로 처리합니다. 리눅스에서는 <code>epoll</code>, BSD에서는 <code>kqueue</code>를 사용합니다. 연결마다 스레드를 만들지 않기 때문에 컨텍스트 스위칭 비용이 거의 없고, 메모리 사용량도 매우 적습니다. 이것이 Nginx가 적은 리소스로 대량의 동시 연결을 처리할 수 있는 비결입니다.</p>
+        <p>다만 Nginx에서 주의할 점은, <strong>블로킹 작업은 전체 워커를 멈출 수 있다</strong>는 것입니다. 예를 들어 디스크에서 큰 파일을 동기적으로 읽으면 해당 워커가 블로킹됩니다. 이를 방지하기 위해 <code>aio</code>(비동기 I/O)나 <code>sendfile</code>, 스레드 풀(<code>aio threads;</code>) 등을 활용합니다.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ==================== PART 4: RAG ==================== -->
+  <div class="tab-content" id="p4">
+
+    <div class="qa-card">
+      <div class="qa-q">RAG란 무엇이고, 왜 등장했나요?</div>
+      <div class="qa-a">
+        <p>RAG는 <strong>검색(Retrieval) + 생성(Generation)을 결합한 AI 아키텍처</strong>입니다. LLM이 학습하지 못한 최신 정보나 도메인 특화 데이터를 기반으로 답변을 생성할 수 있게 해줍니다. 비유하자면, 시험에서 오픈북이 허용된 것과 같습니다. 학생(LLM)이 모든 걸 외울 필요 없이, 필요할 때 교재(외부 데이터)를 찾아보고 답을 작성하는 방식입니다.</p>
+        <p>RAG가 등장한 배경에는 LLM의 근본적 한계가 있습니다. 첫째, <strong>지식 단절(Knowledge Cutoff)</strong> — LLM은 학습 시점 이후의 정보를 모릅니다. 둘째, <strong>환각(Hallucination)</strong> — 모르는 걸 그럴듯하게 지어냅니다. 셋째, <strong>도메인 특화 지식 부족</strong> — 사내 문서, 특정 제품 매뉴얼 등은 학습 데이터에 없습니다. RAG는 이 세 가지 문제를 검색 단계에서 관련 문서를 찾아와 컨텍스트로 제공함으로써 크게 완화합니다.</p>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">RAG의 전체 파이프라인을 설명해 주세요.</div>
+      <div class="qa-a">
+        <p>RAG 파이프라인은 크게 <strong>인덱싱 단계</strong>(오프라인)와 <strong>쿼리 단계</strong>(온라인)로 나뉩니다.</p>
+
+        <div class="diagram-box">
+          <svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+            <!-- Indexing -->
+            <text x="15" y="25" fill="#fbbf24" font-size="12" font-weight="700">① 인덱싱 (오프라인)</text>
+            <rect x="15" y="35" width="90" height="36" rx="6" fill="#232736" stroke="#fbbf24"/>
+            <text x="33" y="58" fill="#fbbf24" font-size="11">문서</text>
+            <text x="118" y="58" fill="#94a3b8" font-size="16">→</text>
+            <rect x="140" y="35" width="90" height="36" rx="6" fill="#232736" stroke="#fbbf24"/>
+            <text x="152" y="58" fill="#fbbf24" font-size="11">Chunking</text>
+            <text x="243" y="58" fill="#94a3b8" font-size="16">→</text>
+            <rect x="265" y="35" width="100" height="36" rx="6" fill="#232736" stroke="#fbbf24"/>
+            <text x="275" y="58" fill="#fbbf24" font-size="11">Embedding</text>
+            <text x="378" y="58" fill="#94a3b8" font-size="16">→</text>
+            <rect x="400" y="35" width="120" height="36" rx="6" fill="#232736" stroke="#34d399"/>
+            <text x="410" y="58" fill="#34d399" font-size="11">Vector DB 저장</text>
+            <!-- Query -->
+            <text x="15" y="110" fill="#6c8cff" font-size="12" font-weight="700">② 쿼리 (온라인)</text>
+            <rect x="15" y="120" width="90" height="36" rx="6" fill="#232736" stroke="#6c8cff"/>
+            <text x="25" y="143" fill="#6c8cff" font-size="11">사용자 질문</text>
+            <text x="118" y="143" fill="#94a3b8" font-size="16">→</text>
+            <rect x="140" y="120" width="100" height="36" rx="6" fill="#232736" stroke="#6c8cff"/>
+            <text x="150" y="143" fill="#6c8cff" font-size="11">Query 임베딩</text>
+            <text x="253" y="143" fill="#94a3b8" font-size="16">→</text>
+            <rect x="275" y="120" width="110" height="36" rx="6" fill="#232736" stroke="#34d399"/>
+            <text x="285" y="143" fill="#34d399" font-size="11">유사도 검색</text>
+            <text x="398" y="143" fill="#94a3b8" font-size="16">→</text>
+            <rect x="420" y="120" width="110" height="36" rx="6" fill="#232736" stroke="#a78bfa"/>
+            <text x="430" y="143" fill="#a78bfa" font-size="11">컨텍스트+질문</text>
+            <text x="543" y="143" fill="#94a3b8" font-size="16">→</text>
+            <rect x="565" y="120" width="80" height="36" rx="6" fill="#232736" stroke="#a78bfa"/>
+            <text x="580" y="143" fill="#a78bfa" font-size="11">LLM 응답</text>
+          </svg>
+        </div>
+
+        <p><strong>인덱싱 단계</strong>에서는 문서를 적절한 크기의 청크(Chunk)로 분할하고, 각 청크를 임베딩 모델(예: OpenAI text-embedding-3-small)로 벡터로 변환한 뒤, 벡터 DB(Pinecone, Chroma, pgvector 등)에 저장합니다.</p>
+        <p><strong>쿼리 단계</strong>에서는 사용자 질문을 같은 임베딩 모델로 벡터로 변환하고, 벡터 DB에서 코사인 유사도 등으로 가장 관련 높은 청크 Top-K를 검색합니다. 검색된 청크들을 프롬프트에 컨텍스트로 넣어 LLM에 전달하면, LLM이 이 컨텍스트를 기반으로 답변을 생성합니다.</p>
+        <div class="tail-q">
+          <strong>꼬리질문 대비:</strong> "Chunking 전략은 어떻게 정하나요?"가 자주 나옵니다. 고정 크기(예: 512 토큰)가 기본이지만, 문서 구조를 반영한 시맨틱 청킹, 문단 기반 청킹, 슬라이딩 윈도우(오버랩) 방식 등이 있습니다. 청크가 너무 작으면 맥락을 잃고, 너무 크면 노이즈가 섞여 검색 정확도가 떨어지는 trade-off가 있습니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">RAG에서 검색 품질을 높이려면 어떻게 해야 하나요?</div>
+      <div class="qa-a">
+        <p>RAG의 성능은 <strong>"쓰레기가 들어가면 쓰레기가 나온다(GIGO)"</strong> 원칙이 그대로 적용됩니다. 검색 단계에서 관련 없는 문서가 들어가면 LLM도 부정확한 답변을 생성합니다. 검색 품질을 높이는 주요 전략은 다음과 같습니다.</p>
+        <p>첫째, <strong>하이브리드 검색(Hybrid Search)</strong>입니다. 벡터 유사도 검색(의미 기반)과 키워드 검색(BM25, TF-IDF)을 결합합니다. 벡터 검색은 의미적 유사성에 강하지만, 고유명사나 코드 같은 정확한 매칭에는 약합니다. 키워드 검색을 함께 쓰면 이를 보완할 수 있습니다.</p>
+        <p>둘째, <strong>Re-ranking</strong>입니다. 검색된 Top-K 결과를 Cross-Encoder(예: Cohere Rerank, bge-reranker)로 다시 정렬하여 가장 관련 높은 문서를 상위에 올립니다. Bi-Encoder(임베딩 검색)는 빠르지만 정밀도가 떨어지고, Cross-Encoder는 느리지만 정밀도가 높으므로, 두 단계를 조합하는 것입니다.</p>
+        <p>셋째, <strong>쿼리 변환(Query Transformation)</strong>입니다. 사용자 질문을 그대로 검색에 쓰지 않고, HyDE(가상 문서 생성), 쿼리 분해(Sub-query Decomposition), 쿼리 확장 등을 적용하여 검색 효율을 높입니다.</p>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">RAG vs Fine-Tuning, 언제 무엇을 쓰나요?</div>
+      <div class="qa-a">
+        <p>이 질문은 면접에서 매우 자주 나오며, 핵심은 <strong>두 기술이 해결하는 문제가 다르다</strong>는 점입니다.</p>
+        <table>
+          <tr><th>구분</th><th>RAG</th><th>Fine-Tuning</th></tr>
+          <tr><td>해결하는 문제</td><td>지식 부족 (what to say)</td><td>행동/스타일 (how to say)</td></tr>
+          <tr><td>데이터 업데이트</td><td>실시간 가능 (DB 교체만)</td><td>재학습 필요 (비용↑, 시간↑)</td></tr>
+          <tr><td>환각 대응</td><td>출처 명시 가능 (검증 용이)</td><td>학습 데이터 품질에 의존</td></tr>
+          <tr><td>비용</td><td>검색 인프라 + 토큰 비용</td><td>학습 비용 (GPU)</td></tr>
+          <tr><td>적합한 경우</td><td>사내 문서 QA, 최신 정보</td><td>특정 도메인 어조, 포맷</td></tr>
+        </table>
+        <p>실무에서는 둘을 배타적으로 선택하는 것이 아니라 <strong>함께 사용</strong>하는 경우가 많습니다. Fine-Tuning으로 도메인 어조와 포맷을 학습시키고, RAG로 최신 지식을 주입하는 조합이 가장 강력합니다. 면접에서는 "상황에 따른 trade-off를 이해하고 적절히 조합한다"는 점을 보여주면 좋습니다.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ==================== PART 5: Keep-Alive ==================== -->
+  <div class="tab-content" id="p5">
+
+    <div class="qa-card">
+      <div class="qa-q">HTTP Keep-Alive란 무엇이고, 왜 사용하나요?</div>
+      <div class="qa-a">
+        <p>HTTP Keep-Alive는 <strong>하나의 TCP 연결을 재사용하여 여러 HTTP 요청/응답을 주고받는 메커니즘</strong>입니다. 비유하자면, 전화를 걸 때마다 끊고 다시 거는 것(Non-Keep-Alive) vs 전화를 유지한 채 여러 용건을 이야기하는 것(Keep-Alive)의 차이입니다.</p>
+        <p>Keep-Alive가 필요한 이유는 <strong>TCP 연결 수립 비용</strong> 때문입니다. TCP는 연결할 때마다 3-Way Handshake(SYN → SYN-ACK → ACK)를 수행하고, HTTPS라면 여기에 TLS Handshake까지 추가됩니다. 하나의 웹 페이지를 로드하면 HTML, CSS, JS, 이미지 등 수십 개의 리소스가 필요한데, 매번 연결을 새로 맺으면 엄청난 오버헤드가 발생합니다.</p>
+        <p>HTTP/1.0에서는 기본이 비연결(close)이었고 <code>Connection: Keep-Alive</code> 헤더로 명시적으로 요청해야 했습니다. <strong>HTTP/1.1부터는 Keep-Alive가 기본</strong>이 되었고, 연결을 끊으려면 오히려 <code>Connection: close</code>를 명시해야 합니다.</p>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Keep-Alive와 관련된 주요 설정 파라미터는 무엇인가요?</div>
+      <div class="qa-a">
+        <p>Keep-Alive를 효과적으로 운영하려면 두 가지 핵심 파라미터를 이해해야 합니다.</p>
+        <p><strong>Timeout</strong>은 연결이 유휴(idle) 상태일 때 얼마나 기다린 후 닫을지를 결정합니다. Nginx에서는 <code>keepalive_timeout 65;</code>로 설정하며, 너무 길면 유휴 연결이 서버 리소스(파일 디스크립터, 메모리)를 차지하고, 너무 짧으면 Keep-Alive의 이점이 줄어듭니다.</p>
+        <p><strong>Max Requests</strong>는 하나의 연결에서 최대 몇 개의 요청을 처리할지를 결정합니다. Nginx에서는 <code>keepalive_requests 1000;</code>이 기본값입니다. 이 값이 존재하는 이유는 하나의 연결을 무한히 재사용하면 메모리 누수 등의 문제가 누적될 수 있기 때문입니다.</p>
+<pre><code># Nginx Keep-Alive 설정 예시
+http {
+    keepalive_timeout 65;      # 유휴 연결 유지 시간
+    keepalive_requests 1000;   # 연결당 최대 요청 수
+
+    upstream backend {
+        server 10.0.2.10:8080;
+        keepalive 32;           # 백엔드로의 Keep-Alive 연결 풀 크기
+    }
+}</code></pre>
+        <p>면접관이 여기서 파고들 수 있는 포인트가 있는데요, <strong>upstream keepalive</strong>는 Nginx와 백엔드(WAS) 사이의 Keep-Alive입니다. 클라이언트↔Nginx의 Keep-Alive와는 별개로, Nginx↔Backend 구간도 매번 연결을 새로 맺으면 성능 저하가 발생하므로, 연결 풀을 유지하는 것이 중요합니다.</p>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Keep-Alive의 단점이나 주의할 점은 무엇인가요?</div>
+      <div class="qa-a">
+        <p>Keep-Alive는 만능이 아니며, <strong>리소스 점유</strong>라는 명확한 trade-off가 있습니다. 유휴 연결도 서버 측에서 소켓과 파일 디스크립터를 점유하므로, 동시 접속자가 매우 많은 환경에서 timeout을 과도하게 길게 설정하면 새로운 연결을 받지 못하는 상황이 발생할 수 있습니다.</p>
+        <p>또한 <strong>Head-of-Line Blocking</strong> 문제가 있습니다. HTTP/1.1의 Keep-Alive는 파이프라이닝을 지원하지만, 실제로는 하나의 연결에서 요청-응답이 순서대로 처리되어야 합니다. 앞의 요청이 느리면 뒤의 요청도 대기해야 합니다. 이 문제는 <strong>HTTP/2의 멀티플렉싱</strong>에서 해결되었습니다. HTTP/2는 하나의 TCP 연결 위에 여러 스트림을 동시에 처리할 수 있어, Keep-Alive 자체의 개념이 한 단계 진화한 셈입니다.</p>
+        <p>실무 팁으로, 로드 밸런서 뒤에 서버가 여러 대 있을 때 Keep-Alive timeout을 <strong>로드밸런서의 idle timeout보다 약간 길게</strong> 설정해야 합니다. 그렇지 않으면 서버가 먼저 연결을 끊어 race condition이 발생하여 502 에러가 날 수 있습니다.</p>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">TCP Keep-Alive와 HTTP Keep-Alive는 다른 건가요?</div>
+      <div class="qa-a">
+        <p>네, <strong>완전히 다른 레이어의 개념</strong>입니다. 면접에서 혼동하면 감점 요소가 되므로 반드시 구분해야 합니다.</p>
+        <p><strong>HTTP Keep-Alive</strong>는 애플리케이션 레이어(L7)의 개념으로, "이 TCP 연결을 닫지 말고 다음 HTTP 요청에도 재사용하자"는 의미입니다. 목적은 <strong>연결 재사용으로 성능 최적화</strong>입니다.</p>
+        <p><strong>TCP Keep-Alive</strong>는 전송 레이어(L4)의 개념으로, 연결이 살아있는지 확인하는 <strong>헬스체크 메커니즘</strong>입니다. 일정 시간(리눅스 기본 2시간) 동안 데이터가 없으면 작은 프로브 패킷을 보내 상대방이 아직 살아있는지 확인합니다. 상대가 응답하지 않으면 연결이 죽은 것으로 판단하고 정리합니다. NAT 장비나 방화벽이 유휴 연결을 끊는 것을 방지하는 역할도 합니다.</p>
+        <table>
+          <tr><th>구분</th><th>HTTP Keep-Alive</th><th>TCP Keep-Alive</th></tr>
+          <tr><td>레이어</td><td>L7 (Application)</td><td>L4 (Transport)</td></tr>
+          <tr><td>목적</td><td>TCP 연결 재사용</td><td>연결 생존 확인</td></tr>
+          <tr><td>메커니즘</td><td>Connection 헤더</td><td>프로브 패킷 (SO_KEEPALIVE)</td></tr>
+          <tr><td>기본값</td><td>HTTP/1.1에서 ON</td><td>OS별 상이 (Linux 기본 2h)</td></tr>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ==================== PART 6: 꼬리질문 ==================== -->
+  <div class="tab-content" id="p6">
+
+    <div class="qa-card">
+      <div class="qa-q">VPC에서 Security Group과 NACL의 차이는?</div>
+      <div class="qa-a">
+        <p><strong>Security Group</strong>은 인스턴스 레벨의 방화벽이고, <strong>NACL(Network ACL)</strong>은 서브넷 레벨의 방화벽입니다. Security Group은 <strong>Stateful</strong>하여 인바운드를 허용하면 해당 응답(아웃바운드)은 자동으로 허용됩니다. 반면 NACL은 <strong>Stateless</strong>하여 인바운드와 아웃바운드 규칙을 각각 명시해야 합니다.</p>
+        <p>실무에서는 Security Group을 주로 사용하고, NACL은 서브넷 전체에 대한 추가 방어선(특정 IP 대역 차단 등)으로 활용합니다. 비유하자면 Security Group은 각 방의 도어락이고, NACL은 건물 출입구의 보안 게이트입니다.</p>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Nginx에서 502 Bad Gateway가 발생하면 어떻게 트러블슈팅하나요?</div>
+      <div class="qa-a">
+        <p>502는 <strong>Nginx가 백엔드 서버로부터 유효한 응답을 받지 못했다</strong>는 의미입니다. 원인을 단계별로 확인합니다.</p>
+        <p>먼저, <strong>백엔드 서버가 살아있는지</strong> 확인합니다. WAS가 죽었거나 포트가 열려있지 않은 경우가 가장 흔합니다. 다음으로, <strong>upstream timeout</strong> 설정을 확인합니다. 백엔드 처리 시간이 <code>proxy_read_timeout</code>(기본 60초)을 초과하면 502가 발생합니다. 그 다음으로, Keep-Alive 관련 race condition을 의심합니다. 앞서 설명했듯이 ALB의 idle timeout과 Nginx의 <code>keepalive_timeout</code> 불일치가 원인일 수 있습니다. 마지막으로, 백엔드의 <strong>max connections</strong>가 초과되었는지도 확인합니다.</p>
+        <p>디버깅 시 <code>error.log</code>에 나오는 upstream 관련 로그가 가장 중요하며, <code>proxy_next_upstream</code> 설정으로 실패 시 다른 백엔드로 재시도하게 구성하는 것이 실무 팁입니다.</p>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">RAG에서 벡터 DB 선택 기준은 어떻게 되나요?</div>
+      <div class="qa-a">
+        <p>벡터 DB 선택은 <strong>규모, 운영 방식, 기존 인프라</strong>에 따라 달라집니다. 소규모(10만 건 미만)라면 <strong>Chroma</strong>나 <strong>FAISS</strong>처럼 인메모리/로컬 방식이 간편합니다. 프로덕션 규모라면 <strong>Pinecone</strong>(완전 관리형, 스케일링 용이)이나 <strong>Weaviate</strong>, <strong>Qdrant</strong>(오픈소스, 자체 호스팅) 등을 고려합니다.</p>
+        <p>이미 PostgreSQL을 쓰고 있다면 <strong>pgvector</strong> 확장으로 별도 DB 없이 벡터 검색을 추가할 수 있어 운영 복잡도를 줄일 수 있습니다. 다만 전용 벡터 DB에 비해 대규모 데이터셋에서의 검색 성능은 떨어질 수 있습니다. 면접에서는 "정답은 없고, 데이터 규모와 운영 역량, 비용을 고려한 trade-off"라는 관점으로 답하면 좋습니다.</p>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Private Subnet의 인스턴스에 SSH 접속은 어떻게 하나요?</div>
+      <div class="qa-a">
+        <p>Private Subnet은 외부에서 직접 접근이 불가하므로, 몇 가지 방법이 있습니다. 전통적으로는 Public Subnet에 <strong>Bastion Host(점프 서버)</strong>를 두고, 이를 경유하여 SSH 접속합니다. 하지만 Bastion Host 자체가 보안 취약점이 될 수 있고 관리 부담이 있습니다.</p>
+        <p>최근에는 <strong>AWS SSM Session Manager</strong>가 더 선호됩니다. 별도 인바운드 포트(22)를 열 필요 없이 IAM 권한으로 접속하며, 모든 세션이 CloudTrail에 기록되어 감사(audit)에도 유리합니다. SSH 키 관리 부담도 없어지므로, 면접에서는 "Bastion Host 방식을 알지만, 보안과 운영 편의성 측면에서 SSM을 선호한다"고 답하면 좋은 인상을 줄 수 있습니다.</p>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">HTTP/2와 HTTP/3에서 Keep-Alive 개념은 어떻게 변했나요?</div>
+      <div class="qa-a">
+        <p><strong>HTTP/2</strong>에서는 하나의 TCP 연결 위에 <strong>멀티플렉싱</strong>으로 여러 요청을 동시에 처리합니다. 따라서 HTTP/1.1의 Keep-Alive처럼 연결을 "유지할지 말지"를 고민할 필요가 거의 없습니다. 연결 하나가 기본이고, 그 안에서 스트림이 병렬로 흐릅니다. 다만 TCP 레벨의 Head-of-Line Blocking은 여전히 존재합니다 — TCP 패킷 하나가 유실되면 모든 스트림이 대기합니다.</p>
+        <p><strong>HTTP/3</strong>는 TCP 대신 <strong>QUIC(UDP 기반)</strong>를 사용하여 이 문제까지 해결합니다. QUIC는 스트림별로 독립적이어서 한 스트림의 패킷 손실이 다른 스트림에 영향을 주지 않습니다. 또한 0-RTT 연결 재개를 지원하여, 이전에 방문한 서버에 다시 접속할 때 handshake 없이 바로 데이터를 보낼 수 있습니다. 결국 "Keep-Alive"라는 개념 자체가 프로토콜의 진화와 함께 더 정교한 연결 관리 메커니즘으로 흡수된 셈입니다.</p>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script src="../js/main.js"></script>
+</body>
+</html>

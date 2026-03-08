@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spring MVC 면접 완전 가이드</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div class="page-header">
+  <a href="../index.html" class="back-link">← 목록으로</a>
+  <h1>Spring MVC 면접 완전 가이드</h1>
+  <p>기본 개념부터 내부 동작 원리, 실무 응용까지 — 면접관 앞에서 바로 말할 수 있는 수준으로</p>
+</div>
+
+<div class="content">
+
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('p1',this)">Part 1 · 기본 개념</button>
+  <button class="tab-btn" onclick="switchTab('p2',this)">Part 2 · 내부 동작 원리</button>
+  <button class="tab-btn" onclick="switchTab('p3',this)">Part 3 · 핵심 컴포넌트</button>
+  <button class="tab-btn" onclick="switchTab('p4',this)">Part 4 · 실무 &amp; 심화</button>
+  <button class="tab-btn" onclick="switchTab('p5',this)">Part 5 · 꼬리질문 모음</button>
+</div>
+
+<!-- ===== PART 1 ===== -->
+<div class="tab-content active" id="p1">
+  <div class="category">Part 1 · 기본 개념 — MVC 패턴이란 무엇인가</div>
+
+  <div class="qa-card">
+    <div class="qa-q">MVC 패턴이 무엇인지 설명해 주세요.</div>
+    <div class="qa-a">
+      <p><strong>MVC(Model-View-Controller)</strong>는 애플리케이션을 세 가지 역할로 분리하는 아키텍처 패턴입니다. <strong>Model</strong>은 비즈니스 로직과 데이터를, <strong>View</strong>는 사용자에게 보여주는 화면을, <strong>Controller</strong>는 사용자 입력을 받아 Model과 View를 연결하는 역할을 담당합니다.</p>
+      <p>비유하자면, 레스토랑에서 손님(사용자)의 주문을 웨이터(Controller)가 받아 주방(Model)에 전달하고, 완성된 요리를 그릇(View)에 담아 내오는 구조와 같습니다. 이 분리 덕분에 화면 디자인이 바뀌어도 비즈니스 로직을 건드릴 필요가 없고, 역할별로 독립적인 테스트가 가능해집니다.</p>
+      <div class="tail-q">
+        <div class="tq-label">꼬리질문 대비</div>
+        면접관이 "MVC의 단점은 무엇인가요?"라고 물어볼 수 있는데요. Controller가 비대해지는 Massive Controller 문제, View와 Model 간 의존성이 생길 수 있는 점을 언급하면 좋습니다. 그 대안으로 MVP나 MVVM 패턴도 간단히 언급하면 깊이 있는 답변이 됩니다.
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">Spring MVC는 일반 MVC 패턴과 어떻게 다른가요?</div>
+    <div class="qa-a">
+      <p>일반 MVC 패턴이 개념적인 설계 원칙이라면, <strong>Spring MVC</strong>는 그 패턴을 프레임워크 수준에서 구현한 Web MVC 프레임워크입니다. 가장 큰 특징은 <strong>Front Controller 패턴</strong>을 채택했다는 점입니다. <code>DispatcherServlet</code>이라는 단일 진입점이 모든 HTTP 요청을 먼저 받아, 적절한 Controller에게 위임하는 방식으로 동작합니다.</p>
+      <p>덕분에 인증/인가, 로깅, 예외 처리 같은 공통 관심사를 DispatcherServlet 레벨에서 일괄 처리할 수 있습니다. 또한 Spring의 <strong>IoC 컨테이너</strong>와 결합되어 Controller, Service 같은 컴포넌트들의 생명주기를 프레임워크가 관리해 줍니다.</p>
+      <div class="diagram-box">
+        <div class="diagram-label">Spring MVC의 Front Controller 구조</div>
+        <div class="flow-wrap">
+          <div class="flow-box">Client 요청</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box hl">DispatcherServlet<br><small>(Front Controller)</small></div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box">HandlerMapping</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box">Controller</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box">View</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">@Controller와 @RestController의 차이를 설명해 주세요.</div>
+    <div class="qa-a">
+      <p><strong>@Controller</strong>는 메서드의 반환값을 View 이름으로 해석하여 ViewResolver를 통해 템플릿을 렌더링합니다. 전통적인 SSR(서버 사이드 렌더링) 방식에서 사용합니다. 반면 <strong>@RestController</strong>는 <code>@Controller + @ResponseBody</code>를 합친 메타 애노테이션으로, 반환값을 HTTP 응답 바디에 직렬화(보통 JSON)하여 바로 내려보냅니다.</p>
+      <p>REST API 서버를 개발할 때는 @RestController를, Thymeleaf나 JSP 같은 템플릿 엔진을 사용하는 전통적인 웹 개발에는 @Controller를 사용합니다.</p>
+      <table>
+        <tr><th>구분</th><th>@Controller</th><th>@RestController</th></tr>
+        <tr><td>반환값 처리</td><td>View 이름 → 템플릿 렌더링</td><td>객체 → JSON/XML 직렬화</td></tr>
+        <tr><td>주요 용도</td><td>서버 사이드 렌더링(SSR)</td><td>REST API 서버</td></tr>
+        <tr><td>@ResponseBody</td><td>메서드별로 별도 추가 필요</td><td>기본 포함</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">@RequestMapping과 @GetMapping 등의 차이는 무엇인가요?</div>
+    <div class="qa-a">
+      <p><strong>@RequestMapping</strong>은 HTTP 메서드를 <code>method</code> 속성으로 지정하는 범용 매핑 애노테이션입니다. 반면 <strong>@GetMapping, @PostMapping, @PutMapping, @DeleteMapping, @PatchMapping</strong>은 Spring 4.3부터 도입된 축약형 composed 애노테이션입니다. 실무에서는 코드가 훨씬 간결한 @GetMapping 계열을 주로 사용하고, @RequestMapping은 클래스 레벨에서 공통 URL prefix를 지정할 때 씁니다.</p>
+      <pre><span class="annotation">@RequestMapping</span>(<span class="string">"/api/users"</span>)   <span class="comment">// 클래스 레벨: URL prefix</span>
+<span class="keyword">public class</span> UserController {
+
+    <span class="annotation">@GetMapping</span>(<span class="string">"/{id}"</span>)           <span class="comment">// GET /api/users/{id}</span>
+    <span class="keyword">public</span> User getUser(<span class="annotation">@PathVariable</span> Long id) { ... }
+
+    <span class="annotation">@PostMapping</span>                  <span class="comment">// POST /api/users</span>
+    <span class="keyword">public</span> User create(...) { ... }
+}</pre>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PART 2 ===== -->
+<div class="tab-content" id="p2">
+  <div class="category">Part 2 · 내부 동작 원리 — 요청이 처리되는 전체 흐름</div>
+
+  <div class="qa-card">
+    <div class="qa-q">Spring MVC에서 HTTP 요청이 처리되는 전체 흐름을 설명해 주세요.</div>
+    <div class="qa-a">
+      <div class="diagram-box">
+        <div class="diagram-label">Spring MVC 요청 처리 7단계</div>
+        <div class="flow-wrap">
+          <div class="flow-box">① Client</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box hl">② DispatcherServlet</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box">③ HandlerMapping</div>
+        </div>
+        <div class="flow-wrap" style="margin-top:0.5rem">
+          <div class="flow-box hl">② DispatcherServlet</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box">④ HandlerAdapter</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box">⑤ Controller 실행</div>
+        </div>
+        <div class="flow-wrap" style="margin-top:0.5rem">
+          <div class="flow-box">⑤ ModelAndView 반환</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box">⑥ ViewResolver</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box">⑦ View → Client</div>
+        </div>
+      </div>
+      <p><strong>① 클라이언트</strong>가 HTTP 요청을 보내면, <strong>② DispatcherServlet</strong>이 최초로 수신합니다. <strong>③ HandlerMapping</strong>에 "이 URL과 HTTP 메서드를 처리할 핸들러가 누구냐?"고 위임하여 적절한 Controller 메서드를 찾습니다. 찾은 핸들러를 어떻게 실행할지는 <strong>④ HandlerAdapter</strong>가 결정합니다. <strong>⑤ Controller</strong> 메서드가 실행되어 비즈니스 로직을 처리하고 <code>ModelAndView</code>를 반환하면, <strong>⑥ ViewResolver</strong>가 View 이름을 실제 View로 변환하고 <strong>⑦</strong> 최종 HTML을 클라이언트에게 응답합니다.</p>
+      <div class="tail-q">
+        <div class="tq-label">꼬리질문 대비</div>
+        "REST API에서는 ViewResolver가 필요 없지 않나요?"라는 질문이 올 수 있습니다. @ResponseBody나 @RestController를 사용하면 <strong>HttpMessageConverter</strong>가 ViewResolver 대신 개입하여, 반환 객체를 JSON으로 직렬화해 응답 바디에 씁니다. ViewResolver 단계가 생략됩니다.
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">DispatcherServlet은 무엇이고, 어떻게 초기화되나요?</div>
+    <div class="qa-a">
+      <p><strong>DispatcherServlet</strong>은 Spring MVC의 핵심인 <strong>Front Controller</strong>입니다. 모든 HTTP 요청의 단일 진입점 역할을 하며, HandlerMapping·HandlerAdapter·ViewResolver 등 처리 전략 객체들을 조율합니다. 서블릿이므로 서블릿 컨테이너(Tomcat 등)에 의해 관리됩니다.</p>
+      <p>초기화 시점에 DispatcherServlet은 자신만의 <strong>WebApplicationContext</strong>(자식 컨텍스트)를 생성합니다. 이 컨텍스트에 Controller, HandlerMapping 등 웹 계층 빈들이 등록됩니다. Spring Boot에서는 <code>DispatcherServletAutoConfiguration</code>이 이 모든 설정을 자동으로 처리해주므로 별도 web.xml 설정이 필요 없습니다.</p>
+      <div class="tail-q">
+        <div class="tq-label">꼬리질문 대비</div>
+        "Root ApplicationContext와 WebApplicationContext의 차이는?"이라는 질문이 자주 옵니다. Root Context는 Service·Repository 등 공통 빈을, WebApplicationContext는 Controller 등 웹 계층 빈을 담습니다. 자식 컨텍스트는 부모 빈을 참조할 수 있지만 반대는 불가합니다. Spring Boot에서는 단일 ApplicationContext로 통합되는 경우가 많습니다.
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">HandlerMapping과 HandlerAdapter는 각각 어떤 역할을 하나요?</div>
+    <div class="qa-a">
+      <p><strong>HandlerMapping</strong>은 "이 요청을 어떤 핸들러가 처리해야 하는가?"를 결정하는 전략 인터페이스입니다. 가장 많이 쓰이는 <code>RequestMappingHandlerMapping</code>은 @RequestMapping 계열 애노테이션을 스캔하여 URL → 메서드 매핑 정보를 관리합니다. 애플리케이션 기동 시점에 미리 수집해두므로 요청마다 빠르게 핸들러를 찾을 수 있습니다.</p>
+      <p><strong>HandlerAdapter</strong>는 찾아낸 핸들러를 실제로 실행하는 방법을 담은 어댑터입니다. 핸들러 종류가 다양해도 DispatcherServlet이 통일된 방식으로 호출할 수 있도록 중간 어댑터 역할을 합니다. <code>RequestMappingHandlerAdapter</code>는 메서드 파라미터 바인딩, 데이터 변환, 리턴값 처리까지 담당합니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">ViewResolver는 무엇이고 어떻게 동작하나요?</div>
+    <div class="qa-a">
+      <p><strong>ViewResolver</strong>는 Controller가 반환한 View 이름(String)을 실제 View 구현체로 변환하는 역할입니다. 예를 들어 Controller에서 <code>"home"</code>을 반환하면, <code>InternalResourceViewResolver</code>가 이를 <code>/WEB-INF/views/home.jsp</code> 같은 파일 경로로 변환합니다. prefix와 suffix를 설정하여 경로를 조합합니다.</p>
+      <p>Spring Boot에서 Thymeleaf를 사용하면 <code>ThymeleafViewResolver</code>가 자동으로 구성되어 <code>resources/templates/</code> 하위에서 템플릿을 찾습니다. 여러 ViewResolver를 등록할 때는 <strong>order</strong> 속성으로 우선순위를 지정합니다. REST API 개발 시에는 ViewResolver가 개입하지 않고 <strong>HttpMessageConverter</strong>가 직렬화를 담당합니다.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PART 3 ===== -->
+<div class="tab-content" id="p3">
+  <div class="category">Part 3 · 핵심 컴포넌트 — 자주 쓰이는 요소들의 동작 원리</div>
+
+  <div class="qa-card">
+    <div class="qa-q">@RequestParam과 @PathVariable의 차이를 설명해 주세요.</div>
+    <div class="qa-a">
+      <p><strong>@PathVariable</strong>은 URL 경로 자체에서 값을 추출합니다. <code>/users/42</code>에서 <code>42</code>를 가져올 때 사용하며, RESTful API에서 리소스를 식별할 때 적합합니다. <strong>@RequestParam</strong>은 URL의 쿼리 파라미터(<code>?key=value</code>) 또는 폼 데이터에서 값을 추출합니다. 필터링·페이징·정렬 같은 부가적 조건을 표현할 때 적합합니다.</p>
+      <pre><span class="comment">// PathVariable: GET /users/42</span>
+<span class="annotation">@GetMapping</span>(<span class="string">"/users/{id}"</span>)
+<span class="keyword">public</span> User getUser(<span class="annotation">@PathVariable</span> Long id) { ... }
+
+<span class="comment">// RequestParam: GET /users?page=1&amp;size=10</span>
+<span class="annotation">@GetMapping</span>(<span class="string">"/users"</span>)
+<span class="keyword">public</span> List&lt;User&gt; getUsers(
+    <span class="annotation">@RequestParam</span>(defaultValue = <span class="string">"0"</span>) int page,
+    <span class="annotation">@RequestParam</span>(defaultValue = <span class="string">"10"</span>) int size) { ... }</pre>
+      <div class="tail-q">
+        <div class="tq-label">꼬리질문 대비</div>
+        "@ModelAttribute와 @RequestBody의 차이는?" — @RequestBody는 JSON 바디를 역직렬화하고, @ModelAttribute는 쿼리 파라미터나 폼 데이터를 객체로 바인딩합니다. Content-Type이 application/json이면 @RequestBody, application/x-www-form-urlencoded나 multipart이면 @ModelAttribute를 씁니다.
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">@RequestBody와 @ResponseBody의 동작 원리, HttpMessageConverter에 대해 설명해 주세요.</div>
+    <div class="qa-a">
+      <p><strong>@RequestBody</strong>는 HTTP 요청 바디를 Java 객체로 역직렬화하고, <strong>@ResponseBody</strong>는 Java 객체를 HTTP 응답 바디로 직렬화합니다. 이 변환을 담당하는 것이 <strong>HttpMessageConverter</strong>입니다. 클라이언트가 보내는 <code>Content-Type</code>과 응답 협상을 위한 <code>Accept</code> 헤더를 보고 적절한 Converter를 선택합니다.</p>
+      <p>JSON을 처리하는 <code>MappingJackson2HttpMessageConverter</code>가 가장 대표적이며, Jackson 라이브러리를 내부적으로 사용합니다. Spring Boot는 jackson-databind가 클래스패스에 있으면 이 Converter를 자동 등록합니다.</p>
+      <table>
+        <tr><th>Converter</th><th>처리 대상</th></tr>
+        <tr><td>MappingJackson2HttpMessageConverter</td><td>application/json ↔ Java 객체</td></tr>
+        <tr><td>StringHttpMessageConverter</td><td>text/plain ↔ String</td></tr>
+        <tr><td>ByteArrayHttpMessageConverter</td><td>application/octet-stream ↔ byte[]</td></tr>
+        <tr><td>FormHttpMessageConverter</td><td>application/x-www-form-urlencoded ↔ MultiValueMap</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">Interceptor와 Filter의 차이를 설명해 주세요.</div>
+    <div class="qa-a">
+      <p><strong>Filter</strong>는 Servlet 스펙의 컴포넌트로, DispatcherServlet 앞단에서 동작하여 스프링 컨텍스트와 무관하게 모든 서블릿 요청/응답에 개입할 수 있습니다. 인코딩 처리, XSS 방어, CORS 처리처럼 Spring 레이어와 독립적인 전처리에 적합합니다.</p>
+      <p><strong>Interceptor</strong>는 Spring MVC의 컴포넌트로, DispatcherServlet 이후 Controller 전/후에서 동작합니다. Spring Bean에 접근 가능하고, <code>preHandle</code>·<code>postHandle</code>·<code>afterCompletion</code> 세 시점을 제공합니다. 로그인 체크, 로깅, 권한 검사처럼 비즈니스 레이어와 연관된 처리에 적합합니다.</p>
+      <table>
+        <tr><th>구분</th><th>Filter</th><th>Interceptor</th></tr>
+        <tr><td>소속</td><td>Servlet 컨테이너(Tomcat)</td><td>Spring MVC</td></tr>
+        <tr><td>동작 위치</td><td>DispatcherServlet 이전</td><td>Controller 전/후</td></tr>
+        <tr><td>Spring Bean 접근</td><td>제한적</td><td>가능</td></tr>
+        <tr><td>예외 처리</td><td>서블릿 레벨</td><td>@ExceptionHandler 활용 가능</td></tr>
+      </table>
+      <div class="tail-q">
+        <div class="tq-label">꼬리질문 대비</div>
+        "AOP와 Interceptor는 어떻게 다른가요?" — AOP는 메서드 단위로 세밀하게 적용 가능하고, Controller뿐 아니라 Service·Repository 레이어에도 적용됩니다. URL 기반 처리는 Interceptor, 메서드 레벨 횡단 관심사는 AOP가 더 적합합니다.
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">@ExceptionHandler와 @ControllerAdvice를 이용한 전역 예외 처리를 설명해 주세요.</div>
+    <div class="qa-a">
+      <p><strong>@ExceptionHandler</strong>를 Controller 내부에 정의하면 해당 Controller에서 발생하는 예외를 처리할 수 있지만, 모든 Controller에 중복 코드가 생기는 문제가 있습니다. <strong>@ControllerAdvice</strong>는 여러 Controller에 걸친 예외 처리·데이터 바인딩·모델 공유를 한 곳에서 처리할 수 있게 해주는 전역 컴포넌트입니다. REST API에서는 <code>@RestControllerAdvice</code>를 사용하면 @ResponseBody가 자동 포함됩니다.</p>
+      <pre><span class="annotation">@RestControllerAdvice</span>
+<span class="keyword">public class</span> GlobalExceptionHandler {
+
+    <span class="annotation">@ExceptionHandler</span>(UserNotFoundException.class)
+    <span class="annotation">@ResponseStatus</span>(HttpStatus.NOT_FOUND)
+    <span class="keyword">public</span> ErrorResponse handleNotFound(UserNotFoundException ex) {
+        <span class="keyword">return new</span> ErrorResponse(<span class="string">"USER_NOT_FOUND"</span>, ex.getMessage());
+    }
+}</pre>
+      <p>이 방식으로 비즈니스 예외 → HTTP 상태 코드 매핑을 한 곳에서 관리할 수 있어, Controller 코드가 깔끔해지고 일관된 에러 응답 포맷을 유지할 수 있습니다.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PART 4 ===== -->
+<div class="tab-content" id="p4">
+  <div class="category">Part 4 · 실무 &amp; 심화 — 설계 결정과 트러블슈팅</div>
+
+  <div class="qa-card">
+    <div class="qa-q">Spring MVC에서 데이터 검증(Validation)은 어떻게 처리하나요?</div>
+    <div class="qa-a">
+      <p>Spring MVC는 <strong>Bean Validation(JSR-380)</strong> 표준을 지원합니다. DTO 필드에 <code>@NotNull</code>·<code>@Size</code>·<code>@Email</code> 같은 제약 애노테이션을 붙이고, Controller 메서드 파라미터에 <strong>@Valid</strong> 또는 <strong>@Validated</strong>를 추가하면 Spring이 자동으로 검증합니다. 검증 실패 시 <code>MethodArgumentNotValidException</code>이 발생하며, @ExceptionHandler로 잡아서 일관된 에러 응답을 내려줄 수 있습니다.</p>
+      <pre><span class="keyword">public class</span> UserCreateRequest {
+    <span class="annotation">@NotBlank</span>(message = <span class="string">"이름은 필수입니다"</span>)
+    <span class="keyword">private</span> String name;
+
+    <span class="annotation">@Email</span> <span class="annotation">@NotNull</span>
+    <span class="keyword">private</span> String email;
+}
+
+<span class="annotation">@PostMapping</span>(<span class="string">"/users"</span>)
+<span class="keyword">public</span> ResponseEntity&lt;User&gt; create(<span class="annotation">@RequestBody</span> <span class="annotation">@Valid</span> UserCreateRequest req) { ... }</pre>
+      <div class="tail-q">
+        <div class="tq-label">꼬리질문 대비</div>
+        "@Valid와 @Validated의 차이는?" — @Valid는 javax.validation 표준, @Validated는 Spring 전용입니다. @Validated의 핵심 추가 기능은 <strong>그룹 검증(Validation Groups)</strong>으로, 생성/수정 등 상황에 따라 다른 검증 규칙을 적용할 수 있습니다.
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">CORS 문제가 발생하는 이유와 Spring MVC에서 해결하는 방법을 설명해 주세요.</div>
+    <div class="qa-a">
+      <p><strong>CORS(Cross-Origin Resource Sharing)</strong> 문제는 브라우저의 <strong>동일 출처 정책(Same-Origin Policy)</strong> 때문에 발생합니다. 프론트엔드(예: localhost:3000)와 백엔드(localhost:8080)의 포트가 다르면 다른 출처로 판단되어 브라우저가 응답을 차단합니다. 서버는 정상 응답을 보내지만, 브라우저 레벨에서 막힙니다.</p>
+      <p>Spring MVC에서는 <code>@CrossOrigin</code> 애노테이션을 Controller에 붙이거나, <strong>WebMvcConfigurer</strong>의 <code>addCorsMappings</code>로 전역 설정하거나, Spring Security를 사용한다면 <code>http.cors()</code>로 처리할 수 있습니다. 실무에서는 허용할 origin·method·header를 명시적으로 제한하는 것이 보안상 중요하며, 운영 환경에서 <code>allowedOrigins("*")</code>는 절대 사용하지 않습니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">ResponseEntity를 사용하는 이유는 무엇인가요?</div>
+    <div class="qa-a">
+      <p><strong>ResponseEntity&lt;T&gt;</strong>는 HTTP 응답의 상태 코드·헤더·바디를 모두 제어할 수 있는 래퍼 객체입니다. 단순히 객체를 반환하면 200 OK가 고정되지만, ResponseEntity를 사용하면 <code>201 Created</code>·<code>204 No Content</code>·<code>404 Not Found</code> 등 의미에 맞는 상태 코드를 명시적으로 설정할 수 있습니다.</p>
+      <p>REST API 설계 원칙에 따라 적절한 HTTP 상태 코드를 내려주는 것이 클라이언트와의 계약을 명확히 하는 좋은 실천입니다. 예를 들어 리소스 생성 후 Location 헤더에 새 URL을 담아 <code>201</code>로 응답하거나, 삭제 성공 시 바디 없이 <code>204</code>로 응답할 때 활용합니다.</p>
+      <pre><span class="comment">// 201 Created + Location 헤더</span>
+<span class="annotation">@PostMapping</span>
+<span class="keyword">public</span> ResponseEntity&lt;User&gt; create(<span class="annotation">@RequestBody</span> UserRequest req) {
+    User user = userService.create(req);
+    URI location = URI.create(<span class="string">"/users/"</span> + user.getId());
+    <span class="keyword">return</span> ResponseEntity.created(location).body(user);
+}</pre>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">Spring MVC vs Spring WebFlux, 어떤 기준으로 선택해야 하나요?</div>
+    <div class="qa-a">
+      <p><strong>Spring MVC</strong>는 서블릿 기반의 동기·블로킹 모델로, 요청당 스레드를 점유합니다. 코드가 직관적이고 JPA 등 기존 블로킹 라이브러리와 자연스럽게 통합됩니다. 대부분의 일반적인 비즈니스 애플리케이션에 적합합니다.</p>
+      <p><strong>Spring WebFlux</strong>는 Reactor 기반의 완전한 비동기·논블로킹 모델로, 적은 스레드로 더 많은 동시 연결을 처리할 수 있습니다. 그러나 코드 복잡도가 높고, 블로킹 I/O를 잘못 섞으면 오히려 성능이 나빠질 수 있습니다. I/O 집약적·높은 동시성·스트리밍이 필요하고 팀이 리액티브에 익숙한 경우에만 선택하는 것이 현명합니다.</p>
+      <table>
+        <tr><th>기준</th><th>Spring MVC 선택</th><th>WebFlux 선택</th></tr>
+        <tr><td>트래픽</td><td>중규모 이하 CRUD</td><td>수만 동시 연결</td></tr>
+        <tr><td>DB</td><td>JPA/JDBC 사용</td><td>R2DBC 등 리액티브 DB</td></tr>
+        <tr><td>팀 경험</td><td>리액티브 경험 없음</td><td>Reactor/RxJava 경험 있음</td></tr>
+        <tr><td>용도</td><td>일반 REST API</td><td>SSE·웹소켓·스트리밍</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PART 5 ===== -->
+<div class="tab-content" id="p5">
+  <div class="category">Part 5 · 꼬리질문 모음 — 면접관이 자주 파고드는 포인트</div>
+
+  <div class="qa-card">
+    <div class="qa-q">Spring MVC Controller는 기본적으로 Singleton인데, 멀티스레드 환경에서 안전한가요?</div>
+    <div class="qa-a">
+      <p>Spring Bean은 기본적으로 <strong>Singleton</strong>이므로 Controller도 하나의 인스턴스가 여러 스레드에서 공유됩니다. <strong>단, 인스턴스 변수(상태)를 갖지 않는다면 스레드 안전합니다.</strong> Controller 메서드의 파라미터와 로컬 변수는 스레드마다 독립적인 스택에 생성되므로 안전합니다.</p>
+      <p>문제가 생기는 경우는 Controller에 <code>private int count;</code> 같은 가변 인스턴스 변수를 두는 경우입니다. 여러 스레드가 동시에 접근하면 레이스 컨디션이 발생합니다. 실무에서는 <strong>Controller에 상태를 두지 않는 것</strong>이 원칙이며, 요청 범위 상태가 필요하다면 <code>@RequestScope</code> 빈이나 메서드 로컬 변수를 사용합니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">Content Negotiation이란 무엇이고 어떻게 동작하나요?</div>
+    <div class="qa-a">
+      <p><strong>Content Negotiation(콘텐츠 협상)</strong>은 동일한 리소스를 클라이언트의 요구에 따라 다른 형식(JSON, XML, HTML 등)으로 제공하는 메커니즘입니다. 클라이언트가 HTTP 요청의 <strong>Accept 헤더</strong>에 원하는 미디어 타입을 명시하면, Spring MVC는 등록된 HttpMessageConverter 중 해당 타입을 처리할 수 있는 Converter를 선택합니다.</p>
+      <p>예를 들어 <code>Accept: application/json</code>이면 Jackson으로 JSON을, <code>Accept: application/xml</code>이면 JAXB로 XML을 반환합니다. URL 확장자(<code>/users.json</code>)나 파라미터로 협상하는 방식은 Spring 5.3부터 기본 비활성화되어 Accept 헤더 방식이 권장됩니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">Spring MVC에서 파일 업로드는 어떻게 처리하나요?</div>
+    <div class="qa-a">
+      <p>Spring MVC에서 파일 업로드는 <code>multipart/form-data</code> 요청을 <strong>MultipartResolver</strong>가 파싱하여 <strong>MultipartFile</strong> 객체로 제공하는 방식으로 이뤄집니다. Spring Boot에서는 <code>StandardServletMultipartResolver</code>가 자동 구성됩니다. 파일 크기 제한은 <code>spring.servlet.multipart.max-file-size</code>와 <code>max-request-size</code> 설정으로 관리합니다.</p>
+      <pre><span class="annotation">@PostMapping</span>(<span class="string">"/upload"</span>)
+<span class="keyword">public</span> ResponseEntity&lt;String&gt; upload(
+        <span class="annotation">@RequestParam</span>(<span class="string">"file"</span>) MultipartFile file) {
+    <span class="keyword">if</span> (file.isEmpty()) <span class="keyword">return</span> ResponseEntity.badRequest().build();
+    <span class="comment">// 실무에서는 S3 등 오브젝트 스토리지에 저장</span>
+    String url = s3Service.upload(file);
+    <span class="keyword">return</span> ResponseEntity.ok(url);
+}</pre>
+      <p>실무에서는 로컬 파일 시스템 저장보다 <strong>AWS S3</strong> 같은 오브젝트 스토리지에 저장하고 URL만 DB에 기록하는 패턴을 많이 사용합니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">@SessionAttributes는 언제 사용하고, 주의점은 무엇인가요?</div>
+    <div class="qa-a">
+      <p><strong>@SessionAttributes</strong>는 특정 모델 속성을 HTTP 세션에 저장하여 여러 요청에 걸쳐 유지해야 할 때 사용합니다. 예를 들어 다단계 폼(마법사 패턴)에서 단계별 입력값을 유지할 때 유용합니다.</p>
+      <p>주의점은 처리가 끝나면 반드시 <code>SessionStatus.setComplete()</code>를 호출하여 세션을 정리해야 한다는 점입니다. 그렇지 않으면 메모리 누수가 발생할 수 있습니다. 또한 @SessionAttributes는 해당 Controller 클래스의 범위에서만 세션을 관리하므로, 애플리케이션 전역 세션 관리는 <code>HttpSession</code>을 직접 사용해야 합니다.</p>
+    </div>
+  </div>
+
+  <div class="category">Spring MVC 면접 한 줄 정리</div>
+  <div class="hl grn"><strong>DispatcherServlet</strong> = Front Controller — 모든 요청의 단일 진입점</div>
+  <div class="hl org"><strong>HandlerMapping → 누가?</strong> / <strong>HandlerAdapter → 어떻게?</strong></div>
+  <div class="hl blu"><strong>@RestController</strong> = @Controller + @ResponseBody</div>
+  <div class="hl"><strong>HttpMessageConverter</strong>가 JSON ↔ 객체 변환 담당</div>
+  <div class="hl pnk"><strong>Filter</strong> = 서블릿 레벨 / <strong>Interceptor</strong> = Spring MVC 레벨</div>
+  <div class="hl red"><strong>@ControllerAdvice</strong>로 전역 예외 처리 일원화</div>
+  <div class="hl"><strong>Controller는 Singleton</strong> → 인스턴스 변수 사용 금지</div>
+  <div class="hl grn"><strong>MVC</strong> = 동기·블로킹 / <strong>WebFlux</strong> = 비동기·논블로킹</div>
+</div>
+
+</div><!-- .content -->
+
+<script src="../js/main.js"></script>
+</body>
+</html>

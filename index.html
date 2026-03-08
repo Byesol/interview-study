@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Backend Interview Study</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .hero {
+    text-align: center;
+    padding: 64px 20px 48px;
+    background: linear-gradient(135deg, #1a1d2e 0%, #0f1117 50%, #171028 100%);
+    border-bottom: 1px solid var(--border);
+  }
+  .hero h1 {
+    font-size: 2.4rem;
+    font-weight: 900;
+    background: linear-gradient(135deg, var(--accent), var(--accent2), var(--green));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+  }
+  .hero p {
+    color: var(--text-dim);
+    font-size: 1rem;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  .hero .stats {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .hero .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-size: 0.85rem;
+  }
+  .hero .stat strong {
+    color: var(--accent);
+    font-size: 1.2rem;
+    display: block;
+  }
+
+  .grid {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 20px 80px;
+  }
+  .section-label {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--accent);
+    margin: 40px 0 16px;
+    padding-left: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-label:first-child { margin-top: 0; }
+  .section-label .icon {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+  }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 12px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    text-decoration: none;
+    color: var(--text);
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  }
+  .card h3 {
+    font-size: 1rem;
+    font-weight: 700;
+  }
+  .card .desc {
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+  .card .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: auto;
+    padding-top: 8px;
+  }
+  .card .tag {
+    font-size: 0.68rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--surface2);
+    color: var(--text-dim);
+  }
+
+  .footer {
+    text-align: center;
+    padding: 32px 20px;
+    border-top: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 0.8rem;
+  }
+
+  @media (max-width: 640px) {
+    .hero h1 { font-size: 1.7rem; }
+    .cards { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>Backend Interview Study</h1>
+  <p>백엔드 면접 준비를 위한 주제별 Q&A 모음</p>
+  <div class="stats">
+    <div class="stat"><strong>13</strong>Topics</div>
+    <div class="stat"><strong>5</strong>Categories</div>
+  </div>
+</div>
+
+<div class="grid">
+
+  <!-- DB -->
+  <div class="section-label">
+    <span class="icon" style="background:rgba(96,165,250,0.15);color:var(--blue);">DB</span>
+    Database
+  </div>
+  <div class="cards">
+    <a class="card" href="pages/db-index.html">
+      <h3>인덱스 완전 정복</h3>
+      <div class="desc">인덱스 원리, 종류, B+Tree 구조, 클러스터드/넌클러스터드, 커버링 인덱스</div>
+      <div class="tags"><span class="tag">Index</span><span class="tag">B+Tree</span><span class="tag">Clustered</span></div>
+    </a>
+    <a class="card" href="pages/db-btree.html">
+      <h3>B+Tree & 인덱스 구조</h3>
+      <div class="desc">B+Tree 내부 동작, 리프 노드 연결, 범위 검색, 페이지 분할</div>
+      <div class="tags"><span class="tag">B+Tree</span><span class="tag">Page Split</span></div>
+    </a>
+    <a class="card" href="pages/db-key.html">
+      <h3>Key란 무엇인가?</h3>
+      <div class="desc">PK, FK, Unique Key, 인덱스 키의 의미와 리프 노드 저장 방식</div>
+      <div class="tags"><span class="tag">PK</span><span class="tag">FK</span><span class="tag">Key</span></div>
+    </a>
+    <a class="card" href="pages/db-fulltext-ngram.html">
+      <h3>Full-Text Index & ngram</h3>
+      <div class="desc">전문 검색 인덱스, ngram 파서, MATCH AGAINST, LIKE vs Full-Text</div>
+      <div class="tags"><span class="tag">Full-Text</span><span class="tag">ngram</span></div>
+    </a>
+    <a class="card" href="pages/db-transaction.html">
+      <h3>트랜잭션 완전 정복</h3>
+      <div class="desc">ACID, 격리 수준, @Transactional, 전파 레벨, Undo/Redo Log</div>
+      <div class="tags"><span class="tag">Transaction</span><span class="tag">ACID</span><span class="tag">Isolation</span></div>
+    </a>
+  </div>
+
+  <!-- OS -->
+  <div class="section-label">
+    <span class="icon" style="background:rgba(251,191,36,0.15);color:var(--orange);">OS</span>
+    Operating System
+  </div>
+  <div class="cards">
+    <a class="card" href="pages/os-process-thread.html">
+      <h3>프로세스 & 스레드</h3>
+      <div class="desc">프로세스 vs 스레드, PCB, 멀티프로세스 vs 멀티스레드, 동기화</div>
+      <div class="tags"><span class="tag">Process</span><span class="tag">Thread</span><span class="tag">PCB</span></div>
+    </a>
+    <a class="card" href="pages/os-tlb-context-switching.html">
+      <h3>TLB & 컨텍스트 스위칭</h3>
+      <div class="desc">TLB 동작 원리, 컨텍스트 스위칭 비용, 페이지 테이블, MMU</div>
+      <div class="tags"><span class="tag">TLB</span><span class="tag">Context Switch</span><span class="tag">MMU</span></div>
+    </a>
+  </div>
+
+  <!-- Backend / Spring -->
+  <div class="section-label">
+    <span class="icon" style="background:rgba(52,211,153,0.15);color:var(--green);">BE</span>
+    Backend & Spring
+  </div>
+  <div class="cards">
+    <a class="card" href="pages/backend-jvm-gc.html">
+      <h3>JVM, GC, HTTPS, Redis, Docker, TCP/UDP</h3>
+      <div class="desc">JVM 구조, GC 알고리즘, HTTPS 동작, Redis 활용, Docker, TCP vs UDP</div>
+      <div class="tags"><span class="tag">JVM</span><span class="tag">GC</span><span class="tag">Redis</span><span class="tag">Docker</span></div>
+    </a>
+    <a class="card" href="pages/backend-spring-mvc.html">
+      <h3>Spring MVC 면접 가이드</h3>
+      <div class="desc">DispatcherServlet, HandlerMapping, ViewResolver, 인터셉터, 필터</div>
+      <div class="tags"><span class="tag">Spring MVC</span><span class="tag">DispatcherServlet</span></div>
+    </a>
+    <a class="card" href="pages/backend-n1-lazy.html">
+      <h3>N+1 & Lazy Loading</h3>
+      <div class="desc">N+1 문제 원인, Fetch Join, @EntityGraph, Batch Size, OSIV</div>
+      <div class="tags"><span class="tag">N+1</span><span class="tag">JPA</span><span class="tag">Lazy Loading</span></div>
+    </a>
+    <a class="card" href="pages/backend-auth-jwt.html">
+      <h3>인증 방식 & JWT</h3>
+      <div class="desc">세션 vs 토큰, JWT 구조, Access/Refresh Token, OAuth2, 보안</div>
+      <div class="tags"><span class="tag">JWT</span><span class="tag">OAuth2</span><span class="tag">Session</span></div>
+    </a>
+  </div>
+
+  <!-- Infra / Network -->
+  <div class="section-label">
+    <span class="icon" style="background:rgba(167,139,250,0.15);color:var(--accent2);">IF</span>
+    Infra & Network
+  </div>
+  <div class="cards">
+    <a class="card" href="pages/infra-vpc-nat-nginx.html">
+      <h3>VPC, NAT, Nginx, RAG, Keep-Alive</h3>
+      <div class="desc">VPC 구조, Private Subnet, NAT Gateway, Nginx, RAG 아키텍처</div>
+      <div class="tags"><span class="tag">VPC</span><span class="tag">NAT</span><span class="tag">Nginx</span><span class="tag">RAG</span></div>
+    </a>
+  </div>
+
+  <!-- System Design -->
+  <div class="section-label">
+    <span class="icon" style="background:rgba(244,114,182,0.15);color:var(--pink);">SD</span>
+    System Design
+  </div>
+  <div class="cards">
+    <a class="card" href="pages/design-seat-reservation.html">
+      <h3>좌석 예약 시스템 설계</h3>
+      <div class="desc">동시성 제어, 비관적/낙관적 락, Redis 분산 락, 대기열</div>
+      <div class="tags"><span class="tag">Concurrency</span><span class="tag">Lock</span><span class="tag">Queue</span></div>
+    </a>
+  </div>
+</div>
+
+<div class="footer">
+  Backend Interview Study &copy; 2025
+</div>
+
+</body>
+</html>

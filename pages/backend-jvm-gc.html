@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>백엔드 면접 코치 — JVM · GC · HTTPS · Redis · Docker · TCP/UDP</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div class="page-header">
+  <a href="../index.html" class="back-link">← 목록으로</a>
+  <h1>백엔드 기술 면접 코치</h1>
+  <p>JVM · GC · HTTPS · Redis 클러스터 · Docker 이미지 · TCP/UDP</p>
+</div>
+
+<div class="content">
+
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('jvm',this)">JVM</button>
+  <button class="tab-btn" onclick="switchTab('gc',this)">Java GC</button>
+  <button class="tab-btn" onclick="switchTab('gc-deep',this)">GC 심화</button>
+  <button class="tab-btn" onclick="switchTab('https',this)">HTTPS</button>
+  <button class="tab-btn" onclick="switchTab('redis',this)">Redis 클러스터</button>
+  <button class="tab-btn" onclick="switchTab('docker',this)">Docker 이미지</button>
+  <button class="tab-btn" onclick="switchTab('tcpudp',this)">TCP/UDP</button>
+</div>
+
+<!-- ═══ TAB: JVM ═══ -->
+<div id="jvm" class="tab-content active">
+
+  <div class="category">Part 1 — JVM 기본 구조 · JVM이 무엇이고, 어떤 구조로 동작하는지 면접관에게 설명할 수 있어야 합니다.</div>
+
+  <div class="qa-card">
+    <div class="qa-q">JVM이 무엇이고 왜 필요한가요?</div>
+    <div class="qa-a">
+      <p>JVM(Java Virtual Machine)은 <strong>자바 바이트코드를 실행하는 가상 머신</strong>입니다. 비유하자면, 자바 소스코드를 한국어로 쓴 책이라고 하면, 컴파일러가 이걸 '국제 공용 번역본(바이트코드)'으로 만들고, JVM은 각 나라(OS)에서 그 번역본을 현지 언어로 읽어주는 <strong>통역사</strong>입니다.</p>
+      <p>JVM이 필요한 핵심 이유는 <strong>"Write Once, Run Anywhere"</strong>입니다. 개발자가 Windows에서 작성한 코드가 Linux, Mac에서도 그대로 실행됩니다. JVM이 OS별 차이를 추상화해주기 때문입니다. 또한 JVM은 <strong>메모리 관리(GC)</strong>, <strong>보안(샌드박스)</strong>, <strong>최적화(JIT 컴파일)</strong>를 자동으로 처리해줍니다.</p>
+      <div class="tail-q">
+        <div class="tq-label">꼬리질문 대비</div>
+        <p>"자바가 인터프리터 언어인가요, 컴파일 언어인가요?" — 둘 다입니다. javac가 소스를 바이트코드로 <strong>컴파일</strong>하고, JVM이 바이트코드를 <strong>인터프리트</strong>하다가 핫스팟을 발견하면 <strong>JIT 컴파일</strong>로 네이티브 코드로 변환합니다.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">JVM의 메모리 구조를 설명해주세요.</div>
+    <div class="qa-a">
+      <p>JVM 메모리는 크게 <strong>5가지 영역</strong>으로 구분됩니다. 비유하자면 JVM은 하나의 사무실 건물이고, 각 영역은 용도가 다른 방입니다.</p>
+      <div class="diagram-box">
+        <div class="flow-wrap">
+          <div class="flow-box">Method Area<br><small>클래스 정보, static</small></div>
+          <div class="flow-box">Heap<br><small>객체 인스턴스</small></div>
+          <div class="flow-box">Stack<br><small>스레드별 지역변수</small></div>
+          <div class="flow-box">PC Register<br><small>현재 실행 주소</small></div>
+          <div class="flow-box">Native Stack<br><small>네이티브 메서드</small></div>
+        </div>
+        <div class="diagram-label">JVM Runtime Data Areas</div>
+      </div>
+      <p><strong>Method Area</strong>는 클래스 메타데이터, static 변수, 상수 풀이 저장되는 공용 창고입니다. <strong>Heap</strong>은 new 키워드로 생성된 모든 객체가 살아있는 곳이며, GC의 주요 대상입니다. 이 두 영역은 <strong>모든 스레드가 공유</strong>합니다.</p>
+      <p>반면 <strong>Stack</strong>, <strong>PC Register</strong>, <strong>Native Method Stack</strong>은 <strong>스레드마다 독립적</strong>으로 존재합니다. Stack에는 메서드 호출 시 프레임 단위로 지역변수와 연산 결과가 쌓이고, 메서드가 끝나면 프레임이 제거됩니다. 면접관이 "스택 오버플로우가 왜 발생하나요?"라고 물으면, 재귀 호출이 너무 깊어져 스레드의 Stack 크기를 초과할 때 발생한다고 답하면 됩니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">JIT 컴파일러란 무엇이고, 어떻게 최적화하나요?</div>
+    <div class="qa-a">
+      <p><strong>JIT(Just-In-Time) 컴파일러</strong>는 자주 실행되는 코드(핫스팟)를 런타임에 네이티브 머신 코드로 변환하는 최적화 엔진입니다. 식당에 비유하면, 처음 주문은 레시피를 보고 만들지만(인터프리팅), 같은 메뉴가 계속 나오면 아예 레시피를 외워서 빠르게 만드는 것(JIT 컴파일)과 같습니다.</p>
+      <p>HotSpot JVM에는 <strong>C1(Client) 컴파일러</strong>와 <strong>C2(Server) 컴파일러</strong>가 있습니다. C1은 빠른 컴파일에 초점을 맞추고, C2는 시간이 더 걸리지만 더 공격적인 최적화를 수행합니다. Java 9부터는 <strong>Tiered Compilation</strong>이 기본으로, C1으로 먼저 컴파일한 뒤 핫한 코드를 C2로 재컴파일하는 전략을 사용합니다.</p>
+      <p>대표적인 JIT 최적화로는 <strong>인라이닝</strong>(메서드 호출을 본문으로 대체), <strong>루프 언롤링</strong>, <strong>이스케이프 분석</strong>(객체가 메서드 밖으로 나가지 않으면 스택에 할당) 등이 있습니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">클래스 로딩 과정을 설명해주세요.</div>
+    <div class="qa-a">
+      <p>JVM의 <strong>클래스 로더</strong>는 .class 파일을 메모리에 올리는 역할을 합니다. 이 과정은 <strong>Loading → Linking → Initialization</strong> 세 단계로 진행됩니다.</p>
+      <div class="flow-wrap">
+        <div class="flow-box">Loading<br><small>바이트코드 읽기</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box">Linking<br><small>검증·준비·해석</small></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box">Initialization<br><small>static 초기화</small></div>
+      </div>
+      <p><strong>Loading</strong>에서는 Bootstrap → Extension → Application 순서의 <strong>부모 위임 모델(Parent Delegation Model)</strong>로 클래스를 찾습니다. 부모 클래스 로더가 찾지 못하면 자식이 찾는 구조입니다. 이렇게 하는 이유는 <strong>핵심 클래스(java.lang.Object 등)가 악의적으로 교체되는 것을 방지</strong>하기 위함입니다. <strong>Linking</strong>에서는 바이트코드 검증, static 변수 메모리 할당, 심볼릭 레퍼런스를 다이렉트 레퍼런스로 교체합니다. <strong>Initialization</strong>에서는 static 블록과 static 변수의 초기값이 실행됩니다.</p>
+    </div>
+  </div>
+
+  <div class="category">Part 2 — JVM 심화</div>
+
+  <div class="qa-card">
+    <div class="qa-q">Java 8의 Permanent Generation이 왜 Metaspace로 바뀌었나요?</div>
+    <div class="qa-a">
+      <p>Java 7까지는 클래스 메타데이터가 <strong>PermGen(Permanent Generation)</strong>이라는 Heap 내부의 고정 크기 영역에 저장되었습니다. 문제는 이 크기가 <strong>고정</strong>(-XX:MaxPermSize)이어서, 동적으로 클래스를 많이 생성하는 프레임워크(Spring, Hibernate 등)에서 <strong>java.lang.OutOfMemoryError: PermGen space</strong>가 빈번하게 발생했다는 것입니다.</p>
+      <p>Java 8부터는 PermGen을 없애고 <strong>Metaspace</strong>라는 <strong>네이티브 메모리 영역</strong>으로 대체했습니다. Metaspace는 OS의 네이티브 메모리를 사용하므로 기본적으로 <strong>크기 제한이 없고</strong>(물론 -XX:MaxMetaspaceSize로 제한 가능), 필요에 따라 자동으로 늘어납니다. 실무에서는 메모리 누수 방지를 위해 MaxMetaspaceSize를 적절히 설정하는 것이 좋습니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">스레드 덤프와 힙 덤프의 차이점과 활용법을 설명해주세요.</div>
+    <div class="qa-a">
+      <p><strong>스레드 덤프</strong>는 현재 JVM의 모든 스레드 상태를 스냅샷으로 찍은 것입니다. "지금 각 직원이 뭐 하고 있지?"를 확인하는 것과 같습니다. <strong>데드락</strong>, <strong>CPU 과점유 스레드</strong>, <strong>스레드 블로킹</strong> 문제를 진단할 때 사용합니다. <em>jstack</em> 명령어나 kill -3으로 생성할 수 있습니다.</p>
+      <p><strong>힙 덤프</strong>는 Heap 메모리에 존재하는 모든 객체의 스냅샷입니다. "사무실에 어떤 물건들이 얼마나 쌓여있지?"를 확인하는 것과 같습니다. <strong>메모리 누수(OOM)</strong>를 진단할 때 사용하며, <em>jmap</em>이나 -XX:+HeapDumpOnOutOfMemoryError 옵션으로 생성합니다. Eclipse MAT이나 VisualVM으로 분석합니다.</p>
+    </div>
+  </div>
+
+</div><!-- #jvm -->
+
+<!-- ═══ TAB: GC 기본 ═══ -->
+<div id="gc" class="tab-content">
+
+  <div class="category">Part 1 — GC 기본 개념 · Garbage Collection의 원리와 세대별 구조를 이해합니다.</div>
+
+  <div class="qa-card">
+    <div class="qa-q">Garbage Collection이란 무엇이고, 왜 필요한가요?</div>
+    <div class="qa-a">
+      <p><strong>Garbage Collection(GC)</strong>은 JVM이 더 이상 참조되지 않는 객체를 자동으로 찾아서 메모리를 회수하는 메커니즘입니다. C/C++에서는 개발자가 malloc/free를 직접 관리해야 하지만, 자바는 GC가 대신 해줍니다. 비유하면, 사무실에서 사용이 끝난 서류를 자동으로 파쇄해주는 <strong>청소 로봇</strong>과 같습니다.</p>
+      <p>GC가 필요한 이유는 <strong>메모리 누수 방지</strong>와 <strong>개발 생산성 향상</strong>입니다. 수동 메모리 관리에서 흔한 dangling pointer, double free 같은 버그를 원천 차단합니다. 다만 GC에도 비용이 있어서, GC가 동작할 때 애플리케이션이 잠시 멈추는 <strong>Stop-The-World(STW)</strong>가 발생합니다. 이 STW 시간을 줄이는 것이 GC 튜닝의 핵심입니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">GC의 세대별(Generational) 구조를 설명해주세요.</div>
+    <div class="qa-a">
+      <p>JVM Heap은 <strong>Young Generation</strong>과 <strong>Old Generation</strong>으로 나뉩니다. 이런 구조를 사용하는 이유는 <strong>"대부분의 객체는 금방 죽는다"</strong>는 경험적 관찰(Weak Generational Hypothesis) 때문입니다.</p>
+      <div class="diagram-box">
+        <div class="flow-wrap">
+          <div class="flow-box">
+            <strong>Young Generation</strong><br>
+            <small>Eden | S0 | S1</small>
+          </div>
+          <div class="flow-arrow">→ Promotion →</div>
+          <div class="flow-box">
+            <strong>Old Generation</strong><br>
+            <small>장기 생존 객체</small>
+          </div>
+        </div>
+        <div class="diagram-label">Generational Heap 구조</div>
+      </div>
+      <p><strong>Young Generation</strong>은 새로 생성된 객체가 들어가는 공간으로, <strong>Eden</strong>과 두 개의 <strong>Survivor(S0, S1)</strong> 영역으로 구성됩니다. Eden이 가득 차면 <strong>Minor GC</strong>가 발생하고, 살아남은 객체는 Survivor로 이동합니다. Survivor에서 일정 횟수(Age Threshold, 기본 15)를 버틴 객체가 <strong>Old Generation</strong>으로 승격(Promotion)됩니다. Old Generation이 가득 차면 <strong>Major GC(Full GC)</strong>가 발생하는데, 이것이 STW가 길어지는 주범입니다.</p>
+      <div class="tail-q">
+        <div class="tq-label">꼬리질문 대비</div>
+        <p>"Survivor 영역이 왜 두 개인가요?" — <strong>Minor GC 시 Eden + 활성 Survivor의 살아남은 객체를 빈 Survivor로 복사</strong>하는 방식을 씁니다. 이렇게 하면 메모리 단편화(fragmentation)가 발생하지 않고, 연속된 메모리 공간을 확보할 수 있습니다.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">GC가 "살아있는 객체"를 어떻게 판별하나요?</div>
+    <div class="qa-a">
+      <p>현대 JVM은 <strong>Reachability Analysis(도달성 분석)</strong>를 사용합니다. <strong>GC Root</strong>라고 불리는 시작점에서 참조 체인을 따라가며, 도달할 수 있는 객체는 살아있고, 도달할 수 없으면 GC 대상입니다.</p>
+      <p>GC Root가 될 수 있는 것들은 <strong>스레드 스택의 지역변수</strong>, <strong>static 변수</strong>, <strong>JNI 참조</strong>, <strong>활성 스레드</strong> 등입니다. 참조 카운팅(Reference Counting) 방식은 순환 참조 문제가 있어 자바에서는 사용하지 않습니다. 예를 들어 객체 A와 B가 서로만 참조하면 카운트가 0이 안 되지만, Reachability 방식에서는 GC Root에서 도달 불가하므로 정상적으로 수거됩니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">Minor GC와 Major GC(Full GC)의 차이를 설명해주세요.</div>
+    <div class="qa-a">
+      <p><strong>Minor GC</strong>는 Young Generation만 대상으로 하는 GC입니다. Eden이 가득 차면 트리거되며, 대부분의 객체가 이미 죽어있기 때문에 <strong>보통 수 ms 이내로 매우 빠릅니다</strong>. 살아남은 소수의 객체만 Survivor로 복사하면 되기 때문입니다.</p>
+      <p><strong>Major GC(Full GC)</strong>는 Old Generation을 대상으로 하며, 경우에 따라 전체 Heap을 스캔합니다. Old Generation에는 오래 살아남은 객체가 밀집해 있어 <strong>스캔 범위가 넓고 STW 시간이 길어집니다</strong>. 실무에서 GC 튜닝의 핵심은 바로 이 Full GC의 빈도와 시간을 줄이는 것입니다.</p>
+      <table>
+        <tr><th>구분</th><th>Minor GC</th><th>Major GC / Full GC</th></tr>
+        <tr><td>대상</td><td>Young Generation</td><td>Old Generation (+ Young)</td></tr>
+        <tr><td>트리거</td><td>Eden 가득 참</td><td>Old 가득 참</td></tr>
+        <tr><td>STW 시간</td><td>수 ms (짧음)</td><td>수십 ms ~ 수 초 (길음)</td></tr>
+        <tr><td>빈도</td><td>자주 발생</td><td>드물게 발생</td></tr>
+      </table>
+    </div>
+  </div>
+
+</div><!-- #gc -->
+
+<!-- ═══ TAB: GC 심화 ═══ -->
+<div id="gc-deep" class="tab-content">
+
+  <div class="category">Part 1 — GC 알고리즘 비교 · 각 GC 수집기의 동작 원리, 차이점, 적합한 상황을 설명합니다.</div>
+
+  <div class="qa-card">
+    <div class="qa-q">Serial, Parallel, CMS, G1, ZGC의 차이를 설명해주세요.</div>
+    <div class="qa-a">
+      <p>각 GC 수집기를 식당의 청소 방식에 비유하면 이해가 쉽습니다.</p>
+      <table>
+        <tr><th>GC</th><th>방식</th><th>STW</th><th>적합한 환경</th></tr>
+        <tr><td><strong>Serial</strong></td><td>싱글 스레드로 수집</td><td>길다</td><td>싱글 코어, 소규모 앱</td></tr>
+        <tr><td><strong>Parallel</strong></td><td>멀티 스레드로 수집 (처리량 최적)</td><td>중간</td><td>배치 처리, 처리량 우선</td></tr>
+        <tr><td><strong>CMS</strong></td><td>Old GC를 앱과 동시 수행</td><td>짧지만 단편화 문제</td><td>Java 8 이하 저지연 앱</td></tr>
+        <tr><td><strong>G1</strong></td><td>Heap을 Region으로 나눠 우선순위 수집</td><td>예측 가능 (목표 설정)</td><td>Java 9+ 기본, 범용</td></tr>
+        <tr><td><strong>ZGC</strong></td><td>컬러 포인터 + 동시 수집</td><td>1ms 이하</td><td>대용량 Heap, 초저지연</td></tr>
+      </table>
+      <p><strong>Serial</strong>은 혼자서 청소하는 것이고, <strong>Parallel</strong>은 여러 명이 한꺼번에 청소하되 가게 문을 닫습니다. <strong>CMS</strong>는 영업 중에 청소하지만 쓰레기가 구석구석 흩어져(단편화) 결국 한번은 문을 닫아야 합니다. <strong>G1</strong>은 구역별로 나눠서 쓰레기가 가장 많은 구역(Garbage-First)부터 청소하니 효율적입니다. <strong>ZGC</strong>는 아예 손님이 거의 느끼지 못하게 청소합니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">G1 GC의 동작 원리를 자세히 설명해주세요.</div>
+    <div class="qa-a">
+      <p>G1(Garbage-First) GC는 <strong>Heap을 동일 크기의 Region(기본 1~32MB)으로 나누고</strong>, 각 Region에 Eden, Survivor, Old, Humongous 역할을 동적으로 부여합니다. 기존의 물리적으로 고정된 세대 구분 대신, <strong>논리적 세대</strong>를 사용하는 것이 핵심 혁신입니다.</p>
+      <div class="diagram-box">
+        <svg viewBox="0 0 480 180" xmlns="http://www.w3.org/2000/svg">
+          <rect x="10" y="10" width="55" height="55" rx="4" fill="#55efc4" opacity="0.3" stroke="#55efc4"/>
+          <text x="37" y="42" font-size="10" fill="#55efc4" text-anchor="middle">Eden</text>
+          <rect x="70" y="10" width="55" height="55" rx="4" fill="#55efc4" opacity="0.3" stroke="#55efc4"/>
+          <text x="97" y="42" font-size="10" fill="#55efc4" text-anchor="middle">Eden</text>
+          <rect x="130" y="10" width="55" height="55" rx="4" fill="#74b9ff" opacity="0.3" stroke="#74b9ff"/>
+          <text x="157" y="42" font-size="10" fill="#74b9ff" text-anchor="middle">S</text>
+          <rect x="190" y="10" width="55" height="55" rx="4" fill="#fab1a0" opacity="0.3" stroke="#fab1a0"/>
+          <text x="217" y="42" font-size="10" fill="#fab1a0" text-anchor="middle">Old</text>
+          <rect x="250" y="10" width="55" height="55" rx="4" fill="#fab1a0" opacity="0.3" stroke="#fab1a0"/>
+          <text x="277" y="42" font-size="10" fill="#fab1a0" text-anchor="middle">Old</text>
+          <rect x="310" y="10" width="55" height="55" rx="4" fill="#fab1a0" opacity="0.3" stroke="#fab1a0"/>
+          <text x="337" y="42" font-size="10" fill="#fab1a0" text-anchor="middle">Old</text>
+          <rect x="370" y="10" width="55" height="55" rx="4" fill="#a29bfe" opacity="0.3" stroke="#a29bfe"/>
+          <text x="397" y="38" font-size="9" fill="#a29bfe" text-anchor="middle">Humon-</text>
+          <text x="397" y="50" font-size="9" fill="#a29bfe" text-anchor="middle">gous</text>
+          <rect x="10" y="70" width="55" height="55" rx="4" fill="#fab1a0" opacity="0.3" stroke="#fab1a0"/>
+          <text x="37" y="102" font-size="10" fill="#fab1a0" text-anchor="middle">Old</text>
+          <rect x="70" y="70" width="55" height="55" rx="4" fill="#55efc4" opacity="0.3" stroke="#55efc4"/>
+          <text x="97" y="102" font-size="10" fill="#55efc4" text-anchor="middle">Eden</text>
+          <rect x="130" y="70" width="55" height="55" rx="4" fill="transparent" stroke="#5c6370" stroke-dasharray="4"/>
+          <text x="157" y="102" font-size="10" fill="#5c6370" text-anchor="middle">Free</text>
+          <rect x="190" y="70" width="55" height="55" rx="4" fill="#fab1a0" opacity="0.3" stroke="#fab1a0"/>
+          <text x="217" y="102" font-size="10" fill="#fab1a0" text-anchor="middle">Old</text>
+          <rect x="250" y="70" width="55" height="55" rx="4" fill="transparent" stroke="#5c6370" stroke-dasharray="4"/>
+          <text x="277" y="102" font-size="10" fill="#5c6370" text-anchor="middle">Free</text>
+          <rect x="310" y="70" width="55" height="55" rx="4" fill="#74b9ff" opacity="0.3" stroke="#74b9ff"/>
+          <text x="337" y="102" font-size="10" fill="#74b9ff" text-anchor="middle">S</text>
+          <rect x="370" y="70" width="55" height="55" rx="4" fill="#55efc4" opacity="0.3" stroke="#55efc4"/>
+          <text x="397" y="102" font-size="10" fill="#55efc4" text-anchor="middle">Eden</text>
+          <rect x="10" y="145" width="12" height="12" rx="2" fill="#55efc4" opacity="0.5"/>
+          <text x="28" y="155" font-size="10" fill="#8892b0">Eden</text>
+          <rect x="80" y="145" width="12" height="12" rx="2" fill="#74b9ff" opacity="0.5"/>
+          <text x="98" y="155" font-size="10" fill="#8892b0">Survivor</text>
+          <rect x="170" y="145" width="12" height="12" rx="2" fill="#fab1a0" opacity="0.5"/>
+          <text x="188" y="155" font-size="10" fill="#8892b0">Old</text>
+          <rect x="230" y="145" width="12" height="12" rx="2" fill="#a29bfe" opacity="0.5"/>
+          <text x="248" y="155" font-size="10" fill="#8892b0">Humongous</text>
+          <rect x="340" y="145" width="12" height="12" rx="2" fill="transparent" stroke="#5c6370" stroke-dasharray="4"/>
+          <text x="358" y="155" font-size="10" fill="#8892b0">Free</text>
+        </svg>
+        <div class="diagram-label">G1 GC — Region 기반 Heap 레이아웃</div>
+      </div>
+      <p>G1의 수집 과정은 크게 <strong>Young GC</strong>와 <strong>Mixed GC</strong>로 나뉩니다. Young GC는 Eden Region만 수집하며, Mixed GC는 Young + 쓰레기가 많은 Old Region을 함께 수집합니다. <strong>-XX:MaxGCPauseMillis</strong>(기본 200ms)로 목표 STW 시간을 설정하면, G1이 수집할 Region 수를 자동으로 조절합니다. 또한 <strong>Remembered Set(RSet)</strong>으로 Region 간 참조를 추적하여, 전체 Heap을 스캔하지 않고도 특정 Region의 참조 관계를 파악합니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">ZGC는 어떻게 1ms 이하의 STW를 달성하나요?</div>
+    <div class="qa-a">
+      <p>ZGC의 핵심 기술은 <strong>Colored Pointer(컬러 포인터)</strong>와 <strong>Load Barrier(로드 배리어)</strong>입니다. 64비트 포인터의 상위 비트에 객체의 상태(Marked, Remapped, Finalizable 등)를 인코딩하여, 객체를 읽는 순간에 해당 객체의 GC 상태를 즉시 파악합니다.</p>
+      <p>ZGC는 객체를 이동시키면서도 애플리케이션을 멈추지 않습니다. 객체가 이동되면 이전 주소로 접근하는 스레드가 Load Barrier를 통해 <strong>자동으로 새 주소로 리다이렉트</strong>됩니다. 이것은 마치 택배 물류센터가 이사해도, 기존 주소로 보낸 택배가 자동 전달되는 것과 같습니다. STW는 <strong>GC Root 스캔</strong>에만 발생하며, 이는 매우 짧은 시간(보통 1ms 미만)에 완료됩니다. Java 21 LTS에서 Generational ZGC가 도입되어 Young/Old 세대 구분까지 추가되었습니다.</p>
+    </div>
+  </div>
+
+  <div class="category">Part 2 — GC 실무 튜닝</div>
+
+  <div class="qa-card">
+    <div class="qa-q">실무에서 GC 튜닝은 어떻게 접근하나요?</div>
+    <div class="qa-a">
+      <p>GC 튜닝의 첫 번째 원칙은 <strong>"측정 먼저, 튜닝은 나중에"</strong>입니다. -Xlog:gc* (Java 9+) 또는 -verbose:gc로 GC 로그를 활성화하고, <strong>GC Viewer</strong>나 <strong>GCEasy</strong> 같은 도구로 분석합니다.</p>
+      <p>확인해야 할 핵심 지표는 <strong>GC 빈도</strong>, <strong>STW 시간</strong>, <strong>Heap 사용률 추이</strong>입니다. Old Generation 사용량이 GC 후에도 계속 증가하면 <strong>메모리 누수</strong>를 의심해야 합니다. 보통은 <strong>Heap 크기(-Xms, -Xmx)</strong>를 적절히 설정하는 것만으로도 대부분의 문제가 해결됩니다. -Xms와 -Xmx를 동일하게 설정하면 Heap 리사이징에 의한 불필요한 GC를 방지할 수 있습니다.</p>
+      <p>실무 권장 사항으로는, Java 17+ 환경에서 특별한 이유가 없다면 <strong>G1 GC(기본값)를 그대로 사용</strong>하고, 초저지연이 필요하면 ZGC를 고려합니다. 무작정 옵션을 많이 건드리기보다, <strong>애플리케이션 특성</strong>(처리량 vs 지연시간)에 맞는 GC를 선택하고 최소한의 옵션만 조정하는 것이 좋습니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">GC가 애플리케이션 성능에 미치는 영향을 어떻게 모니터링하나요?</div>
+    <div class="qa-a">
+      <p>실무에서는 <strong>Prometheus + Grafana</strong> 조합으로 JVM 메트릭을 실시간 모니터링합니다. Spring Boot라면 <strong>Micrometer</strong>가 JVM 메트릭을 자동 수집하고, jvm_gc_pause_seconds, jvm_memory_used_bytes 같은 메트릭으로 GC 상태를 대시보드에서 확인합니다.</p>
+      <p>주의 깊게 볼 지표는 <strong>GC Pause 시간의 P99</strong>(99퍼센타일), <strong>GC 발생 빈도</strong>, <strong>Heap 점유율 추이</strong>입니다. Full GC가 잦아지거나 STW 시간이 급격히 늘어나면 알람을 설정해두는 것이 좋습니다. 또한 <strong>jstat -gcutil</strong> 명령어로 각 세대의 사용률을 실시간으로 확인할 수 있습니다.</p>
+    </div>
+  </div>
+
+</div><!-- #gc-deep -->
+
+<!-- ═══ TAB: HTTPS ═══ -->
+<div id="https" class="tab-content">
+
+  <div class="category">Part 1 — HTTPS 기본</div>
+
+  <div class="qa-card">
+    <div class="qa-q">HTTPS란 무엇이고, HTTP와 무엇이 다른가요?</div>
+    <div class="qa-a">
+      <p><strong>HTTPS(HTTP Secure)</strong>는 HTTP에 <strong>TLS(Transport Layer Security)</strong> 암호화 계층을 추가한 프로토콜입니다. 비유하면, HTTP가 엽서(내용이 보임)라면, HTTPS는 밀봉된 등기우편(내용을 볼 수 없고, 보낸 사람도 인증됨)입니다.</p>
+      <p>HTTPS가 보장하는 세 가지는 <strong>기밀성</strong>(데이터 암호화), <strong>무결성</strong>(데이터 변조 방지), <strong>인증</strong>(서버가 진짜 그 서버인지 확인)입니다. 포트는 HTTP가 80, HTTPS가 <strong>443</strong>을 기본으로 사용합니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">TLS Handshake 과정을 설명해주세요.</div>
+    <div class="qa-a">
+      <p>TLS Handshake는 클라이언트와 서버가 <strong>안전한 통신 채널을 수립하는 협상 과정</strong>입니다. TLS 1.2 기준으로 설명하겠습니다.</p>
+      <div class="diagram-box">
+        <svg viewBox="0 0 500 280" xmlns="http://www.w3.org/2000/svg">
+          <text x="80" y="20" font-size="12" fill="#a29bfe" font-weight="bold" text-anchor="middle">Client</text>
+          <text x="420" y="20" font-size="12" fill="#55efc4" font-weight="bold" text-anchor="middle">Server</text>
+          <line x1="80" y1="30" x2="80" y2="270" stroke="#a29bfe" stroke-width="2"/>
+          <line x1="420" y1="30" x2="420" y2="270" stroke="#55efc4" stroke-width="2"/>
+          <line x1="80" y1="55" x2="420" y2="55" stroke="#fab1a0" stroke-width="1.5" marker-end="url(#arr)"/>
+          <text x="250" y="50" font-size="10" fill="#fab1a0" text-anchor="middle">① ClientHello (TLS 버전, 암호 스위트, 랜덤값)</text>
+          <line x1="420" y1="95" x2="80" y2="95" stroke="#74b9ff" stroke-width="1.5" marker-end="url(#arr2)"/>
+          <text x="250" y="90" font-size="10" fill="#74b9ff" text-anchor="middle">② ServerHello + 인증서 + ServerKeyExchange</text>
+          <line x1="80" y1="140" x2="420" y2="140" stroke="#fab1a0" stroke-width="1.5" marker-end="url(#arr)"/>
+          <text x="250" y="135" font-size="10" fill="#fab1a0" text-anchor="middle">③ 인증서 검증 → Pre-Master Secret (서버 공개키로 암호화)</text>
+          <rect x="130" y="160" width="240" height="30" rx="6" fill="rgba(108,92,231,0.2)" stroke="#a29bfe"/>
+          <text x="250" y="180" font-size="10" fill="#a29bfe" text-anchor="middle">④ 양쪽 동일 세션키(대칭키) 생성</text>
+          <line x1="80" y1="210" x2="420" y2="210" stroke="#55efc4" stroke-width="1.5"/>
+          <line x1="420" y1="210" x2="80" y2="210" stroke="#55efc4" stroke-width="1.5"/>
+          <text x="250" y="230" font-size="10" fill="#55efc4" text-anchor="middle">⑤ 대칭키로 암호화된 데이터 통신</text>
+          <defs>
+            <marker id="arr" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#fab1a0"/>
+            </marker>
+            <marker id="arr2" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#74b9ff"/>
+            </marker>
+          </defs>
+        </svg>
+        <div class="diagram-label">TLS 1.2 Handshake 흐름</div>
+      </div>
+      <p>핵심 포인트는 <strong>비대칭키로 대칭키를 안전하게 교환</strong>한다는 것입니다. 비대칭 암호화(RSA, ECDHE)는 느리기 때문에 키 교환에만 쓰고, 실제 데이터 전송은 빠른 <strong>대칭키(AES 등)</strong>로 합니다.</p>
+      <div class="tail-q">
+        <div class="tq-label">꼬리질문 대비</div>
+        <p>"TLS 1.3에서 달라진 점은?" — Handshake가 <strong>1-RTT</strong>로 줄었습니다(1.2는 2-RTT). 불안전한 알고리즘(RSA 키 교환, SHA-1 등)을 제거하고, <strong>0-RTT Resumption</strong>도 지원하여 이전에 연결했던 서버에는 Handshake 없이 바로 데이터를 보낼 수 있습니다(보안 Trade-off 존재).</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">인증서(Certificate)는 어떤 역할을 하고, 어떻게 검증하나요?</div>
+    <div class="qa-a">
+      <p>인증서는 <strong>"이 서버가 진짜 naver.com이 맞다"</strong>는 것을 보증하는 디지털 신분증입니다. <strong>CA(Certificate Authority)</strong>라는 신뢰할 수 있는 기관이 발급하며, 인증서에는 서버의 <strong>공개키</strong>, <strong>도메인 이름</strong>, <strong>발급자(CA)</strong>, <strong>유효기간</strong>, <strong>CA의 디지털 서명</strong>이 포함됩니다.</p>
+      <p>검증 과정은 <strong>인증서 체인(Certificate Chain)</strong>을 따라갑니다. 서버 인증서 → 중간 CA 인증서 → <strong>Root CA 인증서</strong>까지 체인을 따라가며, 각 단계에서 상위 CA의 공개키로 하위 인증서의 서명을 검증합니다. Root CA의 인증서는 브라우저나 OS에 <strong>사전 설치(Trust Store)</strong>되어 있어, 최종적으로 신뢰의 기반이 됩니다. 실무에서 Let's Encrypt를 많이 사용하는데, 이는 무료 CA로 90일 단위의 자동 갱신 인증서를 제공합니다.</p>
+    </div>
+  </div>
+
+  <div class="category">Part 2 — HTTPS 심화</div>
+
+  <div class="qa-card">
+    <div class="qa-q">대칭키와 비대칭키 암호화의 차이, 그리고 HTTPS에서의 역할은?</div>
+    <div class="qa-a">
+      <table>
+        <tr><th>구분</th><th>대칭키 (AES)</th><th>비대칭키 (RSA/ECDHE)</th></tr>
+        <tr><td>키 개수</td><td>1개 (같은 키로 암/복호화)</td><td>2개 (공개키 + 개인키)</td></tr>
+        <tr><td>속도</td><td>빠름</td><td>느림 (100~1000배)</td></tr>
+        <tr><td>문제점</td><td>키 교환이 어려움</td><td>성능 부담</td></tr>
+        <tr><td>HTTPS 용도</td><td>실제 데이터 암호화</td><td>세션키(대칭키) 교환</td></tr>
+      </table>
+      <p>HTTPS는 두 방식의 장점을 결합한 <strong>하이브리드 방식</strong>입니다. 비대칭키의 보안성으로 안전하게 세션키를 교환하고, 대칭키의 속도로 실제 데이터를 빠르게 주고받습니다. 면접관이 "왜 처음부터 대칭키만 쓰면 안 되나요?"라고 물으면, <strong>대칭키를 안전하게 전달할 방법이 없기 때문</strong>이라고 답하면 됩니다. 네트워크 상에서 키를 평문으로 보내면 중간에서 탈취될 수 있습니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">HTTPS를 쓰면 성능 저하가 있나요? 어떻게 최적화하나요?</div>
+    <div class="qa-a">
+      <p>TLS Handshake로 인해 <strong>초기 연결 시 RTT가 추가</strong>됩니다. TLS 1.2는 2-RTT, TLS 1.3은 1-RTT가 필요합니다. 또한 암/복호화 연산에 CPU 리소스가 소모됩니다. 하지만 현대 하드웨어에서는 AES-NI 명령어 지원으로 암호화 오버헤드가 거의 무시할 수준입니다.</p>
+      <p>최적화 방법으로는 <strong>TLS Session Resumption</strong>(이전 세션 정보 재사용으로 Handshake 생략), <strong>HTTP/2 사용</strong>(TLS 위에서 멀티플렉싱으로 성능 향상), <strong>OCSP Stapling</strong>(인증서 유효성 확인을 서버가 미리 해서 클라이언트 부담 감소), <strong>HTTP Keep-Alive</strong>(연결 재사용)가 있습니다. 실무에서 HTTPS 성능 문제를 체감하는 경우는 거의 없으며, 보안 이점이 압도적입니다.</p>
+    </div>
+  </div>
+
+</div><!-- #https -->
+
+<!-- ═══ TAB: Redis 클러스터 ═══ -->
+<div id="redis" class="tab-content">
+
+  <div class="category">Part 1 — Redis 클러스터 기본</div>
+
+  <div class="qa-card">
+    <div class="qa-q">Redis 클러스터란 무엇이고, 왜 필요한가요?</div>
+    <div class="qa-a">
+      <p><strong>Redis 클러스터</strong>는 데이터를 여러 Redis 노드에 <strong>자동으로 분산 저장</strong>하는 수평 확장(Scale-Out) 솔루션입니다. 단일 Redis 인스턴스는 하나의 서버 메모리에 제한되지만, 클러스터를 사용하면 <strong>여러 노드의 메모리를 합쳐</strong> 더 큰 데이터셋을 처리할 수 있습니다.</p>
+      <p>비유하면, 단일 Redis는 <strong>하나의 금고</strong>이고, Redis 클러스터는 <strong>여러 금고가 연결된 은행 볼트 시스템</strong>입니다. 각 금고(노드)에 특정 번호대의 자산(데이터)을 분산 보관하고, 어떤 금고에 있는지는 시스템이 자동으로 안내해줍니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">Redis 클러스터의 데이터 분산(Hash Slot) 방식을 설명해주세요.</div>
+    <div class="qa-a">
+      <p>Redis 클러스터는 <strong>16,384개의 해시 슬롯(Hash Slot)</strong>을 사용합니다. 키의 해시 슬롯은 <strong>CRC16(key) mod 16384</strong>로 계산됩니다. 각 마스터 노드가 해시 슬롯의 일부를 담당합니다.</p>
+      <div class="diagram-box">
+        <div class="flow-wrap">
+          <div class="flow-box">Node A<br><small>슬롯 0~5460</small></div>
+          <div class="flow-box">Node B<br><small>슬롯 5461~10922</small></div>
+          <div class="flow-box">Node C<br><small>슬롯 10923~16383</small></div>
+        </div>
+        <div class="diagram-label">3개 마스터 노드의 해시 슬롯 분배</div>
+      </div>
+      <p>클라이언트가 키에 접근하면, 해시 슬롯을 계산하여 해당 노드로 요청합니다. 만약 잘못된 노드에 요청하면 <strong>MOVED 리다이렉션</strong> 응답을 받고, 올바른 노드로 재요청합니다. 스마트 클라이언트(Jedis, Lettuce 등)는 슬롯-노드 매핑을 캐싱하여 대부분 한 번에 올바른 노드로 요청합니다.</p>
+      <div class="tail-q">
+        <div class="tq-label">꼬리질문 대비</div>
+        <p>"멀티 키 연산은 어떻게 하나요?" — 같은 슬롯에 있는 키만 멀티 키 연산이 가능합니다. 이를 위해 <strong>Hash Tag</strong>를 사용합니다. 예: {user:1000}.profile, {user:1000}.session처럼 중괄호 안의 부분만 해시 계산에 사용되어 같은 슬롯에 배치됩니다.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">Redis 클러스터에서 장애 감지와 페일오버는 어떻게 동작하나요?</div>
+    <div class="qa-a">
+      <p>Redis 클러스터는 <strong>Gossip 프로토콜</strong>을 사용하여 노드 간 상태를 주기적으로 교환합니다. 각 노드는 다른 노드에 PING을 보내고, 일정 시간(cluster-node-timeout) 내에 응답이 없으면 해당 노드를 <strong>PFAIL(Probable Fail)</strong>로 표시합니다.</p>
+      <p>과반수 이상의 마스터 노드가 특정 노드를 PFAIL로 보고하면, 그 노드는 <strong>FAIL 상태</strong>가 됩니다. FAIL 상태가 되면 해당 마스터의 <strong>레플리카(Slave) 중 하나가 자동으로 마스터로 승격</strong>됩니다. 이 과정에서 레플리카는 다른 마스터들에게 투표를 요청하고, 과반 이상의 동의를 받으면 새 마스터가 됩니다. 전체 과정은 보통 <strong>수 초 이내</strong>에 완료됩니다.</p>
+      <p>주의할 점은 Redis 클러스터는 <strong>비동기 복제</strong>를 사용하므로, 마스터가 쓰기를 받은 직후 장애가 나면 레플리카에 아직 복제되지 않은 데이터가 유실될 수 있습니다. 이것이 Redis 클러스터가 <strong>강한 일관성(Strong Consistency)을 보장하지 않는</strong> 이유입니다.</p>
+    </div>
+  </div>
+
+  <div class="category">Part 2 — Redis 클러스터 실무</div>
+
+  <div class="qa-card">
+    <div class="qa-q">Redis Sentinel과 Redis 클러스터의 차이는?</div>
+    <div class="qa-a">
+      <table>
+        <tr><th>구분</th><th>Redis Sentinel</th><th>Redis Cluster</th></tr>
+        <tr><td>목적</td><td>고가용성(HA) — 자동 페일오버</td><td>수평 확장 + 고가용성</td></tr>
+        <tr><td>데이터 분산</td><td>없음 (단일 마스터에 전체 데이터)</td><td>있음 (해시 슬롯으로 분산)</td></tr>
+        <tr><td>용량 확장</td><td>수직 확장(Scale-Up)만 가능</td><td>수평 확장(Scale-Out) 가능</td></tr>
+        <tr><td>구성</td><td>마스터-슬레이브 + Sentinel 프로세스</td><td>마스터-레플리카 노드 (최소 6개 권장)</td></tr>
+        <tr><td>적합 상황</td><td>데이터 작고 HA만 필요</td><td>데이터 크거나 높은 처리량 필요</td></tr>
+      </table>
+      <p>Sentinel은 "수문장"으로 마스터 장애를 감지하고 슬레이브를 승격시키는 역할에 집중합니다. 데이터는 여전히 단일 마스터에 있으므로 한 서버의 메모리 한계가 곧 데이터 한계입니다. 반면 클러스터는 데이터를 나누어 저장하므로 <strong>노드를 추가하면 용량과 처리량이 선형으로 증가</strong>합니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">Redis 클러스터 운영 시 주의사항은?</div>
+    <div class="qa-a">
+      <p>첫째, <strong>키 설계</strong>가 중요합니다. 특정 슬롯에 데이터가 집중되면(Hot Key) 부하가 편중됩니다. Hash Tag를 사용할 때도 지나치게 많은 키를 같은 슬롯에 몰지 않도록 주의해야 합니다.</p>
+      <p>둘째, <strong>네트워크 파티션</strong>에 대비해야 합니다. cluster-node-timeout을 너무 짧게 설정하면 네트워크 순간 지연에도 불필요한 페일오버가 발생합니다. 보통 5~15초가 적절합니다. 셋째, <strong>리샤딩(Resharding)</strong> 시 데이터 마이그레이션이 발생하므로 피크 시간을 피해야 합니다. 넷째, 클러스터 모드에서는 <strong>SELECT(DB 전환)</strong>가 불가하고 DB 0만 사용 가능하며, <strong>Lua 스크립트</strong>에서 접근하는 모든 키가 같은 슬롯에 있어야 합니다.</p>
+    </div>
+  </div>
+
+</div><!-- #redis -->
+
+<!-- ═══ TAB: Docker 이미지 ═══ -->
+<div id="docker" class="tab-content">
+
+  <div class="category">Part 1 — Docker 이미지 기본</div>
+
+  <div class="qa-card">
+    <div class="qa-q">Docker 이미지란 무엇이고, 컨테이너와 어떤 관계인가요?</div>
+    <div class="qa-a">
+      <p><strong>Docker 이미지</strong>는 애플리케이션 실행에 필요한 모든 것(코드, 런타임, 라이브러리, 환경설정)을 담은 <strong>불변의 템플릿</strong>입니다. <strong>컨테이너</strong>는 이미지를 기반으로 실행된 <strong>인스턴스</strong>입니다. 비유하면, 이미지는 <strong>붕어빵 틀</strong>이고, 컨테이너는 그 틀로 구워낸 <strong>붕어빵</strong>입니다. 하나의 이미지로 여러 컨테이너를 만들 수 있습니다.</p>
+      <p>이미지는 <strong>읽기 전용(Read-Only)</strong>이며, 컨테이너가 실행되면 이미지 위에 <strong>읽기-쓰기 레이어</strong>가 추가됩니다. 컨테이너에서 파일을 수정해도 원본 이미지에는 영향을 주지 않습니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">Docker 이미지의 레이어(Layer) 구조를 설명해주세요.</div>
+    <div class="qa-a">
+      <p>Docker 이미지는 <strong>여러 개의 읽기 전용 레이어가 쌓인 구조</strong>입니다. Dockerfile의 각 명령어(FROM, RUN, COPY 등)가 하나의 레이어를 생성합니다. 이 레이어들은 <strong>Union File System(OverlayFS)</strong>으로 합쳐져 마치 하나의 파일시스템처럼 보입니다.</p>
+      <div class="diagram-box">
+        <svg viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">
+          <rect x="50" y="10" width="300" height="32" rx="6" fill="rgba(225,112,85,0.2)" stroke="#e17055"/>
+          <text x="200" y="31" font-size="11" fill="#fab1a0" text-anchor="middle">Container Layer (R/W)</text>
+          <rect x="50" y="50" width="300" height="32" rx="6" fill="rgba(108,92,231,0.2)" stroke="#6c5ce7"/>
+          <text x="200" y="71" font-size="11" fill="#a29bfe" text-anchor="middle">Layer 4: COPY app.jar /app/</text>
+          <rect x="50" y="90" width="300" height="32" rx="6" fill="rgba(108,92,231,0.2)" stroke="#6c5ce7"/>
+          <text x="200" y="111" font-size="11" fill="#a29bfe" text-anchor="middle">Layer 3: RUN apt-get install openjdk</text>
+          <rect x="50" y="130" width="300" height="32" rx="6" fill="rgba(108,92,231,0.2)" stroke="#6c5ce7"/>
+          <text x="200" y="151" font-size="11" fill="#a29bfe" text-anchor="middle">Layer 2: RUN apt-get update</text>
+          <rect x="50" y="170" width="300" height="32" rx="6" fill="rgba(0,184,148,0.2)" stroke="#00b894"/>
+          <text x="200" y="191" font-size="11" fill="#55efc4" text-anchor="middle">Layer 1: FROM ubuntu:22.04 (Base)</text>
+        </svg>
+        <div class="diagram-label">Docker 이미지 레이어 구조</div>
+      </div>
+      <p>레이어 구조의 최대 장점은 <strong>캐싱과 공유</strong>입니다. 같은 베이스 이미지를 사용하는 여러 이미지가 하위 레이어를 공유하므로 디스크를 절약합니다. 또한 빌드 시 변경되지 않은 레이어는 캐시에서 재사용하여 빌드 시간을 단축합니다.</p>
+      <div class="tail-q">
+        <div class="tq-label">꼬리질문 대비</div>
+        <p>"Dockerfile에서 레이어 캐시를 효율적으로 쓰려면?" — <strong>자주 변경되지 않는 명령을 위에, 자주 변경되는 명령을 아래에</strong> 배치합니다. 예를 들어, COPY requirements.txt → RUN pip install → COPY . (소스코드) 순서로 하면, 소스코드만 바뀌었을 때 의존성 설치 레이어는 캐시됩니다.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="category">Part 2 — Docker 이미지 최적화</div>
+
+  <div class="qa-card">
+    <div class="qa-q">Docker 이미지 크기를 줄이는 방법은?</div>
+    <div class="qa-a">
+      <p>이미지 크기 최적화는 <strong>배포 속도</strong>와 <strong>보안 공격 표면 감소</strong> 모두에 중요합니다.</p>
+      <p>첫째, <strong>멀티 스테이지 빌드(Multi-Stage Build)</strong>를 활용합니다. 빌드에 필요한 도구(JDK, Maven)와 실행에 필요한 환경(JRE)을 분리하여, 최종 이미지에는 실행에 필요한 것만 담습니다. 둘째, <strong>경량 베이스 이미지</strong>를 사용합니다. ubuntu 대신 <strong>alpine</strong>(약 5MB)이나 <strong>distroless</strong>를 쓰면 이미지 크기를 극적으로 줄일 수 있습니다. 셋째, <strong>RUN 명령을 합치고</strong> 불필요한 파일을 같은 레이어에서 삭제합니다. RUN apt-get update &amp;&amp; apt-get install -y ... &amp;&amp; rm -rf /var/lib/apt/lists/*처럼 하나의 RUN에서 설치와 캐시 정리를 함께 합니다.</p>
+      <p>넷째, <strong>.dockerignore</strong> 파일로 빌드 컨텍스트에서 불필요한 파일(.git, node_modules, *.log)을 제외합니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">Docker 이미지 보안은 어떻게 관리하나요?</div>
+    <div class="qa-a">
+      <p>이미지 보안의 핵심은 <strong>최소 권한 원칙</strong>과 <strong>취약점 스캔</strong>입니다. 먼저, <strong>비루트 사용자</strong>로 컨테이너를 실행합니다. Dockerfile에 USER 명령어로 비루트 사용자를 지정합니다. 다음으로, <strong>Trivy, Snyk, Docker Scout</strong> 같은 도구로 이미지의 취약점(CVE)을 정기적으로 스캔합니다.</p>
+      <p>또한 <strong>이미지 태그를 고정</strong>해야 합니다. FROM python:latest 대신 FROM python:3.11.7-slim처럼 구체적 버전을 지정해야 빌드 재현성과 보안을 확보할 수 있습니다. 실무에서는 <strong>Private Registry</strong>(Harbor, ECR, GCR 등)를 운영하고, 이미지 서명과 검증(Docker Content Trust)을 적용하는 것이 권장됩니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">멀티 스테이지 빌드를 예시와 함께 설명해주세요.</div>
+    <div class="qa-a">
+      <p>멀티 스테이지 빌드는 <strong>빌드 환경과 실행 환경을 분리</strong>하여 최종 이미지를 가볍게 만드는 기법입니다. Java 애플리케이션의 예를 들면:</p>
+      <pre><span class="comment"># Stage 1: 빌드</span>
+<span class="keyword">FROM</span> maven:3.9-eclipse-temurin-17 <span class="keyword">AS</span> builder
+<span class="keyword">WORKDIR</span> /app
+<span class="keyword">COPY</span> pom.xml .
+<span class="keyword">RUN</span> mvn dependency:go-offline
+<span class="keyword">COPY</span> src ./src
+<span class="keyword">RUN</span> mvn package -DskipTests
+
+<span class="comment"># Stage 2: 실행 (빌드 도구 없음)</span>
+<span class="keyword">FROM</span> eclipse-temurin:17-jre-alpine
+<span class="keyword">WORKDIR</span> /app
+<span class="keyword">COPY</span> --from=builder /app/target/*.jar app.jar
+<span class="keyword">USER</span> 1001
+<span class="keyword">ENTRYPOINT</span> ["java", "-jar", "app.jar"]</pre>
+      <p>Stage 1(builder)에서는 Maven, JDK 등 빌드 도구가 포함된 큰 이미지를 쓰지만, Stage 2에서는 JRE-alpine만 사용합니다. 최종 이미지에는 빌드 도구가 포함되지 않으므로 <strong>이미지 크기가 수백 MB에서 수십 MB로 줄어듭니다</strong>.</p>
+    </div>
+  </div>
+
+</div><!-- #docker -->
+
+<!-- ═══ TAB: TCP/UDP ═══ -->
+<div id="tcpudp" class="tab-content">
+
+  <div class="category">Part 1 — TCP/UDP 기본</div>
+
+  <div class="qa-card">
+    <div class="qa-q">TCP와 UDP의 핵심 차이를 설명해주세요.</div>
+    <div class="qa-a">
+      <p><strong>TCP(Transmission Control Protocol)</strong>는 <strong>연결 지향적, 신뢰성 보장</strong> 프로토콜이고, <strong>UDP(User Datagram Protocol)</strong>는 <strong>비연결, 최선 노력(Best-Effort)</strong> 프로토콜입니다.</p>
+      <p>비유하면, TCP는 <strong>등기우편</strong>입니다 — 배달 확인, 순서 보장, 분실 시 재발송. UDP는 <strong>전단지 뿌리기</strong> — 빠르지만 받았는지 확인하지 않고, 순서도 보장 안 됩니다.</p>
+      <table>
+        <tr><th>구분</th><th>TCP</th><th>UDP</th></tr>
+        <tr><td>연결</td><td>연결 수립 (3-way Handshake)</td><td>비연결 (바로 전송)</td></tr>
+        <tr><td>신뢰성</td><td>데이터 도착 보장, 순서 보장</td><td>보장 없음</td></tr>
+        <tr><td>흐름/혼잡 제어</td><td>있음</td><td>없음</td></tr>
+        <tr><td>헤더 크기</td><td>20~60 bytes</td><td>8 bytes</td></tr>
+        <tr><td>속도</td><td>상대적으로 느림</td><td>빠름</td></tr>
+        <tr><td>사용 예</td><td>HTTP, FTP, 이메일, DB 통신</td><td>DNS, 실시간 게임, 영상 스트리밍, VoIP</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">TCP 3-Way Handshake를 설명해주세요.</div>
+    <div class="qa-a">
+      <p>TCP 3-Way Handshake는 클라이언트와 서버가 <strong>양방향 통신 가능 여부를 확인하고 연결을 수립</strong>하는 과정입니다. 전화에 비유하면, "여보세요?" → "네, 잘 들려요!" → "저도 잘 들립니다!" 의 세 단계입니다.</p>
+      <div class="diagram-box">
+        <svg viewBox="0 0 460 170" xmlns="http://www.w3.org/2000/svg">
+          <text x="70" y="18" font-size="12" fill="#a29bfe" font-weight="bold" text-anchor="middle">Client</text>
+          <text x="390" y="18" font-size="12" fill="#55efc4" font-weight="bold" text-anchor="middle">Server</text>
+          <line x1="70" y1="28" x2="70" y2="160" stroke="#a29bfe" stroke-width="2"/>
+          <line x1="390" y1="28" x2="390" y2="160" stroke="#55efc4" stroke-width="2"/>
+          <line x1="70" y1="55" x2="390" y2="55" stroke="#fab1a0" stroke-width="1.5" marker-end="url(#ta)"/>
+          <text x="230" y="48" font-size="11" fill="#fab1a0" text-anchor="middle">① SYN (seq=x)</text>
+          <line x1="390" y1="90" x2="70" y2="90" stroke="#74b9ff" stroke-width="1.5" marker-end="url(#ta2)"/>
+          <text x="230" y="83" font-size="11" fill="#74b9ff" text-anchor="middle">② SYN+ACK (seq=y, ack=x+1)</text>
+          <line x1="70" y1="125" x2="390" y2="125" stroke="#55efc4" stroke-width="1.5" marker-end="url(#ta)"/>
+          <text x="230" y="118" font-size="11" fill="#55efc4" text-anchor="middle">③ ACK (ack=y+1)</text>
+          <text x="230" y="155" font-size="10" fill="#8892b0" text-anchor="middle">→ ESTABLISHED (데이터 전송 시작)</text>
+          <defs>
+            <marker id="ta" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#fab1a0"/>
+            </marker>
+            <marker id="ta2" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#74b9ff"/>
+            </marker>
+          </defs>
+        </svg>
+        <div class="diagram-label">TCP 3-Way Handshake</div>
+      </div>
+      <p>①번에서 클라이언트가 <strong>SYN(Synchronize)</strong> 패킷으로 "연결하고 싶다"는 신호를 보냅니다. ②번에서 서버가 <strong>SYN+ACK</strong>로 "알겠다, 나도 준비됐다"고 응답합니다. ③번에서 클라이언트가 <strong>ACK</strong>로 "확인했다"고 답하면 연결이 수립됩니다. 이 과정이 3단계인 이유는 <strong>양방향 통신이 모두 가능한지 확인</strong>하기 위함입니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">TCP 4-Way Handshake(연결 종료)를 설명해주세요.</div>
+    <div class="qa-a">
+      <p>연결 종료는 <strong>4-Way Handshake</strong>로 진행됩니다. 3-Way가 아닌 4-Way인 이유는, <strong>한쪽이 보내기를 끝내도 상대방은 아직 보낼 데이터가 남아있을 수 있기 때문</strong>입니다(Half-Close).</p>
+      <p>①클라이언트 → <strong>FIN</strong>("나는 보낼 거 다 보냈어") → ②서버 → <strong>ACK</strong>("알겠어, 근데 나는 아직 보낼 거 있어") → ③서버 → <strong>FIN</strong>("나도 다 보냈어") → ④클라이언트 → <strong>ACK</strong>("확인"). 마지막에 클라이언트는 <strong>TIME_WAIT 상태</strong>로 일정 시간(보통 2×MSL = 60초) 대기합니다.</p>
+      <div class="tail-q">
+        <div class="tq-label">꼬리질문 대비</div>
+        <p>"TIME_WAIT는 왜 필요한가요?" — 두 가지 이유입니다. 첫째, 마지막 ACK가 유실됐을 때 <strong>서버가 FIN을 재전송하면 응답할 수 있어야</strong> 합니다. 둘째, 이전 연결의 지연 패킷이 <strong>새 연결에서 오인되는 것을 방지</strong>합니다. 서버에 TIME_WAIT가 많이 쌓이면 포트 고갈 문제가 발생할 수 있는데, 이때 <strong>SO_REUSEADDR</strong> 옵션이나 net.ipv4.tcp_tw_reuse 커널 파라미터로 완화할 수 있습니다.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="category">Part 2 — TCP 심화</div>
+
+  <div class="qa-card">
+    <div class="qa-q">TCP의 흐름 제어(Flow Control)와 혼잡 제어(Congestion Control)의 차이는?</div>
+    <div class="qa-a">
+      <p><strong>흐름 제어</strong>는 <strong>수신자의 처리 속도</strong>에 맞춰 송신 속도를 조절하는 것이고, <strong>혼잡 제어</strong>는 <strong>네트워크의 혼잡 상태</strong>에 맞춰 송신 속도를 조절하는 것입니다. 비유하면, 흐름 제어는 "상대방이 얼마나 빨리 먹을 수 있는지" 보고 음식을 내는 속도를 조절하는 것이고, 혼잡 제어는 "배달 도로가 막히지 않게" 배달량을 조절하는 것입니다.</p>
+      <p><strong>흐름 제어</strong>는 <strong>Sliding Window</strong> 방식을 사용합니다. 수신자가 TCP 헤더의 Window Size 필드에 자신의 여유 버퍼 크기를 알려주면, 송신자는 그만큼만 데이터를 보냅니다. <strong>혼잡 제어</strong>는 <strong>Slow Start → Congestion Avoidance → Fast Retransmit → Fast Recovery</strong> 단계로 동작합니다. 처음엔 윈도우를 지수적으로 늘리다가(Slow Start), 임계점(ssthresh) 이후 선형으로 늘리고(Congestion Avoidance), 패킷 유실이 감지되면 윈도우를 줄입니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">UDP를 쓰면서도 신뢰성을 확보하는 방법은?</div>
+    <div class="qa-a">
+      <p>UDP 자체에는 신뢰성이 없지만, <strong>애플리케이션 레벨에서 신뢰성을 구현</strong>할 수 있습니다. 대표적인 프로토콜이 <strong>QUIC</strong>입니다. QUIC은 Google이 개발한 UDP 기반 프로토콜로, HTTP/3의 전송 계층으로 채택되었습니다.</p>
+      <p>QUIC은 UDP 위에서 <strong>연결 수립, 순서 보장, 재전송, 혼잡 제어</strong>를 모두 구현하면서도, TCP의 단점인 <strong>Head-of-Line Blocking</strong>을 해결합니다. TCP는 하나의 패킷이 유실되면 뒤의 모든 패킷이 대기해야 하지만, QUIC은 스트림 단위로 독립적이어서 한 스트림의 유실이 다른 스트림에 영향을 주지 않습니다. 또한 TLS 1.3을 내장하여 <strong>0-RTT 연결 수립</strong>이 가능하고, 연결 ID 기반이라 Wi-Fi에서 LTE로 전환할 때도 <strong>연결이 유지</strong>됩니다.</p>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">TCP Keep-Alive와 HTTP Keep-Alive의 차이는?</div>
+    <div class="qa-a">
+      <p>이름이 같아서 혼동하기 쉽지만, <strong>완전히 다른 계층</strong>에서 동작합니다.</p>
+      <p><strong>TCP Keep-Alive</strong>는 <strong>운영체제(전송 계층)</strong>에서 동작하며, 유휴 상태인 TCP 연결이 아직 살아있는지 확인하는 프로브 패킷을 주기적으로 보냅니다. 기본적으로 2시간 동안 데이터가 없으면 프로브를 보내는데, 이는 주로 <strong>죽은 연결을 감지</strong>하기 위함입니다.</p>
+      <p><strong>HTTP Keep-Alive</strong>(= Persistent Connection)는 <strong>애플리케이션 계층</strong>에서 동작하며, 하나의 TCP 연결 위에서 <strong>여러 HTTP 요청/응답을 재사용</strong>하는 것입니다. HTTP/1.0에서는 매 요청마다 TCP 연결을 새로 맺었지만, HTTP/1.1부터 Keep-Alive가 기본이 되어 연결 수립 오버헤드가 크게 줄었습니다.</p>
+    </div>
+  </div>
+
+</div><!-- #tcpudp -->
+
+<div class="hl grn" style="margin-top:2rem"><strong>JVM</strong> = 바이트코드 실행 가상 머신 (플랫폼 독립성)</div>
+<div class="hl org"><strong>GC</strong> = 자동 메모리 회수 (STW 최소화가 핵심)</div>
+<div class="hl blu"><strong>G1</strong> = Region 기반 + 예측 가능한 STW · <strong>ZGC</strong> = Colored Pointer로 1ms 이하 STW</div>
+<div class="hl"><strong>HTTPS</strong> = TLS + HTTP (비대칭키로 대칭키 교환)</div>
+<div class="hl pnk"><strong>Redis Cluster</strong> = 16384 Hash Slot 분산 · <strong>Docker Image</strong> = 불변 레이어 + Union FS</div>
+<div class="hl red"><strong>TCP</strong> = 신뢰성 + 순서 보장 · <strong>UDP</strong> = 빠르고 가벼움 · <strong>QUIC</strong> = UDP 위의 신뢰성</div>
+
+</div><!-- .content -->
+
+<script src="../js/main.js"></script>
+</body>
+</html>

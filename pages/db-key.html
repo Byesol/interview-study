@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DB Key & 인덱스 구조</title>
+<link rel="stylesheet" href="../css/style.css">
+<style>
+  /* SVG color variables used in diagrams */
+  .diagram-box {
+    --s1:#151821;--s2:#1e2233;--s3:#282d42;--bd:#2a3050;
+    --tx:#e2e5f0;--dim:#7a80a0;--acc:#7c6cf0;--acc2:#b0a4ff;
+    --grn:#2dd4bf;--org:#fbbf24;--red:#f87171;--blu:#60a5fa;--pnk:#f472b6;--cyan:#22d3ee;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <a href="../index.html" class="back-link">← 목록으로</a>
+  <h1>DB Key & 인덱스 구조</h1>
+  <p>인덱스의 Key, 리프에 뭐가 저장되는지, 데이터를 어떻게 찾아가는지 그림으로 완전 이해</p>
+</div>
+
+<div class="content">
+
+  <div class="qa-card">
+    <div class="qa-q">users 테이블에서 실제 데이터는 어떻게 저장되나요?</div>
+    <div class="qa-a">
+      <p>아래와 같이 id(PK), name, email, age 컬럼을 가진 테이블이 디스크에 저장되어 있다고 가정합니다. 이 전체 데이터가 클러스터드 인덱스(PK)의 리프 노드에 id 순서로 저장됩니다.</p>
+      <div class="diagram-box">
+        <svg viewBox="0 0 680 220" width="680" height="220">
+          <text x="340" y="22" text-anchor="middle" fill="var(--acc2)" font-size="14" font-weight="800">users 테이블 (원본 데이터)</text>
+          <rect x="40" y="36" width="600" height="30" rx="6" fill="var(--s3)"/>
+          <text x="100" y="56" text-anchor="middle" fill="var(--org)" font-size="12" font-weight="700">id (PK)</text>
+          <text x="240" y="56" text-anchor="middle" fill="var(--tx)" font-size="12" font-weight="700">name</text>
+          <text x="400" y="56" text-anchor="middle" fill="var(--tx)" font-size="12" font-weight="700">email</text>
+          <text x="560" y="56" text-anchor="middle" fill="var(--tx)" font-size="12" font-weight="700">age</text>
+          <rect x="40" y="68" width="600" height="26" rx="0" fill="none" stroke="var(--bd)" stroke-width="0.5"/>
+          <text x="100" y="86" text-anchor="middle" fill="var(--org)" font-size="11" font-weight="600">1</text>
+          <text x="240" y="86" text-anchor="middle" fill="var(--tx)" font-size="11">홍길동</text>
+          <text x="400" y="86" text-anchor="middle" fill="var(--tx)" font-size="11">hong@mail.com</text>
+          <text x="560" y="86" text-anchor="middle" fill="var(--tx)" font-size="11">28</text>
+          <rect x="40" y="94" width="600" height="26" rx="0" fill="none" stroke="var(--bd)" stroke-width="0.5"/>
+          <text x="100" y="112" text-anchor="middle" fill="var(--org)" font-size="11" font-weight="600">2</text>
+          <text x="240" y="112" text-anchor="middle" fill="var(--tx)" font-size="11">김영희</text>
+          <text x="400" y="112" text-anchor="middle" fill="var(--tx)" font-size="11">kim@mail.com</text>
+          <text x="560" y="112" text-anchor="middle" fill="var(--tx)" font-size="11">25</text>
+          <rect x="40" y="120" width="600" height="26" rx="0" fill="none" stroke="var(--bd)" stroke-width="0.5"/>
+          <text x="100" y="138" text-anchor="middle" fill="var(--org)" font-size="11" font-weight="600">3</text>
+          <text x="240" y="138" text-anchor="middle" fill="var(--tx)" font-size="11">박철수</text>
+          <text x="400" y="138" text-anchor="middle" fill="var(--tx)" font-size="11">park@mail.com</text>
+          <text x="560" y="138" text-anchor="middle" fill="var(--tx)" font-size="11">32</text>
+          <rect x="40" y="146" width="600" height="26" rx="0" fill="none" stroke="var(--bd)" stroke-width="0.5"/>
+          <text x="100" y="164" text-anchor="middle" fill="var(--org)" font-size="11" font-weight="600">4</text>
+          <text x="240" y="164" text-anchor="middle" fill="var(--tx)" font-size="11">이수진</text>
+          <text x="400" y="164" text-anchor="middle" fill="var(--tx)" font-size="11">lee@mail.com</text>
+          <text x="560" y="164" text-anchor="middle" fill="var(--tx)" font-size="11">29</text>
+          <rect x="40" y="172" width="600" height="26" rx="0" fill="none" stroke="var(--bd)" stroke-width="0.5"/>
+          <text x="100" y="190" text-anchor="middle" fill="var(--org)" font-size="11" font-weight="600">5</text>
+          <text x="240" y="190" text-anchor="middle" fill="var(--tx)" font-size="11">최민수</text>
+          <text x="400" y="190" text-anchor="middle" fill="var(--tx)" font-size="11">choi@mail.com</text>
+          <text x="560" y="190" text-anchor="middle" fill="var(--tx)" font-size="11">35</text>
+          <text x="340" y="214" text-anchor="middle" fill="var(--dim)" font-size="10">↑ 이 전체 데이터가 클러스터드 인덱스(PK)의 리프 노드에 id 순서로 저장됨</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">인덱스에서 "Key"란 무엇인가요?</div>
+    <div class="qa-a">
+      <p>Key는 B+Tree에서 데이터를 찾기 위한 <strong>정렬 기준 컬럼 값</strong>입니다. 사전에서 "가나다"가 정렬 기준이듯, 인덱스의 Key가 B+Tree의 정렬 기준입니다.</p>
+      <div class="diagram-box">
+        <svg viewBox="0 0 720 160" width="720" height="160">
+          <rect x="20" y="10" width="210" height="130" rx="10" fill="var(--s2)" stroke="var(--acc)" stroke-width="2"/>
+          <text x="125" y="35" text-anchor="middle" fill="var(--acc2)" font-size="12" font-weight="700">클러스터드 인덱스</text>
+          <text x="125" y="60" text-anchor="middle" fill="var(--dim)" font-size="10">Key = </text>
+          <text x="125" y="60" text-anchor="middle" fill="var(--dim)" font-size="10" dx="22">
+            <tspan fill="var(--org)" font-weight="700" font-size="14">id (PK)</tspan>
+          </text>
+          <text x="125" y="82" text-anchor="middle" fill="var(--dim)" font-size="9.5">이 B+Tree는</text>
+          <text x="125" y="97" text-anchor="middle" fill="var(--org)" font-size="10" font-weight="600">id 값 순서로 정렬</text>
+          <text x="125" y="128" text-anchor="middle" fill="var(--grn)" font-size="9" font-weight="600">"Key = 정렬 기준 컬럼"</text>
+          <rect x="255" y="10" width="210" height="130" rx="10" fill="var(--s2)" stroke="var(--blu)" stroke-width="2"/>
+          <text x="360" y="35" text-anchor="middle" fill="var(--blu)" font-size="12" font-weight="700">idx_email 인덱스</text>
+          <text x="360" y="60" text-anchor="middle" fill="var(--dim)" font-size="10">Key = </text>
+          <text x="360" y="60" text-anchor="middle" fill="var(--dim)" font-size="10" dx="22">
+            <tspan fill="var(--blu)" font-weight="700" font-size="14">email</tspan>
+          </text>
+          <text x="360" y="82" text-anchor="middle" fill="var(--dim)" font-size="9.5">이 B+Tree는</text>
+          <text x="360" y="97" text-anchor="middle" fill="var(--blu)" font-size="10" font-weight="600">email 값의 알파벳 순 정렬</text>
+          <text x="360" y="128" text-anchor="middle" fill="var(--grn)" font-size="9" font-weight="600">"Key = 정렬 기준 컬럼"</text>
+          <rect x="490" y="10" width="210" height="130" rx="10" fill="var(--s2)" stroke="var(--grn)" stroke-width="2"/>
+          <text x="595" y="35" text-anchor="middle" fill="var(--grn)" font-size="12" font-weight="700">idx_name_age 인덱스</text>
+          <text x="595" y="60" text-anchor="middle" fill="var(--dim)" font-size="10">Key = </text>
+          <text x="595" y="60" text-anchor="middle" fill="var(--dim)" font-size="10" dx="22">
+            <tspan fill="var(--grn)" font-weight="700" font-size="14">(name, age)</tspan>
+          </text>
+          <text x="595" y="82" text-anchor="middle" fill="var(--dim)" font-size="9.5">이 B+Tree는</text>
+          <text x="595" y="97" text-anchor="middle" fill="var(--grn)" font-size="10" font-weight="600">name 먼저 → 같으면 age 순</text>
+          <text x="595" y="128" text-anchor="middle" fill="var(--grn)" font-size="9" font-weight="600">"Key = 정렬 기준 컬럼"</text>
+        </svg>
+      </div>
+      <div class="hl grn">
+        <strong>Key = 그 인덱스(B+Tree)에서 데이터를 찾기 위한 "정렬 기준 컬럼 값"</strong><br>
+        사전에서 "가나다"가 정렬 기준이듯, 인덱스의 Key가 B+Tree의 정렬 기준입니다.
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">클러스터드 인덱스의 리프 노드에는 무엇이 저장되나요?</div>
+    <div class="qa-a">
+      <p>PK(id) 기준 B+Tree의 리프 노드에는 <strong>행 데이터 전체</strong>가 저장됩니다. 추가 조회 없이 바로 반환할 수 있습니다.</p>
+      <div class="diagram-box">
+        <svg viewBox="0 0 750 280" width="750" height="280">
+          <text x="375" y="20" text-anchor="middle" fill="var(--acc2)" font-size="14" font-weight="800">🌳 클러스터드 인덱스 B+Tree (Key = id)</text>
+          <rect x="310" y="36" width="130" height="34" rx="8" fill="rgba(124,108,240,0.15)" stroke="var(--acc)" stroke-width="2"/>
+          <text x="375" y="58" text-anchor="middle" fill="var(--acc2)" font-size="12" font-weight="700">3</text>
+          <text x="375" y="58" text-anchor="middle" fill="var(--dim)" font-size="9" dx="-40">◀ 작은쪽</text>
+          <text x="375" y="58" text-anchor="middle" fill="var(--dim)" font-size="9" dx="40">큰쪽 ▶</text>
+          <line x1="340" y1="70" x2="190" y2="100" stroke="var(--bd)" stroke-width="1.5"/>
+          <line x1="410" y1="70" x2="560" y2="100" stroke="var(--bd)" stroke-width="1.5"/>
+          <rect x="50" y="100" width="280" height="130" rx="10" fill="rgba(45,212,191,0.05)" stroke="var(--grn)" stroke-width="2"/>
+          <text x="190" y="120" text-anchor="middle" fill="var(--grn)" font-size="11" font-weight="700">리프 페이지 A</text>
+          <rect x="62" y="128" width="256" height="22" rx="4" fill="var(--s3)"/>
+          <text x="88" y="143" text-anchor="middle" fill="var(--org)" font-size="10" font-weight="700">id:1</text>
+          <text x="152" y="143" text-anchor="middle" fill="var(--tx)" font-size="9.5">홍길동</text>
+          <text x="228" y="143" text-anchor="middle" fill="var(--tx)" font-size="9.5">hong@mail</text>
+          <text x="300" y="143" text-anchor="middle" fill="var(--tx)" font-size="9.5">28</text>
+          <rect x="62" y="154" width="256" height="22" rx="4" fill="var(--s2)"/>
+          <text x="88" y="169" text-anchor="middle" fill="var(--org)" font-size="10" font-weight="700">id:2</text>
+          <text x="152" y="169" text-anchor="middle" fill="var(--tx)" font-size="9.5">김영희</text>
+          <text x="228" y="169" text-anchor="middle" fill="var(--tx)" font-size="9.5">kim@mail</text>
+          <text x="300" y="169" text-anchor="middle" fill="var(--tx)" font-size="9.5">25</text>
+          <rect x="62" y="180" width="256" height="22" rx="4" fill="var(--s3)"/>
+          <text x="88" y="195" text-anchor="middle" fill="var(--org)" font-size="10" font-weight="700">id:3</text>
+          <text x="152" y="195" text-anchor="middle" fill="var(--tx)" font-size="9.5">박철수</text>
+          <text x="228" y="195" text-anchor="middle" fill="var(--tx)" font-size="9.5">park@mail</text>
+          <text x="300" y="195" text-anchor="middle" fill="var(--tx)" font-size="9.5">32</text>
+          <text x="190" y="222" text-anchor="middle" fill="var(--org)" font-size="10" font-weight="700">↑ 행 데이터 전체가 여기에!</text>
+          <rect x="420" y="100" width="280" height="130" rx="10" fill="rgba(45,212,191,0.05)" stroke="var(--grn)" stroke-width="2"/>
+          <text x="560" y="120" text-anchor="middle" fill="var(--grn)" font-size="11" font-weight="700">리프 페이지 B</text>
+          <rect x="432" y="128" width="256" height="22" rx="4" fill="var(--s3)"/>
+          <text x="458" y="143" text-anchor="middle" fill="var(--org)" font-size="10" font-weight="700">id:4</text>
+          <text x="522" y="143" text-anchor="middle" fill="var(--tx)" font-size="9.5">이수진</text>
+          <text x="598" y="143" text-anchor="middle" fill="var(--tx)" font-size="9.5">lee@mail</text>
+          <text x="670" y="143" text-anchor="middle" fill="var(--tx)" font-size="9.5">29</text>
+          <rect x="432" y="154" width="256" height="22" rx="4" fill="var(--s2)"/>
+          <text x="458" y="169" text-anchor="middle" fill="var(--org)" font-size="10" font-weight="700">id:5</text>
+          <text x="522" y="169" text-anchor="middle" fill="var(--tx)" font-size="9.5">최민수</text>
+          <text x="598" y="169" text-anchor="middle" fill="var(--tx)" font-size="9.5">choi@mail</text>
+          <text x="670" y="169" text-anchor="middle" fill="var(--tx)" font-size="9.5">35</text>
+          <text x="560" y="222" text-anchor="middle" fill="var(--org)" font-size="10" font-weight="700">↑ 행 데이터 전체가 여기에!</text>
+          <path d="M330,170 L420,170" stroke="var(--grn)" stroke-width="2" stroke-dasharray="5 3" fill="none" marker-end="url(#ag)"/>
+          <text x="375" y="165" text-anchor="middle" fill="var(--grn)" font-size="8">연결 리스트</text>
+          <rect x="120" y="244" width="510" height="28" rx="6" fill="rgba(251,191,36,0.08)" stroke="var(--org)" stroke-width="1"/>
+          <text x="375" y="263" text-anchor="middle" fill="var(--org)" font-size="11" font-weight="700">✅ 클러스터드 인덱스 리프 = 테이블 그 자체! 추가 조회 필요 없음</text>
+          <defs>
+            <marker id="ag" viewBox="0 0 6 6" refX="6" refY="3" markerWidth="6" markerHeight="6" orient="auto"><polygon points="0 0,6 3,0 6" fill="var(--grn)"/></marker>
+          </defs>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">세컨더리 인덱스의 리프 노드에는 무엇이 저장되며, 왜 테이블 룩업이 필요한가요?</div>
+    <div class="qa-a">
+      <p><code>CREATE INDEX idx_email ON users(email)</code>을 만들면 email 순서로 정렬된 별도의 B+Tree가 생깁니다. 이 트리의 리프에는 <strong>email 값과 PK(id)만</strong> 들어있습니다. name, age 같은 다른 컬럼은 없습니다!</p>
+      <div class="diagram-box">
+        <svg viewBox="0 0 750 480" width="750" height="480">
+          <text x="375" y="20" text-anchor="middle" fill="var(--blu)" font-size="14" font-weight="800">🌳 세컨더리 인덱스 B+Tree (Key = email)</text>
+          <text x="375" y="38" text-anchor="middle" fill="var(--dim)" font-size="10">email의 알파벳 순으로 정렬됨!</text>
+          <rect x="290" y="50" width="170" height="34" rx="8" fill="rgba(96,165,250,0.12)" stroke="var(--blu)" stroke-width="2"/>
+          <text x="375" y="72" text-anchor="middle" fill="var(--blu)" font-size="11" font-weight="700">kim@mail</text>
+          <line x1="330" y1="84" x2="190" y2="110" stroke="var(--bd)" stroke-width="1.5"/>
+          <line x1="420" y1="84" x2="560" y2="110" stroke="var(--bd)" stroke-width="1.5"/>
+          <rect x="50" y="110" width="280" height="110" rx="10" fill="rgba(96,165,250,0.05)" stroke="var(--blu)" stroke-width="2"/>
+          <text x="190" y="130" text-anchor="middle" fill="var(--blu)" font-size="11" font-weight="700">리프 페이지 X (email 알파벳순)</text>
+          <rect x="62" y="138" width="256" height="24" rx="4" fill="var(--s3)"/>
+          <text x="150" y="155" text-anchor="middle" fill="var(--blu)" font-size="11" font-weight="600">choi@mail</text>
+          <text x="278" y="155" text-anchor="middle" fill="var(--pnk)" font-size="11" font-weight="700">→ PK: 5</text>
+          <rect x="62" y="166" width="256" height="24" rx="4" fill="var(--s2)"/>
+          <text x="150" y="183" text-anchor="middle" fill="var(--blu)" font-size="11" font-weight="600">hong@mail</text>
+          <text x="278" y="183" text-anchor="middle" fill="var(--pnk)" font-size="11" font-weight="700">→ PK: 1</text>
+          <rect x="420" y="110" width="280" height="110" rx="10" fill="rgba(96,165,250,0.05)" stroke="var(--blu)" stroke-width="2"/>
+          <text x="560" y="130" text-anchor="middle" fill="var(--blu)" font-size="11" font-weight="700">리프 페이지 Y</text>
+          <rect x="432" y="138" width="256" height="24" rx="4" fill="var(--s3)"/>
+          <text x="520" y="155" text-anchor="middle" fill="var(--blu)" font-size="11" font-weight="600">kim@mail</text>
+          <text x="648" y="155" text-anchor="middle" fill="var(--pnk)" font-size="11" font-weight="700">→ PK: 2</text>
+          <rect x="432" y="166" width="256" height="24" rx="4" fill="var(--s2)"/>
+          <text x="520" y="183" text-anchor="middle" fill="var(--blu)" font-size="11" font-weight="600">lee@mail</text>
+          <text x="648" y="183" text-anchor="middle" fill="var(--pnk)" font-size="11" font-weight="700">→ PK: 4</text>
+          <rect x="432" y="194" width="256" height="24" rx="4" fill="var(--s3)"/>
+          <text x="520" y="211" text-anchor="middle" fill="var(--blu)" font-size="11" font-weight="600">park@mail</text>
+          <text x="648" y="211" text-anchor="middle" fill="var(--pnk)" font-size="11" font-weight="700">→ PK: 3</text>
+          <path d="M330,175 L420,175" stroke="var(--blu)" stroke-width="2" stroke-dasharray="5 3" fill="none" marker-end="url(#ab)"/>
+          <rect x="100" y="232" width="550" height="34" rx="6" fill="rgba(248,113,113,0.08)" stroke="var(--red)" stroke-width="1.5"/>
+          <text x="375" y="254" text-anchor="middle" fill="var(--red)" font-size="12" font-weight="700">❌ name, age 같은 다른 컬럼은 여기 없다! email + PK만 있다!</text>
+          <text x="375" y="290" text-anchor="middle" fill="var(--pnk)" font-size="14" font-weight="900">그래서 "테이블 룩업"이 필요하다!</text>
+          <rect x="50" y="306" width="650" height="160" rx="12" fill="var(--s2)" stroke="var(--pnk)" stroke-width="1.5" stroke-dasharray="6 3"/>
+          <text x="375" y="330" text-anchor="middle" fill="var(--dim)" font-size="11" font-family="JetBrains Mono">
+            SELECT <tspan fill="var(--grn)">name, age</tspan> FROM users WHERE <tspan fill="var(--blu)">email</tspan> = <tspan fill="var(--org)">'kim@mail'</tspan>
+          </text>
+          <rect x="70" y="348" width="180" height="50" rx="8" fill="rgba(96,165,250,0.08)" stroke="var(--blu)" stroke-width="1.5"/>
+          <text x="160" y="366" text-anchor="middle" fill="var(--blu)" font-size="9" font-weight="700">STEP 1</text>
+          <text x="160" y="382" text-anchor="middle" fill="var(--dim)" font-size="9">idx_email에서</text>
+          <text x="160" y="394" text-anchor="middle" fill="var(--blu)" font-size="10" font-weight="600">kim@mail → PK: 2 찾음</text>
+          <text x="270" y="380" fill="var(--pnk)" font-size="18" font-weight="700">→</text>
+          <rect x="295" y="348" width="180" height="50" rx="8" fill="rgba(244,114,182,0.08)" stroke="var(--pnk)" stroke-width="1.5"/>
+          <text x="385" y="366" text-anchor="middle" fill="var(--pnk)" font-size="9" font-weight="700">STEP 2 (테이블 룩업)</text>
+          <text x="385" y="382" text-anchor="middle" fill="var(--dim)" font-size="9">클러스터드 인덱스에서</text>
+          <text x="385" y="394" text-anchor="middle" fill="var(--pnk)" font-size="10" font-weight="600">PK=2 로 행 전체 조회</text>
+          <text x="495" y="380" fill="var(--grn)" font-size="18" font-weight="700">→</text>
+          <rect x="520" y="348" width="165" height="50" rx="8" fill="rgba(45,212,191,0.08)" stroke="var(--grn)" stroke-width="1.5"/>
+          <text x="602" y="366" text-anchor="middle" fill="var(--grn)" font-size="9" font-weight="700">STEP 3 결과!</text>
+          <text x="602" y="382" text-anchor="middle" fill="var(--dim)" font-size="9">김영희, 25 반환</text>
+          <text x="602" y="394" text-anchor="middle" fill="var(--grn)" font-size="10" font-weight="600">name + age 획득 ✅</text>
+          <text x="375" y="452" text-anchor="middle" fill="var(--dim)" font-size="10">세컨더리 인덱스는 리프에 "전체 데이터"가 없으므로, PK를 가지고 클러스터드 인덱스를 한 번 더 조회해야 함</text>
+          <defs>
+            <marker id="ab" viewBox="0 0 6 6" refX="6" refY="3" markerWidth="6" markerHeight="6" orient="auto"><polygon points="0 0,6 3,0 6" fill="var(--blu)"/></marker>
+          </defs>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">커버링 인덱스란 무엇이며, 테이블 룩업을 피하려면 어떻게 해야 하나요?</div>
+    <div class="qa-a">
+      <p>쿼리에서 필요한 컬럼이 <strong>인덱스 Key에 이미 다 포함</strong>되어 있으면, 클러스터드 인덱스까지 갈 필요 없이 세컨더리 인덱스 리프에서 바로 끝납니다.</p>
+      <div class="diagram-box">
+        <svg viewBox="0 0 700 200" width="700" height="200">
+          <text x="350" y="24" text-anchor="middle" fill="var(--dim)" font-size="12" font-family="JetBrains Mono">
+            SELECT <tspan fill="var(--blu)" font-weight="700">email</tspan> FROM users WHERE <tspan fill="var(--blu)">email</tspan> = <tspan fill="var(--org)">'kim@mail'</tspan>
+          </text>
+          <rect x="60" y="48" width="250" height="60" rx="10" fill="rgba(96,165,250,0.08)" stroke="var(--blu)" stroke-width="2"/>
+          <text x="185" y="70" text-anchor="middle" fill="var(--blu)" font-size="10" font-weight="700">idx_email 리프 도착</text>
+          <text x="185" y="90" text-anchor="middle" fill="var(--tx)" font-size="11">kim@mail | PK: 2</text>
+          <text x="185" y="100" text-anchor="middle" fill="var(--grn)" font-size="9">← email 이미 여기 있잖아?!</text>
+          <text x="340" y="82" fill="var(--grn)" font-size="20" font-weight="700">→</text>
+          <rect x="380" y="48" width="250" height="60" rx="10" fill="rgba(45,212,191,0.08)" stroke="var(--grn)" stroke-width="2"/>
+          <text x="505" y="70" text-anchor="middle" fill="var(--grn)" font-size="10" font-weight="700">바로 반환! ✅</text>
+          <text x="505" y="90" text-anchor="middle" fill="var(--org)" font-size="11" font-weight="600">email = 'kim@mail'</text>
+          <text x="505" y="100" text-anchor="middle" fill="var(--dim)" font-size="9">클러스터드 인덱스 안 감!</text>
+          <rect x="60" y="128" width="570" height="55" rx="10" fill="rgba(248,113,113,0.05)" stroke="var(--red)" stroke-width="1"/>
+          <text x="345" y="150" text-anchor="middle" fill="var(--dim)" font-size="11">
+            반면 SELECT <tspan fill="var(--red)" font-weight="700">name</tspan> FROM users WHERE email = 'kim@mail'
+          </text>
+          <text x="345" y="170" text-anchor="middle" fill="var(--red)" font-size="10" font-weight="700">
+            → name은 idx_email 리프에 없음 → 클러스터드 인덱스까지 가야 함 (테이블 룩업!)
+          </text>
+        </svg>
+      </div>
+      <div class="hl grn">
+        <strong>커버링 인덱스 = "인덱스만으로 쿼리 완성"</strong><br>
+        SELECT하는 컬럼이 인덱스 Key에 전부 포함되면, 테이블 룩업이 불필요합니다.
+        EXPLAIN에서 <code>Extra: Using index</code>로 확인 가능합니다.
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">클러스터드 인덱스, 세컨더리 인덱스, 커버링 인덱스를 한 줄로 정리해주세요.</div>
+    <div class="qa-a">
+      <div class="hl org">
+        <strong>Key = B+Tree의 정렬 기준 컬럼 값.</strong> PK면 id, 이메일 인덱스면 email, 복합이면 (A, B)가 Key.
+      </div>
+      <div class="hl grn">
+        <strong>클러스터드 인덱스의 리프 = 행 데이터 전체.</strong> 테이블 자체가 PK 순서로 정렬된 B+Tree. 추가 조회 없이 바로 반환.
+      </div>
+      <div class="hl blu">
+        <strong>세컨더리 인덱스의 리프 = Key값 + PK값만.</strong> 다른 컬럼 데이터는 없음. PK를 들고 클러스터드 인덱스를 한 번 더 조회해야 함 = 테이블 룩업.
+      </div>
+      <div class="hl pnk">
+        <strong>테이블 룩업이 발생하는 이유?</strong> 세컨더리 인덱스 리프에 "필요한 컬럼이 없으니까". 거기엔 Key + PK밖에 없으니까.
+      </div>
+      <div class="hl cyan">
+        <strong>커버링 인덱스 = 테이블 룩업 스킵.</strong> SELECT하는 컬럼이 전부 인덱스 안에 있으면 클러스터드 인덱스까지 안 가도 됨.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="../js/main.js"></script>
+</body>
+</html>

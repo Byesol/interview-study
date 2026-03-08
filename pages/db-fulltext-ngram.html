@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Full-Text Index & ngram</title>
+<link rel="stylesheet" href="../css/style.css">
+<style>
+  /* SVG color variables used in diagrams */
+  .diagram-box {
+    --s1:#151821;--s2:#1e2233;--s3:#282d42;--bd:#2a3050;
+    --tx:#e2e5f0;--dim:#7a80a0;--acc:#7c6cf0;--acc2:#b0a4ff;
+    --grn:#2dd4bf;--org:#fbbf24;--red:#f87171;--blu:#60a5fa;--pnk:#f472b6;--cyan:#22d3ee;
+  }
+
+  /* SQL code block style from source */
+  .sql-block {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.78rem;
+    line-height: 1.9;
+    overflow-x: auto;
+    margin: 10px 0;
+    color: var(--text-dim);
+  }
+
+  /* Comparison table tag styles */
+  .tag.ok  { background: rgba(45,212,191,0.12); color: #2dd4bf; border: 1px solid rgba(45,212,191,0.3); }
+  .tag.no  { background: rgba(248,113,113,0.12); color: #f87171; border: 1px solid rgba(248,113,113,0.3); }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <a href="../index.html" class="back-link">← 목록으로</a>
+  <h1>Full-Text Index & ngram Parser</h1>
+  <p>LIKE '%검색어%' 는 왜 느린가? Full-Text Index는 어떻게 다른가? ngram은 뭔가?</p>
+</div>
+
+<div class="content">
+
+  <div class="qa-card">
+    <div class="qa-q">LIKE '%검색어%'는 왜 느리며, Full-Text Index는 어떻게 이 문제를 해결하나요?</div>
+    <div class="qa-a">
+      <p><code>LIKE '%검색어%'</code>는 B+Tree 인덱스를 활용하지 못하고 모든 행의 컬럼을 처음부터 끝까지 읽는 Full Table Scan이 발생합니다. Full-Text Index는 <strong>역인덱스(Inverted Index)</strong> 구조로 토큰으로 바로 매칭하여 매우 빠릅니다.</p>
+      <div class="diagram-box">
+        <svg viewBox="0 0 800 250" width="800" height="250">
+          <rect x="10" y="10" width="370" height="230" rx="12" fill="var(--s2)" stroke="var(--red)" stroke-width="1.5"/>
+          <text x="195" y="36" text-anchor="middle" fill="var(--red)" font-size="13" font-weight="800">❌ LIKE '%검색어%' 의 문제</text>
+          <text x="30" y="62" fill="var(--dim)" font-size="10" font-family="JetBrains Mono">WHERE content LIKE '%코딩테스트%'</text>
+          <rect x="30" y="78" width="330" height="22" rx="4" fill="var(--s3)"/>
+          <text x="45" y="93" fill="var(--dim)" font-size="9">id:1 "오늘은 날씨가 좋습니다..."</text>
+          <text x="340" y="93" fill="var(--red)" font-size="9" text-anchor="end">→ 전체 스캔</text>
+          <rect x="30" y="102" width="330" height="22" rx="4" fill="var(--s2)"/>
+          <text x="45" y="117" fill="var(--dim)" font-size="9">id:2 "코딩테스트 준비하는 법..."</text>
+          <text x="340" y="117" fill="var(--red)" font-size="9" text-anchor="end">→ 전체 스캔</text>
+          <rect x="30" y="126" width="330" height="22" rx="4" fill="var(--s3)"/>
+          <text x="45" y="141" fill="var(--dim)" font-size="9">id:3 "맛있는 파스타 레시피..."</text>
+          <text x="340" y="141" fill="var(--red)" font-size="9" text-anchor="end">→ 전체 스캔</text>
+          <rect x="30" y="150" width="330" height="22" rx="4" fill="var(--s2)"/>
+          <text x="45" y="165" fill="var(--dim)" font-size="9">id:4 "알고리즘 코딩테스트 팁..."</text>
+          <text x="340" y="165" fill="var(--red)" font-size="9" text-anchor="end">→ 전체 스캔</text>
+          <text x="195" y="186" text-anchor="middle" fill="var(--dim)" font-size="8">... 100만 행 전부 ...</text>
+          <text x="195" y="210" text-anchor="middle" fill="var(--red)" font-size="11" font-weight="700">모든 행의 content를 처음부터 끝까지 읽어야 함</text>
+          <text x="195" y="228" text-anchor="middle" fill="var(--red)" font-size="10">= Full Table Scan → B+Tree 인덱스 사용 불가!</text>
+          <rect x="420" y="10" width="370" height="230" rx="12" fill="var(--s2)" stroke="var(--grn)" stroke-width="1.5"/>
+          <text x="605" y="36" text-anchor="middle" fill="var(--grn)" font-size="13" font-weight="800">✅ Full-Text Index 사용</text>
+          <text x="440" y="62" fill="var(--dim)" font-size="10" font-family="JetBrains Mono">MATCH(content) AGAINST('코딩테스트')</text>
+          <rect x="440" y="78" width="160" height="22" rx="4" fill="var(--s3)"/>
+          <text x="455" y="93" fill="var(--cyan)" font-size="10" font-weight="600">"코딩"</text>
+          <text x="570" y="93" fill="var(--org)" font-size="9">→ id: 2, 4</text>
+          <rect x="440" y="102" width="160" height="22" rx="4" fill="var(--s2)"/>
+          <text x="455" y="117" fill="var(--cyan)" font-size="10" font-weight="600">"테스"</text>
+          <text x="570" y="117" fill="var(--org)" font-size="9">→ id: 2, 4</text>
+          <rect x="440" y="126" width="160" height="22" rx="4" fill="var(--s3)"/>
+          <text x="455" y="141" fill="var(--cyan)" font-size="10" font-weight="600">"스트"</text>
+          <text x="570" y="141" fill="var(--org)" font-size="9">→ id: 2, 4</text>
+          <rect x="440" y="150" width="160" height="22" rx="4" fill="var(--s2)"/>
+          <text x="455" y="165" fill="var(--cyan)" font-size="10" font-weight="600">"날씨"</text>
+          <text x="570" y="165" fill="var(--org)" font-size="9">→ id: 1</text>
+          <rect x="440" y="174" width="160" height="22" rx="4" fill="var(--s3)"/>
+          <text x="455" y="189" fill="var(--cyan)" font-size="10" font-weight="600">"파스"</text>
+          <text x="570" y="189" fill="var(--org)" font-size="9">→ id: 3</text>
+          <text x="680" y="100" fill="var(--grn)" font-size="9" font-weight="600">토큰으로</text>
+          <text x="680" y="115" fill="var(--grn)" font-size="9" font-weight="600">바로 찾기!</text>
+          <text x="605" y="218" text-anchor="middle" fill="var(--grn)" font-size="11" font-weight="700">단어(토큰) → 문서ID 매핑 = 역인덱스</text>
+          <text x="605" y="234" text-anchor="middle" fill="var(--grn)" font-size="10">토큰으로 바로 검색 → 매우 빠름!</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">Full-Text Index의 역인덱스(Inverted Index) 구조와 B+Tree 인덱스의 차이는 무엇인가요?</div>
+    <div class="qa-a">
+      <p>B+Tree 인덱스는 <strong>"행 → 데이터"</strong> 방향이지만, Full-Text 인덱스는 <strong>"단어(토큰) → 어떤 문서에 있는지"</strong>로 반대(역) 방향입니다. 그래서 <strong>역인덱스</strong>라고 부릅니다.</p>
+      <div class="diagram-box">
+        <svg viewBox="0 0 820 420" width="820" height="420">
+          <text x="410" y="22" text-anchor="middle" fill="var(--acc2)" font-size="14" font-weight="800">원본 테이블 → 역인덱스 변환 과정</text>
+          <rect x="20" y="40" width="340" height="150" rx="10" fill="var(--s2)" stroke="var(--org)" stroke-width="1.5"/>
+          <text x="190" y="62" text-anchor="middle" fill="var(--org)" font-size="12" font-weight="700">📄 articles 테이블</text>
+          <rect x="32" y="72" width="316" height="20" rx="3" fill="var(--s3)"/>
+          <text x="60" y="86" fill="var(--org)" font-size="9" font-weight="600">id:1</text>
+          <text x="100" y="86" fill="var(--tx)" font-size="9">"MySQL 전문 검색 기능"</text>
+          <rect x="32" y="96" width="316" height="20" rx="3" fill="var(--s2)"/>
+          <text x="60" y="110" fill="var(--org)" font-size="9" font-weight="600">id:2</text>
+          <text x="100" y="110" fill="var(--tx)" font-size="9">"MySQL 인덱스 최적화"</text>
+          <rect x="32" y="120" width="316" height="20" rx="3" fill="var(--s3)"/>
+          <text x="60" y="134" fill="var(--org)" font-size="9" font-weight="600">id:3</text>
+          <text x="100" y="134" fill="var(--tx)" font-size="9">"전문 검색과 ngram 파서"</text>
+          <rect x="32" y="144" width="316" height="20" rx="3" fill="var(--s2)"/>
+          <text x="60" y="158" fill="var(--org)" font-size="9" font-weight="600">id:4</text>
+          <text x="100" y="158" fill="var(--tx)" font-size="9">"인덱스 구조와 최적화 방법"</text>
+          <text x="410" y="128" text-anchor="middle" fill="var(--acc2)" font-size="26">→</text>
+          <text x="410" y="148" text-anchor="middle" fill="var(--dim)" font-size="9">토큰화(tokenize)</text>
+          <text x="410" y="161" text-anchor="middle" fill="var(--dim)" font-size="9">+ 역인덱스 생성</text>
+          <rect x="460" y="40" width="340" height="150" rx="10" fill="var(--s2)" stroke="var(--cyan)" stroke-width="1.5"/>
+          <text x="630" y="62" text-anchor="middle" fill="var(--cyan)" font-size="12" font-weight="700">🔄 역인덱스 (Inverted Index)</text>
+          <rect x="472" y="72" width="316" height="18" rx="3" fill="var(--s3)"/>
+          <text x="530" y="85" fill="var(--cyan)" font-size="9.5" font-weight="600" text-anchor="middle">토큰(단어)</text>
+          <text x="720" y="85" fill="var(--org)" font-size="9.5" font-weight="600" text-anchor="middle">문서 ID (위치)</text>
+          <rect x="472" y="92" width="316" height="16" rx="0" fill="none" stroke="var(--bd)" stroke-width="0.5"/>
+          <text x="530" y="104" fill="var(--cyan)" font-size="9" text-anchor="middle">"MySQL"</text>
+          <text x="720" y="104" fill="var(--org)" font-size="9" text-anchor="middle">→ id:1(pos:0), id:2(pos:0)</text>
+          <rect x="472" y="108" width="316" height="16" rx="0" fill="none" stroke="var(--bd)" stroke-width="0.5"/>
+          <text x="530" y="120" fill="var(--cyan)" font-size="9" text-anchor="middle">"전문"</text>
+          <text x="720" y="120" fill="var(--org)" font-size="9" text-anchor="middle">→ id:1(pos:6), id:3(pos:0)</text>
+          <rect x="472" y="124" width="316" height="16" rx="0" fill="none" stroke="var(--bd)" stroke-width="0.5"/>
+          <text x="530" y="136" fill="var(--cyan)" font-size="9" text-anchor="middle">"검색"</text>
+          <text x="720" y="136" fill="var(--org)" font-size="9" text-anchor="middle">→ id:1(pos:9), id:3(pos:3)</text>
+          <rect x="472" y="140" width="316" height="16" rx="0" fill="none" stroke="var(--bd)" stroke-width="0.5"/>
+          <text x="530" y="152" fill="var(--cyan)" font-size="9" text-anchor="middle">"인덱"</text>
+          <text x="720" y="152" fill="var(--org)" font-size="9" text-anchor="middle">→ id:2(pos:6), id:4(pos:0)</text>
+          <rect x="472" y="156" width="316" height="16" rx="0" fill="none" stroke="var(--bd)" stroke-width="0.5"/>
+          <text x="530" y="168" fill="var(--cyan)" font-size="9" text-anchor="middle">"최적"</text>
+          <text x="720" y="168" fill="var(--org)" font-size="9" text-anchor="middle">→ id:2(pos:12), id:4(pos:12)</text>
+          <rect x="20" y="210" width="780" height="200" rx="12" fill="var(--s2)" stroke="var(--bd)" stroke-width="1"/>
+          <text x="410" y="236" text-anchor="middle" fill="var(--acc2)" font-size="13" font-weight="800">B+Tree 인덱스 vs 역인덱스 (Full-Text) 비교</text>
+          <rect x="40" y="252" width="350" height="140" rx="8" fill="rgba(124,108,240,0.05)" stroke="var(--acc)" stroke-width="1"/>
+          <text x="215" y="272" text-anchor="middle" fill="var(--acc2)" font-size="11" font-weight="700">🌳 B+Tree 인덱스</text>
+          <text x="60" y="296" fill="var(--dim)" font-size="10">구조:  <tspan fill="var(--acc2)" font-weight="600">컬럼 값 → 행 위치</tspan></text>
+          <text x="60" y="316" fill="var(--dim)" font-size="10">예시:  email="kim@.." → PK:2</text>
+          <text x="60" y="336" fill="var(--dim)" font-size="10">용도:  <tspan fill="var(--acc2)">등가(=), 범위(&lt;,&gt;), 정렬</tspan></text>
+          <text x="60" y="356" fill="var(--dim)" font-size="10">검색:  WHERE email = 'kim@..'</text>
+          <text x="60" y="376" fill="var(--red)" font-size="10">한계:  LIKE '%검색어%' → Full Scan</text>
+          <rect x="430" y="252" width="350" height="140" rx="8" fill="rgba(34,211,238,0.05)" stroke="var(--cyan)" stroke-width="1"/>
+          <text x="605" y="272" text-anchor="middle" fill="var(--cyan)" font-size="11" font-weight="700">🔄 역인덱스 (Full-Text)</text>
+          <text x="450" y="296" fill="var(--dim)" font-size="10">구조:  <tspan fill="var(--cyan)" font-weight="600">단어(토큰) → 문서 ID 리스트</tspan></text>
+          <text x="450" y="316" fill="var(--dim)" font-size="10">예시:  "검색" → id:1, id:3</text>
+          <text x="450" y="336" fill="var(--dim)" font-size="10">용도:  <tspan fill="var(--cyan)">텍스트 내 단어/구절 포함 검색</tspan></text>
+          <text x="450" y="356" fill="var(--dim)" font-size="10">검색:  MATCH(col) AGAINST('검색')</text>
+          <text x="450" y="376" fill="var(--grn)" font-size="10">장점:  토큰으로 바로 매칭 → 매우 빠름!</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">한국어/중국어/일본어 검색에 ngram Parser가 필요한 이유는 무엇인가요?</div>
+    <div class="qa-a">
+      <p>MySQL 기본 Full-Text Parser는 <strong>공백/구두점으로 단어를 분리</strong>합니다. 영어는 단어 사이에 공백이 있으니 잘 됩니다. 하지만 한국어는 공백 없이 이어 쓰는 경우가 많아 분리가 불가능합니다.</p>
+      <div class="diagram-box">
+        <svg viewBox="0 0 800 260" width="800" height="260">
+          <rect x="20" y="10" width="360" height="110" rx="10" fill="var(--s2)" stroke="var(--grn)" stroke-width="1.5"/>
+          <text x="200" y="34" text-anchor="middle" fill="var(--grn)" font-size="12" font-weight="700">영어: 기본 Parser로 충분 ✅</text>
+          <text x="40" y="56" fill="var(--dim)" font-size="10">"MySQL is a great database"</text>
+          <text x="200" y="76" text-anchor="middle" fill="var(--dim)" font-size="9">↓ 공백으로 분리</text>
+          <text x="200" y="96" text-anchor="middle" fill="var(--cyan)" font-size="11" font-weight="600">"MySQL" | "is" | "a" | "great" | "database"</text>
+          <text x="200" y="112" text-anchor="middle" fill="var(--grn)" font-size="9">→ 각 단어가 완벽하게 분리됨!</text>
+          <rect x="420" y="10" width="360" height="110" rx="10" fill="var(--s2)" stroke="var(--red)" stroke-width="1.5"/>
+          <text x="600" y="34" text-anchor="middle" fill="var(--red)" font-size="12" font-weight="700">한국어: 기본 Parser로는 부족 ❌</text>
+          <text x="440" y="56" fill="var(--dim)" font-size="10">"MySQL전문검색기능을알아봅시다"</text>
+          <text x="600" y="76" text-anchor="middle" fill="var(--dim)" font-size="9">↓ 공백이 없음! 분리 불가!</text>
+          <text x="600" y="96" text-anchor="middle" fill="var(--red)" font-size="11" font-weight="600">"MySQL전문검색기능을알아봅시다" ← 통째로 1개</text>
+          <text x="600" y="112" text-anchor="middle" fill="var(--red)" font-size="9">→ "검색"으로 찾기 불가능!</text>
+          <rect x="120" y="140" width="560" height="110" rx="10" fill="var(--s2)" stroke="var(--cyan)" stroke-width="2"/>
+          <text x="400" y="164" text-anchor="middle" fill="var(--cyan)" font-size="13" font-weight="800">💡 해결: ngram Parser → 글자를 N개씩 잘라서 토큰화!</text>
+          <text x="400" y="188" text-anchor="middle" fill="var(--dim)" font-size="11">"데이터베이스" (ngram_token_size=2)</text>
+          <text x="400" y="208" text-anchor="middle" fill="var(--dim)" font-size="9">↓ 2글자씩 슬라이딩</text>
+          <text x="400" y="232" text-anchor="middle" fill="var(--cyan)" font-size="13" font-weight="700">"데이" | "이터" | "터베" | "베이" | "이스"</text>
+          <text x="400" y="248" text-anchor="middle" fill="var(--grn)" font-size="10">→ "베이"로 검색해도 매칭 가능!</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">ngram 토큰화는 어떻게 동작하며 ngram_token_size 값에 따라 어떻게 달라지나요?</div>
+    <div class="qa-a">
+      <p><code>ngram_token_size</code>의 <strong>기본값은 2 (bigram)</strong>입니다. 설정 범위는 1~10이며, 서버 시작 시에만 변경 가능합니다 (read-only). 글자를 N개씩 슬라이딩하여 토큰을 생성합니다.</p>
+      <div class="diagram-box">
+        <svg viewBox="0 0 800 500" width="800" height="500">
+          <text x="400" y="22" text-anchor="middle" fill="var(--acc2)" font-size="14" font-weight="800">ngram 토큰화 시각화 (token_size = 2)</text>
+          <text x="30" y="54" fill="var(--grn)" font-size="12" font-weight="700">예시 1: "코딩테스트"</text>
+          <rect x="30" y="64" width="44" height="40" rx="6" fill="rgba(45,212,191,0.12)" stroke="var(--grn)" stroke-width="1.5"/>
+          <text x="52" y="89" text-anchor="middle" fill="var(--grn)" font-size="16" font-weight="700">코</text>
+          <rect x="78" y="64" width="44" height="40" rx="6" fill="rgba(45,212,191,0.12)" stroke="var(--grn)" stroke-width="1.5"/>
+          <text x="100" y="89" text-anchor="middle" fill="var(--grn)" font-size="16" font-weight="700">딩</text>
+          <rect x="126" y="64" width="44" height="40" rx="6" fill="rgba(45,212,191,0.12)" stroke="var(--grn)" stroke-width="1.5"/>
+          <text x="148" y="89" text-anchor="middle" fill="var(--grn)" font-size="16" font-weight="700">테</text>
+          <rect x="174" y="64" width="44" height="40" rx="6" fill="rgba(45,212,191,0.12)" stroke="var(--grn)" stroke-width="1.5"/>
+          <text x="196" y="89" text-anchor="middle" fill="var(--grn)" font-size="16" font-weight="700">스</text>
+          <rect x="222" y="64" width="44" height="40" rx="6" fill="rgba(45,212,191,0.12)" stroke="var(--grn)" stroke-width="1.5"/>
+          <text x="244" y="89" text-anchor="middle" fill="var(--grn)" font-size="16" font-weight="700">트</text>
+          <text x="310" y="80" fill="var(--dim)" font-size="10">→ 2글자씩 슬라이딩:</text>
+          <rect x="420" y="62" width="70" height="30" rx="6" fill="rgba(34,211,238,0.12)" stroke="var(--cyan)" stroke-width="1.5"/>
+          <text x="455" y="82" text-anchor="middle" fill="var(--cyan)" font-size="13" font-weight="700">코딩</text>
+          <rect x="498" y="62" width="70" height="30" rx="6" fill="rgba(34,211,238,0.12)" stroke="var(--cyan)" stroke-width="1.5"/>
+          <text x="533" y="82" text-anchor="middle" fill="var(--cyan)" font-size="13" font-weight="700">딩테</text>
+          <rect x="576" y="62" width="70" height="30" rx="6" fill="rgba(34,211,238,0.12)" stroke="var(--cyan)" stroke-width="1.5"/>
+          <text x="611" y="82" text-anchor="middle" fill="var(--cyan)" font-size="13" font-weight="700">테스</text>
+          <rect x="654" y="62" width="70" height="30" rx="6" fill="rgba(34,211,238,0.12)" stroke="var(--cyan)" stroke-width="1.5"/>
+          <text x="689" y="82" text-anchor="middle" fill="var(--cyan)" font-size="13" font-weight="700">스트</text>
+          <text x="555" y="106" text-anchor="middle" fill="var(--dim)" font-size="9">= 4개의 토큰 생성 (5글자 - 1)</text>
+          <text x="30" y="140" fill="var(--blu)" font-size="12" font-weight="700">예시 2: "mysql" (영어도 ngram 적용됨)</text>
+          <rect x="30" y="150" width="38" height="38" rx="6" fill="rgba(96,165,250,0.12)" stroke="var(--blu)" stroke-width="1.5"/>
+          <text x="49" y="174" text-anchor="middle" fill="var(--blu)" font-size="15" font-weight="700">m</text>
+          <rect x="72" y="150" width="38" height="38" rx="6" fill="rgba(96,165,250,0.12)" stroke="var(--blu)" stroke-width="1.5"/>
+          <text x="91" y="174" text-anchor="middle" fill="var(--blu)" font-size="15" font-weight="700">y</text>
+          <rect x="114" y="150" width="38" height="38" rx="6" fill="rgba(96,165,250,0.12)" stroke="var(--blu)" stroke-width="1.5"/>
+          <text x="133" y="174" text-anchor="middle" fill="var(--blu)" font-size="15" font-weight="700">s</text>
+          <rect x="156" y="150" width="38" height="38" rx="6" fill="rgba(96,165,250,0.12)" stroke="var(--blu)" stroke-width="1.5"/>
+          <text x="175" y="174" text-anchor="middle" fill="var(--blu)" font-size="15" font-weight="700">q</text>
+          <rect x="198" y="150" width="38" height="38" rx="6" fill="rgba(96,165,250,0.12)" stroke="var(--blu)" stroke-width="1.5"/>
+          <text x="217" y="174" text-anchor="middle" fill="var(--blu)" font-size="15" font-weight="700">l</text>
+          <text x="278" y="173" fill="var(--dim)" font-size="10">→</text>
+          <rect x="298" y="155" width="52" height="28" rx="6" fill="rgba(96,165,250,0.08)" stroke="var(--blu)" stroke-width="1"/>
+          <text x="324" y="174" text-anchor="middle" fill="var(--blu)" font-size="12" font-weight="600">my</text>
+          <rect x="358" y="155" width="52" height="28" rx="6" fill="rgba(96,165,250,0.08)" stroke="var(--blu)" stroke-width="1"/>
+          <text x="384" y="174" text-anchor="middle" fill="var(--blu)" font-size="12" font-weight="600">ys</text>
+          <rect x="418" y="155" width="52" height="28" rx="6" fill="rgba(96,165,250,0.08)" stroke="var(--blu)" stroke-width="1"/>
+          <text x="444" y="174" text-anchor="middle" fill="var(--blu)" font-size="12" font-weight="600">sq</text>
+          <rect x="478" y="155" width="52" height="28" rx="6" fill="rgba(96,165,250,0.08)" stroke="var(--blu)" stroke-width="1"/>
+          <text x="504" y="174" text-anchor="middle" fill="var(--blu)" font-size="12" font-weight="600">ql</text>
+          <text x="30" y="218" fill="var(--pnk)" font-size="12" font-weight="700">예시 3: "mysql" — n 값에 따른 토큰 변화</text>
+          <rect x="30" y="232" width="740" height="130" rx="10" fill="var(--s2)" stroke="var(--bd)" stroke-width="1"/>
+          <text x="50" y="256" fill="var(--org)" font-size="11" font-weight="700">n=1:</text>
+          <text x="100" y="256" fill="var(--tx)" font-size="11" font-family="JetBrains Mono">'m' 'y' 's' 'q' 'l'</text>
+          <text x="380" y="256" fill="var(--dim)" font-size="9">← 너무 잘게 쪼갬, 노이즈 많음</text>
+          <text x="50" y="280" fill="var(--org)" font-size="11" font-weight="700">n=2:</text>
+          <text x="100" y="280" fill="var(--cyan)" font-size="11" font-weight="600" font-family="JetBrains Mono">'my' 'ys' 'sq' 'ql'</text>
+          <text x="380" y="280" fill="var(--grn)" font-size="9" font-weight="600">← 기본값! 한국어 2글자 단위에 적합</text>
+          <text x="50" y="304" fill="var(--org)" font-size="11" font-weight="700">n=3:</text>
+          <text x="100" y="304" fill="var(--tx)" font-size="11" font-family="JetBrains Mono">'mys' 'ysq' 'sql'</text>
+          <text x="380" y="304" fill="var(--dim)" font-size="9">← 더 정확하지만 인덱스 크기 증가</text>
+          <text x="50" y="328" fill="var(--org)" font-size="11" font-weight="700">n=4:</text>
+          <text x="100" y="328" fill="var(--tx)" font-size="11" font-family="JetBrains Mono">'mysq' 'ysql'</text>
+          <text x="380" y="328" fill="var(--dim)" font-size="9">← 토큰이 적어져 검색 정확도 증가, 단어 짧으면 누락</text>
+          <text x="50" y="352" fill="var(--org)" font-size="11" font-weight="700">n=5:</text>
+          <text x="100" y="352" fill="var(--tx)" font-size="11" font-family="JetBrains Mono">'mysql'</text>
+          <text x="380" y="352" fill="var(--dim)" font-size="9">← 통째로 1개 토큰</text>
+          <text x="400" y="394" text-anchor="middle" fill="var(--acc2)" font-size="13" font-weight="800">검색 시에도 동일하게 ngram 토큰화!</text>
+          <text x="400" y="418" text-anchor="middle" fill="var(--dim)" font-size="11">
+            AGAINST(<tspan fill="var(--org)">'코딩테스트'</tspan>) → 검색어도 <tspan fill="var(--cyan)">"코딩" "딩테" "테스" "스트"</tspan> 로 분리
+          </text>
+          <text x="400" y="440" text-anchor="middle" fill="var(--dim)" font-size="11">
+            → 역인덱스에서 이 토큰들이 <tspan fill="var(--grn)" font-weight="600">모두 포함된 문서</tspan>를 찾아서 반환
+          </text>
+          <text x="400" y="468" text-anchor="middle" fill="var(--pnk)" font-size="10">
+            BOOLEAN MODE에서는 "코딩테스트" → '"코딩 딩테 테스 스트"' (ngram phrase) 로 변환
+          </text>
+          <text x="400" y="486" text-anchor="middle" fill="var(--dim)" font-size="9">
+            → "코딩"과 "딩테"가 연속으로 나타나는 문서만 매칭 (더 정확!)
+          </text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">Full-Text Index with ngram은 어떻게 생성하고 어떤 쿼리 문법으로 검색하나요?</div>
+    <div class="qa-a">
+      <div class="sql-block">
+<span style="color:var(--text-dim)">-- ① ngram_token_size 설정 (서버 시작 시, my.cnf)</span>
+<span style="color:var(--accent2)">[mysqld]</span>
+<span style="color:var(--green)">ngram_token_size</span>=<span style="color:var(--orange)">2</span>  <span style="color:var(--text-dim)">-- 기본값 2, 범위 1~10, read-only 변수</span>
+
+<span style="color:var(--text-dim)">-- ② 테이블 생성 시 FULLTEXT 인덱스 추가</span>
+<span style="color:var(--accent2)">CREATE TABLE</span> articles (
+  id <span style="color:var(--orange)">INT</span> AUTO_INCREMENT PRIMARY KEY,
+  title <span style="color:var(--orange)">VARCHAR(200)</span>,
+  body <span style="color:var(--orange)">TEXT</span>,
+  <span style="color:var(--cyan)">FULLTEXT</span> (title, body) <span style="color:var(--pink)">WITH PARSER ngram</span>  <span style="color:var(--text-dim)">-- ← ngram 파서 지정!</span>
+) ENGINE=InnoDB CHARACTER SET utf8mb4;
+
+<span style="color:var(--text-dim)">-- ③ 기존 테이블에 추가</span>
+<span style="color:var(--accent2)">ALTER TABLE</span> articles <span style="color:var(--accent2)">ADD FULLTEXT INDEX</span> ft_idx (title, body) <span style="color:var(--pink)">WITH PARSER ngram</span>;
+
+<span style="color:var(--text-dim)">-- ④ 검색 쿼리 (3가지 모드)</span>
+
+<span style="color:var(--text-dim)">-- 자연어 모드 (기본)</span>
+<span style="color:var(--accent2)">SELECT</span> * <span style="color:var(--accent2)">FROM</span> articles
+<span style="color:var(--accent2)">WHERE</span> <span style="color:var(--cyan)">MATCH</span>(title, body) <span style="color:var(--cyan)">AGAINST</span>(<span style="color:var(--orange)">'코딩테스트'</span>);
+
+<span style="color:var(--text-dim)">-- 불리언 모드 (연산자 사용 가능)</span>
+<span style="color:var(--accent2)">SELECT</span> * <span style="color:var(--accent2)">FROM</span> articles
+<span style="color:var(--accent2)">WHERE</span> <span style="color:var(--cyan)">MATCH</span>(title, body) <span style="color:var(--cyan)">AGAINST</span>(<span style="color:var(--orange)">'+코딩 -파이썬'</span> <span style="color:var(--pink)">IN BOOLEAN MODE</span>);
+
+<span style="color:var(--text-dim)">-- 쿼리 확장 모드 (연관 단어도 검색)</span>
+<span style="color:var(--accent2)">SELECT</span> * <span style="color:var(--accent2)">FROM</span> articles
+<span style="color:var(--accent2)">WHERE</span> <span style="color:var(--cyan)">MATCH</span>(title, body) <span style="color:var(--cyan)">AGAINST</span>(<span style="color:var(--orange)">'코딩'</span> <span style="color:var(--pink)">WITH QUERY EXPANSION</span>);
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">ngram 관련 주요 설정 변수와 각 역할은 무엇인가요?</div>
+    <div class="qa-a">
+      <table>
+        <tr><th>설정 변수</th><th>기본값</th><th>설명</th></tr>
+        <tr>
+          <td><strong><code>ngram_token_size</code></strong></td>
+          <td><strong style="color:var(--orange)">2</strong></td>
+          <td>ngram 토큰 크기 (1~10). read-only, 서버 시작 시만 변경 가능. 한국어는 2가 적합</td>
+        </tr>
+        <tr>
+          <td><strong><code>innodb_ft_min_token_size</code></strong></td>
+          <td><strong style="color:var(--orange)">3</strong></td>
+          <td>InnoDB 기본 파서 최소 단어 길이. <strong style="color:var(--red)">ngram 파서에서는 무시됨</strong></td>
+        </tr>
+        <tr>
+          <td><strong><code>innodb_ft_max_token_size</code></strong></td>
+          <td><strong style="color:var(--orange)">84</strong></td>
+          <td>InnoDB 기본 파서 최대 단어 길이. <strong style="color:var(--red)">ngram 파서에서는 무시됨</strong></td>
+        </tr>
+        <tr>
+          <td><strong><code>ft_min_word_len</code></strong></td>
+          <td><strong style="color:var(--orange)">4</strong></td>
+          <td>MyISAM 기본 파서 최소 길이. <strong style="color:var(--red)">ngram 파서에서는 무시됨</strong></td>
+        </tr>
+        <tr>
+          <td><strong><code>innodb_ft_enable_stopword</code></strong></td>
+          <td><strong style="color:var(--orange)">ON</strong></td>
+          <td>불용어(stopword) 필터링 활성화 여부</td>
+        </tr>
+      </table>
+      <div class="hl org">
+        <strong>핵심:</strong> ngram 파서를 쓰면 <code>innodb_ft_min_token_size</code>, <code>innodb_ft_max_token_size</code> 등은 무시됩니다.
+        오직 <code>ngram_token_size</code>만 토큰 크기를 결정합니다.
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">ngram 파서의 주의사항과 특이 동작에는 어떤 것들이 있나요?</div>
+    <div class="qa-a">
+      <table>
+        <tr><th>상황</th><th>동작</th></tr>
+        <tr>
+          <td><strong>공백 처리</strong></td>
+          <td>ngram은 공백을 <strong>제거한 후</strong> 토큰화합니다. "코딩 테스트" → "코딩테스트" → "코딩","딩테","테스","스트"</td>
+        </tr>
+        <tr>
+          <td><strong>Stopword</strong></td>
+          <td>기본 파서는 stopword와 "같은" 토큰을 제거하지만, ngram은 stopword를 <strong>"포함하는"</strong> 토큰을 제거합니다</td>
+        </tr>
+        <tr>
+          <td><strong>와일드카드 검색</strong></td>
+          <td>접두어가 token_size보다 짧으면 모든 행 반환. 길면 ngram phrase로 변환되어 와일드카드 무시</td>
+        </tr>
+        <tr>
+          <td><strong>BOOLEAN MODE</strong></td>
+          <td>"코딩테스트" → '"코딩 딩테 테스 스트"' (ngram phrase)로 변환. "코딩"만 있고 "딩테"가 없으면 매칭 안 됨</td>
+        </tr>
+        <tr>
+          <td><strong>token_size 변경</strong></td>
+          <td>read-only 변수이므로 서버 재시작 필요. 변경 후 인덱스 재생성(REBUILD) 필수</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-q">Full-Text Index & ngram에 대해 면접 핵심 포인트를 정리해주세요.</div>
+    <div class="qa-a">
+      <div class="hl cyan">
+        <strong>① Full-Text Index = 역인덱스(Inverted Index)</strong> — B+Tree와 완전히 다른 구조. "단어 → 문서ID" 매핑.
+      </div>
+      <div class="hl grn">
+        <strong>② LIKE '%검색어%' 가 느린 이유</strong> — B+Tree 인덱스를 활용 못하고 Full Table Scan. Full-Text Index는 토큰으로 바로 매칭.
+      </div>
+      <div class="hl org">
+        <strong>③ 한국어에 ngram이 필요한 이유</strong> — 기본 파서는 공백 기반 분리. 한국어는 공백 없이 이어붙여 쓰므로 N글자씩 잘라야 함.
+      </div>
+      <div class="hl blu">
+        <strong>④ ngram_token_size 기본값 = 2</strong> — 한국어 2글자(bigram)에 적합. read-only 변수, 서버 시작 시만 변경 가능 (1~10).
+      </div>
+      <div class="hl pnk">
+        <strong>⑤ 검색 쿼리</strong> — <code>MATCH(col) AGAINST('검색어')</code> 사용. 3가지 모드: NATURAL LANGUAGE, BOOLEAN, QUERY EXPANSION.
+      </div>
+      <div class="hl red">
+        <strong>⑥ 한계</strong> — 형태소 분석 없음(은/는/이/가 구분 못함), Elasticsearch 같은 전문 검색 엔진 대비 기능 제한적.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="../js/main.js"></script>
+</body>
+</html>

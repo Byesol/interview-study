@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>N+1 문제 &amp; Lazy Loading 면접 가이드</title>
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div class="page-header">
+  <a href="../index.html" class="back-link">← 목록으로</a>
+  <h1>N+1 문제 &amp; Lazy Loading 면접 가이드</h1>
+  <p>JPA/Hibernate 기반 · 코드 레벨 구체적 답변 · 꼬리질문 대비</p>
+</div>
+
+<div class="content">
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('p1',this)">Part 1 · 기본 개념</button>
+    <button class="tab-btn" onclick="switchTab('p2',this)">Part 2 · 코드 레벨 심화</button>
+    <button class="tab-btn" onclick="switchTab('p3',this)">Part 3 · 해결 전략</button>
+    <button class="tab-btn" onclick="switchTab('p4',this)">Part 4 · 실무 트러블슈팅</button>
+    <button class="tab-btn" onclick="switchTab('p5',this)">Part 5 · 꼬리질문 모음</button>
+  </div>
+
+  <!-- ==================== PART 1 ==================== -->
+  <div class="tab-content active" id="p1">
+
+    <div class="qa-card">
+      <div class="qa-q">N+1 문제가 무엇인지 설명해주세요</div>
+      <div class="qa-a">
+        <p>N+1 문제는 <strong>연관된 엔티티를 조회할 때 부모 1건의 쿼리 + 자식 N건의 추가 쿼리</strong>가 발생하는 현상입니다. 비유하자면, 학교에서 반(Team) 목록을 조회한 뒤 "각 반의 학생(Member) 명단"을 하나씩 따로 물어보는 셈입니다. 반이 100개면 쿼리가 101번 나갑니다.</p>
+        <p>JPA에서 가장 흔하게 발생하는 시나리오를 보겠습니다. <code>Team</code>과 <code>Member</code>가 1:N 관계일 때:</p>
+<pre><code>@Entity
+public class Team {
+    @Id @GeneratedValue
+    private Long id;
+    private String name;
+
+    @OneToMany(mappedBy = "team")  // 기본 전략: LAZY
+    private List&lt;Member&gt; members = new ArrayList&lt;&gt;();
+}
+</code></pre>
+<pre><code>// 1번 쿼리: SELECT * FROM team
+List&lt;Team&gt; teams = teamRepository.findAll();
+
+// N번 쿼리: 각 team마다 SELECT * FROM member WHERE team_id = ?
+for (Team team : teams) {
+    System.out.println(team.getMembers().size()); // 여기서 LAZY 로딩 발동!
+}
+</code></pre>
+        <p>핵심은 <strong>LAZY든 EAGER든 N+1은 발생할 수 있다</strong>는 점입니다. LAZY는 실제 접근 시점에, EAGER는 findAll() 시점에 추가 쿼리가 나갑니다. EAGER로 바꾼다고 해결되는 문제가 아닙니다.</p>
+
+        <div class="diagram-box">
+          <svg viewBox="0 0 600 180" width="100%" style="max-width:560px">
+            <rect x="10" y="10" width="180" height="40" rx="6" fill="#232733" stroke="#6c8cff" stroke-width="1.5"/>
+            <text x="100" y="35" fill="#6c8cff" font-size="13" text-anchor="middle" font-weight="700">SELECT * FROM team</text>
+            <text x="210" y="35" fill="#9ca0ad" font-size="11">→ 1번</text>
+
+            <line x1="100" y1="50" x2="100" y2="70" stroke="#2e3344" stroke-width="1"/>
+            <text x="100" y="85" fill="#ff6c8c" font-size="11" text-anchor="middle">for each team (N개)</text>
+
+            <rect x="10" y="95" width="280" height="36" rx="6" fill="#232733" stroke="#ff6c8c" stroke-width="1.5"/>
+            <text x="150" y="118" fill="#ff6c8c" font-size="12" text-anchor="middle">SELECT * FROM member WHERE team_id = ?</text>
+            <text x="310" y="118" fill="#9ca0ad" font-size="11">→ N번</text>
+
+            <rect x="360" y="50" width="220" height="60" rx="8" fill="rgba(255,108,140,0.08)" stroke="#ff6c8c" stroke-width="1"/>
+            <text x="470" y="75" fill="#ff6c8c" font-size="13" text-anchor="middle" font-weight="700">총 N+1번 쿼리</text>
+            <text x="470" y="98" fill="#9ca0ad" font-size="11" text-anchor="middle">팀 100개 → 쿼리 101번</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Lazy Loading과 Eager Loading의 차이를 설명해주세요</div>
+      <div class="qa-a">
+        <p><strong>Lazy Loading</strong>은 연관 엔티티를 실제로 접근하는 시점까지 로딩을 미루는 전략이고, <strong>Eager Loading</strong>은 부모를 조회하는 순간 연관 엔티티도 즉시 함께 가져오는 전략입니다. Hibernate에서 Lazy는 프록시 객체를 넣어두고, getter를 호출하는 순간 실제 쿼리를 날립니다.</p>
+
+        <table>
+          <tr><th>구분</th><th>Lazy Loading</th><th>Eager Loading</th></tr>
+          <tr><td>로딩 시점</td><td>실제 접근(getter) 시점</td><td>부모 조회 시점 즉시</td></tr>
+          <tr><td>프록시</td><td>프록시 객체 사용</td><td>실제 객체 즉시 할당</td></tr>
+          <tr><td>JPA 기본값</td><td><code>@OneToMany</code>, <code>@ManyToMany</code></td><td><code>@ManyToOne</code>, <code>@OneToOne</code></td></tr>
+          <tr><td>N+1 발생 시점</td><td>루프 등에서 getter 호출 시</td><td>findAll() 등 JPQL 실행 시</td></tr>
+          <tr><td>불필요한 쿼리</td><td>접근 안 하면 쿼리 없음</td><td>항상 JOIN/추가 쿼리 발생</td></tr>
+        </table>
+
+        <p>JPA 실무에서는 <strong>기본적으로 모든 연관관계를 LAZY로 설정</strong>하고, 필요한 시점에 Fetch Join이나 EntityGraph로 한번에 가져오는 것이 정석입니다. <code>@ManyToOne</code>도 기본이 EAGER이므로, 반드시 <code>fetch = FetchType.LAZY</code>로 변경해야 합니다.</p>
+
+<pre><code>@ManyToOne(fetch = FetchType.LAZY)  // 기본이 EAGER이므로 반드시 LAZY로!
+@JoinColumn(name = "team_id")
+private Team team;
+</code></pre>
+
+        <div class="tail-q">
+          <strong>꼬리질문 대비:</strong> "Lazy Loading이면 트랜잭션 밖에서 접근하면 어떻게 되나요?" — <strong>LazyInitializationException</strong>이 발생합니다. 영속성 컨텍스트가 닫힌 상태에서 프록시를 초기화하려 하기 때문입니다. 이것이 OSIV(Open Session In View) 논쟁으로 이어집니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Hibernate의 프록시 객체는 어떻게 동작하나요?</div>
+      <div class="qa-a">
+        <p>Hibernate는 Lazy 로딩 대상 엔티티에 대해 <strong>바이트코드를 조작하여 프록시 클래스</strong>를 런타임에 생성합니다. 예를 들어 <code>Team</code> 엔티티에 대해 <code>Team$HibernateProxy$Xyz</code> 같은 서브클래스를 만듭니다. 이 프록시는 내부에 <strong>target(실제 엔티티 참조)</strong>과 <strong>initialized(초기화 여부)</strong> 플래그를 가지고 있습니다.</p>
+        <p>프록시의 어떤 메서드(getId() 제외)를 호출하면, initialized가 false인 경우 영속성 컨텍스트를 통해 실제 DB 쿼리를 실행하고, target에 결과를 채운 뒤 메서드를 위임합니다. <strong>getId()는 프록시가 이미 ID를 알고 있으므로 쿼리를 발생시키지 않습니다.</strong></p>
+<pre><code>Team team = member.getTeam();       // 프록시 반환, 쿼리 X
+Long teamId = team.getId();          // ID는 이미 있으므로 쿼리 X
+String name = team.getName();        // 이 순간 SELECT 쿼리 발생!
+
+// 프록시 확인 방법
+System.out.println(team.getClass()); // Team$HibernateProxy$... 출력
+Hibernate.isInitialized(team);       // false → 아직 초기화 안 됨
+</code></pre>
+        <p>면접관이 여기서 더 파고들 수 있는데요, <strong>프록시의 equals/hashCode 이슈</strong>입니다. 프록시와 실제 엔티티를 비교할 때 <code>instanceof</code> 대신 <code>getClass()</code>를 쓰면 false가 나올 수 있습니다. 그래서 엔티티의 equals에는 반드시 <code>instanceof</code>를 사용해야 합니다.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ==================== PART 2 ==================== -->
+  <div class="tab-content" id="p2">
+
+    <div class="qa-card">
+      <div class="qa-q">EAGER로 바꾸면 N+1이 해결되지 않는 이유를 코드로 설명해주세요</div>
+      <div class="qa-a">
+        <p>많은 분들이 "EAGER로 바꾸면 한 번에 가져오니까 N+1이 해결되지 않나?"라고 생각하는데, <strong>JPQL을 사용하는 순간 EAGER도 N+1이 발생</strong>합니다. 이유는 JPQL이 먼저 SQL로 번역된 후, Hibernate가 결과를 보고 "어? 이 엔티티의 연관관계가 EAGER네, 추가 로딩해야지" 하고 <strong>사후에 추가 쿼리를 날리기 때문</strong>입니다.</p>
+<pre><code>// EAGER로 설정된 상태
+@OneToMany(mappedBy = "team", fetch = FetchType.EAGER)
+private List&lt;Member&gt; members;
+
+// Spring Data JPA의 findAll() → JPQL "SELECT t FROM Team t"
+List&lt;Team&gt; teams = teamRepository.findAll();
+
+// 실행되는 쿼리:
+// 1) SELECT * FROM team                          -- JPQL이 먼저 실행
+// 2) SELECT * FROM member WHERE team_id = 1      -- EAGER이니 즉시 추가
+// 3) SELECT * FROM member WHERE team_id = 2      -- ...
+// ... N번 반복
+</code></pre>
+        <p>반면 <code>em.find(Team.class, 1L)</code>처럼 <strong>EntityManager의 find()</strong>를 사용하면, Hibernate가 최적화하여 LEFT JOIN으로 한 방 쿼리를 만들어줍니다. 하지만 findAll()이나 커스텀 JPQL에서는 이 최적화가 적용되지 않습니다. 결론적으로 <strong>EAGER는 N+1을 해결하지 못할 뿐 아니라, 제어할 수 없는 시점에 쿼리가 나가므로 더 위험</strong>합니다.</p>
+
+        <div class="warn-box">면접 핵심 포인트: "EAGER는 N+1 해결책이 아닙니다. 오히려 어디서 쿼리가 나가는지 예측할 수 없게 만들어 더 위험합니다."</div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Fetch Join으로 N+1을 해결하는 코드를 보여주세요</div>
+      <div class="qa-a">
+        <p><strong>Fetch Join</strong>은 JPQL에서 <code>JOIN FETCH</code> 키워드를 사용하여, 연관 엔티티를 <strong>한 방 쿼리로 즉시 로딩</strong>하는 방법입니다. 일반 JOIN과 달리 SELECT 절에 연관 엔티티 데이터까지 포함시키기 때문에 추가 쿼리가 발생하지 않습니다.</p>
+<pre><code>// Repository
+public interface TeamRepository extends JpaRepository&lt;Team, Long&gt; {
+
+    @Query("SELECT t FROM Team t JOIN FETCH t.members")
+    List&lt;Team&gt; findAllWithMembers();
+}
+
+// 실행되는 쿼리: 딱 1번!
+// SELECT t.*, m.* FROM team t
+// INNER JOIN member m ON t.id = m.team_id
+
+List&lt;Team&gt; teams = teamRepository.findAllWithMembers();
+for (Team team : teams) {
+    team.getMembers().size(); // 추가 쿼리 없음! 이미 로딩됨
+}
+</code></pre>
+        <p>하지만 Fetch Join에는 중요한 <strong>제약 사항</strong>이 있습니다. 컬렉션(1:N) Fetch Join 시 <strong>데이터 뻥튀기(카테시안 곱)</strong>가 발생합니다. Team 1개에 Member 3명이면 Team 행이 3번 반복됩니다. 이를 해결하려면 <code>DISTINCT</code>를 붙여야 합니다.</p>
+<pre><code>@Query("SELECT DISTINCT t FROM Team t JOIN FETCH t.members")
+List&lt;Team&gt; findAllWithMembers();
+
+// Hibernate 6(Spring Boot 3)부터는 DISTINCT가 자동 적용됩니다
+// Hibernate 5에서는 반드시 명시해야 합니다
+</code></pre>
+
+        <div class="tail-q">
+          <strong>꼬리질문 대비:</strong> "컬렉션 Fetch Join을 2개 이상 할 수 있나요?" — <strong>안 됩니다.</strong> <code>MultipleBagFetchException</code>이 발생합니다. 2개 이상의 컬렉션을 동시에 페치하면 카테시안 곱이 기하급수적으로 커지기 때문입니다. 하나는 Fetch Join, 나머지는 <code>@BatchSize</code>나 <code>default_batch_fetch_size</code>로 해결합니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">@EntityGraph로 N+1을 해결하는 방법을 설명해주세요</div>
+      <div class="qa-a">
+        <p><strong>@EntityGraph</strong>는 JPQL을 작성하지 않고도 Fetch Join과 같은 효과를 낼 수 있는 방법입니다. 어노테이션 기반이라 가독성이 좋고, Spring Data JPA의 기본 메서드에도 적용할 수 있다는 장점이 있습니다.</p>
+<pre><code>// 방법 1: attributePaths로 직접 지정
+@EntityGraph(attributePaths = {"members"})
+@Query("SELECT t FROM Team t")
+List&lt;Team&gt; findAllWithMembers();
+
+// 방법 2: 기본 findAll()에 적용
+@EntityGraph(attributePaths = {"members"})
+@Override
+List&lt;Team&gt; findAll();
+
+// 방법 3: 엔티티에 Named EntityGraph 정의
+@NamedEntityGraph(
+    name = "Team.withMembers",
+    attributeNodes = @NamedAttributeNode("members")
+)
+@Entity
+public class Team { ... }
+
+// Repository에서 참조
+@EntityGraph(value = "Team.withMembers")
+List&lt;Team&gt; findAll();
+</code></pre>
+        <p>EntityGraph와 Fetch Join의 차이점이 있습니다. EntityGraph는 <strong>LEFT OUTER JOIN</strong>을 사용하고, Fetch Join의 기본 JOIN은 <strong>INNER JOIN</strong>입니다. 즉 EntityGraph는 멤버가 없는 팀도 결과에 포함하지만, Fetch Join은 기본적으로 멤버가 있는 팀만 반환합니다. 필요에 따라 <code>JOIN FETCH t.members m</code>을 <code>LEFT JOIN FETCH</code>로 변경할 수 있습니다.</p>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Fetch Join과 페이징을 함께 쓸 수 없는 이유는?</div>
+      <div class="qa-a">
+        <p>컬렉션(1:N) Fetch Join에 <code>Pageable</code>을 적용하면, Hibernate가 <strong>경고 로그를 남기고 메모리에서 페이징</strong>합니다. "HHH000104: firstResult/maxResults specified with collection fetch; applying in memory!"라는 로그가 나옵니다.</p>
+        <p>이유는 데이터 뻥튀기 때문입니다. Team 1개에 Member 3명이면 DB에서 3행이 나오는데, 이걸 LIMIT/OFFSET으로 자르면 Team 기준의 페이징이 깨집니다. 그래서 Hibernate는 <strong>전체 데이터를 다 가져온 뒤 메모리에서 페이징</strong>합니다 — 데이터가 많으면 OOM(OutOfMemory) 위험이 있습니다.</p>
+
+<pre><code>// 위험! 메모리 페이징 발생
+@Query("SELECT t FROM Team t JOIN FETCH t.members")
+Page&lt;Team&gt; findAllWithMembers(Pageable pageable);
+
+// 올바른 해결법: @BatchSize + 페이징
+// 1단계: Team만 페이징 조회 (쿼리 1번)
+@Query("SELECT t FROM Team t")
+Page&lt;Team&gt; findAllTeams(Pageable pageable);
+
+// 2단계: application.yml에서 batch_size 설정
+// spring.jpa.properties.hibernate.default_batch_fetch_size: 100
+
+// 결과: Team 페이징 1번 + Member IN 쿼리 1번 = 총 2번!
+</code></pre>
+
+        <div class="warn-box">핵심: 컬렉션 Fetch Join + 페이징 = 절대 X. 대안은 <strong>default_batch_fetch_size</strong>입니다.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ==================== PART 3 ==================== -->
+  <div class="tab-content" id="p3">
+
+    <div class="qa-card">
+      <div class="qa-q">default_batch_fetch_size가 내부적으로 어떻게 동작하나요?</div>
+      <div class="qa-a">
+        <p><strong>default_batch_fetch_size</strong>는 Lazy 로딩이 발생할 때, 한 건씩 쿼리를 날리는 대신 <strong>IN 절을 사용해 한 번에 여러 건을 조회</strong>하는 설정입니다. 비유하자면, 편의점에서 물건을 하나씩 계산하지 않고 장바구니에 모아서 한 번에 계산하는 것과 같습니다.</p>
+<pre><code># application.yml
+spring:
+  jpa:
+    properties:
+      hibernate:
+        default_batch_fetch_size: 100
+</code></pre>
+<pre><code>// batch_size = 100일 때의 쿼리 변화
+
+// Before (N+1): 팀 100개 → 쿼리 101번
+SELECT * FROM member WHERE team_id = 1;
+SELECT * FROM member WHERE team_id = 2;
+...
+SELECT * FROM member WHERE team_id = 100;
+
+// After (Batch): 팀 100개 → 쿼리 2번
+SELECT * FROM team;
+SELECT * FROM member WHERE team_id IN (1,2,3,...,100);
+</code></pre>
+        <p>만약 팀이 250개이고 batch_size가 100이면, Member 조회 쿼리가 100+100+50으로 <strong>3번</strong>만 나갑니다. 보통 <strong>100~1000 사이</strong>로 설정하며, 너무 크면 IN 절의 파라미터가 많아져 DB 부하가 생길 수 있습니다. 개별 엔티티에만 적용하려면 <code>@BatchSize(size = 100)</code> 어노테이션을 사용할 수도 있습니다.</p>
+
+<pre><code>@BatchSize(size = 100)  // 이 컬렉션만 배치 로딩 적용
+@OneToMany(mappedBy = "team")
+private List&lt;Member&gt; members;
+</code></pre>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">N+1 해결 전략을 상황별로 정리해주세요</div>
+      <div class="qa-a">
+        <p>N+1 해결은 <strong>"무조건 Fetch Join"이 아니라 상황에 따라 최적의 전략을 선택</strong>하는 것이 중요합니다. 아래 표로 정리하겠습니다.</p>
+
+        <table>
+          <tr><th>상황</th><th>추천 전략</th><th>이유</th></tr>
+          <tr><td>단일 컬렉션, 페이징 X</td><td><strong>Fetch Join</strong></td><td>가장 직관적, 한 방 쿼리</td></tr>
+          <tr><td>단일 컬렉션, 페이징 O</td><td><strong>BatchSize</strong></td><td>Fetch Join+페이징은 메모리 페이징 위험</td></tr>
+          <tr><td>다중 컬렉션 (2개↑)</td><td><strong>1개 Fetch Join + 나머지 BatchSize</strong></td><td>MultipleBagFetchException 방지</td></tr>
+          <tr><td>@ManyToOne / @OneToOne</td><td><strong>Fetch Join</strong></td><td>카테시안 곱 없음, 안전하게 여러 개 가능</td></tr>
+          <tr><td>API 응답에 일부 필드만</td><td><strong>DTO 직접 조회 (Projection)</strong></td><td>엔티티 전체 로딩 자체를 안 함</td></tr>
+          <tr><td>글로벌 디폴트</td><td><strong>default_batch_fetch_size</strong></td><td>누락된 N+1도 안전망으로 잡아줌</td></tr>
+        </table>
+
+        <p>실무에서 가장 많이 쓰는 조합은 <strong>"기본 LAZY + default_batch_fetch_size: 100 + 핫 쿼리에 Fetch Join"</strong>입니다. batch_size를 글로벌로 깔아두면 실수로 N+1이 발생해도 최소한의 안전망이 됩니다.</p>
+
+<pre><code>// 실무 최적 조합 예시
+
+// 1. 글로벌 안전망: application.yml
+spring.jpa.properties.hibernate.default_batch_fetch_size: 100
+
+// 2. 핫 API에는 Fetch Join 최적화
+@Query("SELECT DISTINCT t FROM Team t "
+     + "JOIN FETCH t.members "
+     + "WHERE t.status = :status")
+List&lt;Team&gt; findActiveTeamsWithMembers(@Param("status") Status status);
+
+// 3. DTO Projection으로 필요한 것만
+@Query("SELECT new com.example.dto.TeamSummary(t.id, t.name, SIZE(t.members)) "
+     + "FROM Team t")
+List&lt;TeamSummary&gt; findTeamSummaries();
+</code></pre>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">QueryDSL에서 Fetch Join은 어떻게 작성하나요?</div>
+      <div class="qa-a">
+        <p>QueryDSL은 타입 안전한 동적 쿼리에 강점이 있고, Fetch Join도 메서드 체이닝으로 직관적으로 작성할 수 있습니다.</p>
+<pre><code>public List&lt;Team&gt; findTeamsWithMembers(String teamName) {
+    return queryFactory
+        .selectFrom(team)
+        .leftJoin(team.members, member).fetchJoin()   // 핵심!
+        .where(
+            teamNameContains(teamName)  // 동적 조건
+        )
+        .distinct()
+        .fetch();
+}
+
+// @ManyToOne Fetch Join도 가능
+public List&lt;Member&gt; findMembersWithTeam() {
+    return queryFactory
+        .selectFrom(member)
+        .join(member.team, team).fetchJoin()
+        .fetch();
+}
+</code></pre>
+        <p>주의할 점은 QueryDSL에서도 <strong>컬렉션 Fetch Join + 페이징은 동일하게 위험</strong>하다는 것입니다. <code>.offset()</code>과 <code>.limit()</code>을 Fetch Join과 함께 쓰면 Hibernate가 메모리 페이징합니다. 이때도 마찬가지로 BatchSize 전략을 사용해야 합니다.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ==================== PART 4 ==================== -->
+  <div class="tab-content" id="p4">
+
+    <div class="qa-card">
+      <div class="qa-q">운영 중 N+1을 어떻게 탐지하나요?</div>
+      <div class="qa-a">
+        <p>실무에서 N+1은 개발 단계에서 놓치고 운영에서 터지는 경우가 많습니다. <strong>3가지 레벨</strong>에서 탐지할 수 있습니다.</p>
+
+        <p><strong>첫째, 개발 시점</strong>에는 Hibernate의 SQL 로그를 켜고 쿼리 수를 세는 것이 가장 기본입니다.</p>
+<pre><code># application.yml - 개발 환경용
+logging:
+  level:
+    org.hibernate.SQL: DEBUG               # 실행 쿼리
+    org.hibernate.orm.jdbc.bind: TRACE     # 바인딩 파라미터 (Hibernate 6)
+</code></pre>
+
+        <p><strong>둘째, 테스트 코드</strong>에서 쿼리 카운트를 검증할 수 있습니다. <code>hibernate-testing</code> 모듈이나 커스텀 유틸을 사용합니다.</p>
+<pre><code>// 테스트에서 쿼리 카운트 검증 (spring-data-jpa 기반)
+@Test
+void N플러스1이_발생하지_않는다() {
+    // given
+    var statistics = entityManager.unwrap(Session.class)
+            .getSessionFactory().getStatistics();
+    statistics.setStatisticsEnabled(true);
+    statistics.clear();
+
+    // when
+    List&lt;Team&gt; teams = teamRepository.findAllWithMembers();
+    teams.forEach(t -> t.getMembers().size()); // 강제 접근
+
+    // then
+    long queryCount = statistics.getPrepareStatementCount();
+    assertThat(queryCount).isLessThanOrEqualTo(2L); // 최대 2번 이내
+}
+</code></pre>
+
+        <p><strong>셋째, 운영 환경</strong>에서는 <strong>p6spy</strong>나 <strong>spring-data-jpa의 slow query log</strong>, 혹은 APM 도구(Datadog, Pinpoint 등)로 특정 API에서 쿼리가 비정상적으로 많이 나가는 것을 모니터링합니다.</p>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">LazyInitializationException은 왜 발생하고 어떻게 해결하나요?</div>
+      <div class="qa-a">
+        <p><strong>LazyInitializationException</strong>은 영속성 컨텍스트(Session)가 닫힌 상태에서 Lazy 프록시를 초기화하려 할 때 발생합니다. 가장 흔한 상황은 <strong>Service 계층에서 엔티티를 반환하고, Controller나 View에서 Lazy 필드에 접근</strong>하는 경우입니다.</p>
+<pre><code>// 문제 발생 코드
+@Service
+@Transactional(readOnly = true)
+public class TeamService {
+    public Team getTeam(Long id) {
+        return teamRepository.findById(id).orElseThrow();
+        // 여기서 트랜잭션 종료 → 영속성 컨텍스트 닫힘
+    }
+}
+
+@RestController
+public class TeamController {
+    public TeamResponse getTeam(Long id) {
+        Team team = teamService.getTeam(id);
+        team.getMembers().size(); // LazyInitializationException!
+    }
+}
+</code></pre>
+        <p>해결 방법은 <strong>3가지</strong>입니다. 첫째, 가장 권장되는 방법은 <strong>Service 계층에서 필요한 데이터를 모두 DTO로 변환</strong>하여 반환하는 것입니다. 둘째, Fetch Join이나 EntityGraph로 필요한 연관관계를 미리 로딩합니다. 셋째, <strong>OSIV(Open Session In View)</strong>를 켜면 Controller까지 영속성 컨텍스트가 살아있지만, DB 커넥션을 오래 잡고 있어 실무에서는 <strong>비추천</strong>입니다.</p>
+
+<pre><code>// 권장: DTO 변환을 Service 안에서
+@Transactional(readOnly = true)
+public TeamResponse getTeam(Long id) {
+    Team team = teamRepository.findTeamWithMembers(id); // Fetch Join
+    return TeamResponse.from(team); // 트랜잭션 안에서 DTO 변환
+}
+</code></pre>
+
+        <div class="warn-box"><strong>OSIV 설정</strong>: <code>spring.jpa.open-in-view</code>가 기본 <strong>true</strong>입니다. Spring Boot 2.0부터 경고 로그가 뜹니다. API 서버에서는 <strong>false</strong>로 끄는 것이 좋습니다.</div>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">@OneToOne 관계에서 Lazy Loading이 안 되는 경우가 있다는데?</div>
+      <div class="qa-a">
+        <p>이 질문은 JPA 심화를 잘 아는 면접관이 던지는 질문입니다. <strong>@OneToOne에서 연관 엔티티의 외래 키가 아닌 쪽(mapped side)은 Lazy Loading이 적용되지 않습니다.</strong></p>
+        <p>이유는 프록시 생성 조건과 관련됩니다. Hibernate가 프록시를 만들려면 "이 연관관계에 값이 있는지 없는지(null 여부)"를 먼저 알아야 합니다. FK를 가진 쪽은 FK 컬럼이 null인지 확인하면 되지만, <strong>FK가 없는 쪽은 실제로 상대 테이블을 조회해봐야 null 여부를 알 수 있어서</strong> 결국 쿼리가 나갑니다.</p>
+
+<pre><code>@Entity
+public class Member {
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "locker_id")
+    private Locker locker;  // FK 보유 → LAZY 정상 작동
+}
+
+@Entity
+public class Locker {
+    @OneToOne(mappedBy = "locker", fetch = FetchType.LAZY)
+    private Member member;  // FK 없음 → LAZY 무시, 즉시 쿼리!
+}
+</code></pre>
+
+        <p>해결 방법으로는: 양방향 OneToOne을 <strong>단방향으로 변경</strong>하거나, mappedBy 쪽을 제거하고 필요할 때만 별도 쿼리로 조회하거나, <strong>@OneToOne 대신 @ManyToOne으로 모델링</strong>(unique 제약조건 추가)하는 방법이 있습니다.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ==================== PART 5 ==================== -->
+  <div class="tab-content" id="p5">
+
+    <div class="qa-card">
+      <div class="qa-q">Fetch Join 시 별칭(alias)에 조건을 걸면 안 되는 이유는?</div>
+      <div class="qa-a">
+        <p>Fetch Join의 목적은 <strong>엔티티의 상태를 DB와 일치시키는 것</strong>입니다. 만약 <code>JOIN FETCH t.members m WHERE m.age &gt; 20</code>처럼 필터링하면, 영속성 컨텍스트에는 일부 Member만 올라오게 됩니다. 이 상태에서 팀의 members를 수정하면, <strong>누락된 Member가 삭제될 수 있는 데이터 정합성 문제</strong>가 발생합니다.</p>
+        <p>Hibernate 공식 문서에서도 Fetch Join 대상에 별칭 조건을 거는 것을 권장하지 않습니다. 필터링이 필요하면 <strong>별도 쿼리로 분리</strong>하거나 <strong>DTO Projection</strong>을 사용하는 것이 안전합니다.</p>
+<pre><code>// 위험
+"SELECT t FROM Team t JOIN FETCH t.members m WHERE m.age > 20"
+
+// 안전: 별도 쿼리로 분리
+"SELECT m FROM Member m JOIN FETCH m.team WHERE m.age > 20"
+</code></pre>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">MultipleBagFetchException이 뭐고, List를 Set으로 바꾸면 해결되나요?</div>
+      <div class="qa-a">
+        <p><strong>MultipleBagFetchException</strong>은 2개 이상의 <code>List</code> 타입 컬렉션을 동시에 Fetch Join할 때 발생합니다. Hibernate에서 List(Bag)는 중복을 허용하는 컬렉션인데, 2개의 Bag을 JOIN하면 카테시안 곱이 발생하고 어떤 행이 어떤 컬렉션에 속하는지 구분할 수 없기 때문입니다.</p>
+        <p><strong>List를 Set으로 바꾸면 예외는 사라지지만, 권장되지 않습니다.</strong> Set으로 바꿔도 카테시안 곱 자체는 발생하기 때문에, 데이터가 기하급수적으로 뻥튀기됩니다. Team에 Member 5명, Project 3개가 있으면 결과가 5×3=15행이 됩니다.</p>
+<pre><code>// MultipleBagFetchException
+@OneToMany
+private List&lt;Member&gt; members;
+@OneToMany
+private List&lt;Project&gt; projects;
+"SELECT t FROM Team t JOIN FETCH t.members JOIN FETCH t.projects"
+
+// 예외는 안 나지만 카테시안 곱 (비추천)
+private Set&lt;Member&gt; members;
+private Set&lt;Project&gt; projects;
+
+// 권장: 하나만 Fetch Join + 나머지는 BatchSize
+"SELECT t FROM Team t JOIN FETCH t.members"
+// projects는 default_batch_fetch_size로 IN 쿼리
+</code></pre>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">OSIV를 끄면 실무에서 어떤 점이 달라지나요?</div>
+      <div class="qa-a">
+        <p><strong>OSIV(Open Session In View)</strong>가 켜져 있으면 HTTP 요청의 시작부터 끝까지 영속성 컨텍스트가 살아있습니다. Controller에서 Lazy 로딩이 가능하지만, <strong>DB 커넥션도 그만큼 오래 잡고 있습니다</strong>. 트래픽이 많은 API 서버에서는 커넥션 풀 고갈로 이어질 수 있습니다.</p>
+        <p>OSIV를 끄면 <strong>@Transactional이 끝나는 시점에 영속성 컨텍스트가 닫히므로</strong>, Service 밖에서 Lazy 접근 시 LazyInitializationException이 발생합니다. 하지만 이것이 오히려 <strong>"Service에서 필요한 데이터를 확실히 준비한다"는 좋은 아키텍처를 강제</strong>합니다.</p>
+<pre><code># application.yml
+spring:
+  jpa:
+    open-in-view: false  # API 서버는 끄는 것 권장
+
+// OSIV OFF 시 Service 계층 패턴
+@Service
+@Transactional(readOnly = true)
+public class TeamService {
+
+    public TeamDetailResponse getTeamDetail(Long id) {
+        // Fetch Join으로 필요한 데이터를 한 번에 로딩
+        Team team = teamRepository.findTeamWithMembers(id);
+        // 트랜잭션 안에서 DTO 변환 완료
+        return TeamDetailResponse.from(team);
+    }
+}
+</code></pre>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Hibernate의 1차 캐시와 N+1은 어떤 관계가 있나요?</div>
+      <div class="qa-a">
+        <p>1차 캐시(영속성 컨텍스트)는 <strong>같은 트랜잭션 내에서 이미 로딩된 엔티티를 재사용</strong>하는 캐시입니다. 하지만 N+1 문제 해결에는 크게 도움이 되지 않습니다. 왜냐하면 N+1은 "Team을 순회하며 각 Team의 Members를 로딩"하는 상황이고, 각 Team의 Members는 <strong>서로 다른 엔티티 집합</strong>이기 때문에 1차 캐시에 히트하지 않습니다.</p>
+        <p>다만, <code>@ManyToOne</code>에서는 도움이 됩니다. 예를 들어 100명의 Member가 같은 Team에 속해있으면, 첫 번째 Member 조회 시 Team이 1차 캐시에 올라가고, 나머지 99명은 캐시에서 가져옵니다. 그러나 이는 "같은 엔티티 인스턴스"에 한정된 최적화이며, <strong>근본적인 N+1 해결책은 아닙니다</strong>.</p>
+      </div>
+    </div>
+
+    <div class="qa-card">
+      <div class="qa-q">Spring Data JPA에서 Projection으로 N+1을 우회하는 방법은?</div>
+      <div class="qa-a">
+        <p>엔티티를 통째로 조회하지 않고 <strong>필요한 컬럼만 DTO로 바로 조회</strong>하면, 엔티티 그래프 자체를 타지 않으므로 N+1이 원천적으로 발생하지 않습니다. 이것이 <strong>DTO Projection</strong>입니다.</p>
+<pre><code>// 1. 생성자 표현식 (JPQL)
+@Query("SELECT new com.example.dto.TeamMemberDto("
+     + "t.name, m.name, m.age) "
+     + "FROM Team t JOIN t.members m")
+List&lt;TeamMemberDto&gt; findTeamMembers();
+
+// 2. Interface-based Projection
+public interface TeamSummary {
+    String getName();
+    int getMemberCount();
+}
+
+@Query("SELECT t.name AS name, SIZE(t.members) AS memberCount FROM Team t")
+List&lt;TeamSummary&gt; findTeamSummaries();
+
+// 3. QueryDSL Projection
+List&lt;TeamMemberDto&gt; result = queryFactory
+    .select(Projections.constructor(TeamMemberDto.class,
+        team.name, member.name, member.age))
+    .from(team)
+    .join(team.members, member)
+    .fetch();
+</code></pre>
+        <p>Projection의 장점은 N+1 방지뿐 아니라, <strong>불필요한 컬럼 조회와 영속성 컨텍스트 관리 비용을 줄일 수 있다</strong>는 점입니다. 조회 전용 API에서는 엔티티 조회보다 Projection이 성능상 유리합니다.</p>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script src="../js/main.js"></script>
+</body>
+</html>
